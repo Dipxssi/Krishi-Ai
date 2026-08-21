@@ -6,6 +6,18 @@ Multi-agent decision support for farmers: route a query to specialist agents, gr
 
 Not a single chatbot. An **orchestrator** selects a **set of agents** (finance, market, weather, crop health, equipment, soil, knowledge), runs typed tools, validates evidence, then revises (max 2 loops).
 
+## Research foundations
+
+KrishiAi adapts ideas from these papers (we implement a student-scale version, not a full reproduction):
+
+| Paper | What we take from it |
+|-------|----------------------|
+| [Agri-SAGE](https://arxiv.org/abs/2607.00454) | Closed-loop agricultural reasoning: farm context, retrieve → generate → verify, Plan–Critique–Revise (max 2 loops) |
+| [Multi-Agent Routing as Set-Valued Prediction](https://arxiv.org/abs/2606.28925) | Multi-label agent routing, threshold + top-1 fallback, cost-aware scoring, set metrics (F1, Jaccard, exact match) |
+| [AgroTools](https://arxiv.org/abs/2605.22366) | Typed tools, tool traces, argument validation / one retry, evidence-grounded final answers |
+| [Kisan AI](https://arxiv.org/abs/2605.00133) | Profit-aware decisions: agronomic vs economic scores, deterministic profit calculator, labeled price forecasts |
+| [AdapterMoE](https://arxiv.org/abs/2608.08808) | Two-stage crop image pipeline (planned): quality/crop route → disease expert, rejection, confidence calibration |
+
 ## Features (V1)
 
 * FastAPI backend + React frontend
