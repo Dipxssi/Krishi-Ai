@@ -1,136 +1,104 @@
-##  Features Implemented 
+# KrishiAi Backend (V1)
 
-###  1. FastAPI Backend Setup
+Text-only multi-agent farmer decision-support API.
 
-* REST API built using FastAPI
-* Interactive API docs available at `/docs`
-* Development environment managed using `uv`
+## Features
 
----
+- Persistent `FarmContext` (SQLite)
+- Multi-label router (keyword / embedding / hybrid) with threshold, top-1 fallback, cost penalty
+- Specialist agents: finance, market, weather, crop_health, equipment, soil, knowledge_retriever
+- Typed tools: weather, market price, profit calculator, decision score, crop knowledge RAG
+- Tool traces + evidence citations
+- Plan–Critique–Revise orchestrator (max 2 revisions)
+- Gemini for generation/embeddings when `GEMINI_API_KEY` is set
 
-###  2. Query Endpoint
+## Setup
 
-* Endpoint: `POST /query`
-* Accepts farmer queries in text format
-* Example:
+```bash
+cd backend
+uv sync
+```
+
+Create a `.env` at the repo root or in `backend/`:
+
+```env
+GEMINI_API_KEY=your_key_here
+GEMINI_MODEL=gemini-3.6-flash
+# optional
+ROUTER_MODE=hybrid
+ROUTER_THRESHOLD=0.60
+ROUTER_COST_LAMBDA=0.05
+AGRONOMIC_WEIGHT=0.6
+ECONOMIC_WEIGHT=0.4
+```
+
+Never commit API keys.
+
+## Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://127.0.0.1:5173 — keep the backend running on port 8000.
+
+## Run
+
+```bash
+cd backend
+uv run uvicorn app.main:app --reload
+```
+
+Open http://127.0.0.1:8000/docs
+
+## API
+
+### Create farm context
+
+`POST /farmers`
 
 ```json
 {
-  "query": "I want to buy a tractor but I don’t have money"
+  "farmer_id": "farmer-001",
+  "location": "Nashik",
+  "farm_area_acres": 2.0,
+  "crop": "tomato",
+  "growth_stage": "fruiting",
+  "soil_type": "loam",
+  "soil_npk": {"n": 40, "p": 30, "k": 40},
+  "irrigation_available": true,
+  "budget": 20000,
+  "preferred_language": "English",
+  "season": "kharif"
 }
 ```
 
----
+### Ask for advice
 
-###  3. Orchestrator (Core Logic)
-
-* Central decision-making component
-* Analyzes user query
-* Dynamically routes to relevant agents
-
----
-
-###  4. Multi-Agent Architecture
-
-Implemented agents (dummy logic for now):
-
-* **Finance Agent** → loans, subsidies, money-related issues
-* **Crop Agent** → crop health, diseases, soil issues
-* **Equipment Agent** → tractors, tools, farming equipment
-* **Market Agent** → selling crops, prices, marketplaces
-
----
-
-###  5. Rule-Based Routing 
-
-* Keyword-based intent detection
-* Supports triggering multiple agents per query
-* Example:
-
-  * "tractor + money" → Finance + Equipment
-
----
-
-###  6. Response Aggregation
-
-* Combines outputs from multiple agents
-* Produces a structured, user-friendly final answer
-
----
-
-##  Example Flow
-
-**Input:**
+`POST /query`
 
 ```json
 {
-  "query": "I want to buy a tractor but I don’t have money"
+  "farmer_id": "farmer-001",
+  "query": "Tomato market price is falling, limited budget, rain expected next week. Treat, continue, or sell early?"
 }
 ```
 
-**System Behavior:**
+Response includes `final_recommendation`, `agents_used`, `evidence`, `tool_traces`, `decision_score`, `warnings`, `missing_context`, and `revision_count`.
 
-* Orchestrator detects:
+Agents do **not** answer from the raw query alone — they require a stored `FarmContext`.
 
-  * finance intent
-  * equipment intent
-* Calls corresponding agents
-* Aggregates responses
+## Tests
 
-**Output:**
-
-```json
-{
-  "query": "...",
-  "final_answer": "Combined suggestions from agents",
-  "agents_used": ["finance", "equipment"]
-}
+```bash
+cd backend
+uv run pytest -q
 ```
 
----
+## Notes
 
-##  Architecture (Phase 1)
-
-```
-User Query → API → Orchestrator → Agents → Aggregator → Response
-```
-
----
-
-##  Current Limitations
-
-* Agents use **dummy/static responses**
-* Routing is **rule-based (keyword matching)**
-* No database or external data integration yet
-* No AI/LLM integration yet
-
----
-
-##  Next Steps (Phase 2)
-
-* Replace rule-based routing with **LLM-based intent classification**
-* Integrate **RAG (Retrieval-Augmented Generation)**
-* Connect real datasets (schemes, crop diseases, prices)
-* Add voice (Whisper) and image (Vision API) support
-
----
-
-##  Tech Stack
-
-* FastAPI
-* Python
-* uv (dependency management)
-
----
-
-##  Status
-
-✔ Backend architecture completed
-✔ Multi-agent system implemented
-✔ Ready for AI integration
-
----
-
-## 🎯 Summary
-
-This phase establishes a **scalable, modular backend system** where AI agents can be plugged in seamlessly without changing the overall architecture.
+- Without live weather/market API keys, tools return **labeled mock** data (`is_mock: true`).
+- Without `GEMINI_API_KEY`, recommendations use deterministic templates over tool/RAG evidence.
+- Image diagnosis is out of scope for V1.

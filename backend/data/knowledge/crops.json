@@ -1,0 +1,62 @@
+[
+  {
+    "id": "tomato-leaf-spot",
+    "crop": "tomato",
+    "title": "Tomato leaf spot management",
+    "text": "Early blight and septoria leaf spot cause dark spots on tomato leaves. Remove infected leaves, avoid overhead irrigation before rain, and use copper-based fungicide if disease pressure is high. Treatment cost is typically moderate; delay sprays if heavy rain is forecast within 24 hours."
+  },
+  {
+    "id": "tomato-fertilizer",
+    "crop": "tomato",
+    "title": "Tomato fertilizer rules",
+    "text": "Tomato needs balanced NPK. Excess nitrogen increases foliage and disease risk. Prefer split fertilizer doses. With limited budget, prioritize potassium and calcium during fruiting over additional nitrogen."
+  },
+  {
+    "id": "tomato-market-sell",
+    "crop": "tomato",
+    "title": "Tomato selling and storage",
+    "text": "Tomato is perishable with short shelf life. If mandi prices are falling and storage or cold chain is unavailable, consider staged early harvest of ripe fruit rather than holding for a recovery that may not come."
+  },
+  {
+    "id": "potato-blight",
+    "crop": "potato",
+    "title": "Potato late blight",
+    "text": "Late blight thrives in cool wet weather. Scout lower leaves, destroy infected haulms, and apply approved fungicide preventively when rain is expected. Do not spray immediately before heavy rainfall."
+  },
+  {
+    "id": "potato-npk",
+    "crop": "potato",
+    "title": "Potato soil and NPK",
+    "text": "Potato prefers well-drained loamy soil. Maintain adequate potassium for tuber quality. Avoid waterlogging which raises disease and reduces marketable yield."
+  },
+  {
+    "id": "maize-nutrient",
+    "crop": "maize",
+    "title": "Maize nutrient deficiency",
+    "text": "Yellowing of lower leaves often indicates nitrogen deficiency. Apply urea in splits. Confirm soil moisture before top dressing. Maize responds poorly to drought at tasseling."
+  },
+  {
+    "id": "maize-pest",
+    "crop": "maize",
+    "title": "Maize fall armyworm basics",
+    "text": "Scout whorls for larvae. Early detection allows mechanical control or targeted insecticide. Avoid blanket sprays when beneficial insects are active."
+  },
+  {
+    "id": "general-irrigation",
+    "crop": null,
+    "title": "Irrigation and rain timing",
+    "text": "Skip irrigation when significant rainfall is forecast. Standing water increases fungal disease risk for tomato and potato. Schedule sprays after rain when leaves dry."
+  },
+  {
+    "id": "general-budget",
+    "crop": null,
+    "title": "Limited budget decision rule",
+    "text": "Under tight budget, compare treatment cost against expected salvageable yield and current mandi price. If expected post-treatment profit is negative and prices are falling, selling early or reducing input intensity may be safer than full treatment."
+  },
+  {
+    "id": "equipment-sprayer",
+    "crop": null,
+    "title": "Sprayer equipment guidance",
+    "text": "For small farms under 3 acres, knapsack or rental battery sprayers are usually more cost-effective than owning tractor-mounted sprayers. Factor rental into treatment cost."
+  }
+]

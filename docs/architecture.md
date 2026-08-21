@@ -1,191 +1,65 @@
-# System Architecture – AI Farmer Decision Support System
+# System Architecture – KrishiAi V1
 
-##  Overview
+## Overview
 
-This system follows a **multi-agent AI architecture**, where a central orchestrator coordinates multiple specialized agents to solve farmer queries.
+KrishiAi V1 is a **text-only multi-agent decision-support** backend. A multi-label orchestrator routes farmer queries to specialist agents, each using typed tools and RAG. An evidence validator and Plan–Critique–Revise loop produce a structured recommendation grounded in farm context and tool outputs.
 
-The design is modular, scalable, and allows independent development of each component.
-
----
-
-## High-Level Architecture
+## High-level flow
 
 ```text
-Farmer Input (Text / Voice / Image)
-            ↓
-     Input Processor
-            ↓
-       Orchestrator
-   /     |      |      \
-Crop  Finance Equipment Market
-Agent   Agent    Agent    Agent
-            ↓
-     Response Aggregator
-            ↓
-        Final Advice
+Text query + farmer_id
+        ↓
+Load FarmContext (SQLite)
+        ↓
+Multi-label Router (keyword | embedding | hybrid)
+        ↓
+Specialist agents + Knowledge Retriever
+        ↓
+Typed tools (weather, market, profit, decision score, RAG)
+        ↓
+Evidence & Safety Validator
+        ↓
+Orchestrator revise (max 2)
+        ↓
+Structured recommendation + evidence + tool traces
 ```
 
----
+## Components
 
-##  System Flow
+| Component | Role |
+|-----------|------|
+| FarmContext | Persistent farmer/farm state required for every advice call |
+| Router | Set-valued agent selection with threshold, top-1 fallback, cost penalty |
+| Agents | finance, market, weather, crop_health, equipment, soil, knowledge_retriever |
+| Tools | Validated args → execute → one repair retry → tool trace |
+| RAG | Local crop knowledge (BM25 + optional Gemini embeddings) |
+| Validator | Checks evidence, missing context, unsafe pesticide language |
+| LLM | Google Gemini via `app/services/llm.py` (`GEMINI_API_KEY`) |
 
-### 1. Farmer Input
-
-* User provides input via:
-
-  * Text (current)
-  * Voice (planned)
-  * Image (planned)
-
----
-
-### 2. Input Processing
-
-* Cleans and normalizes input
-* Converts voice → text (future)
-* Extracts relevant keywords
-
----
-
-### 3. Orchestrator (Core Component)
-
-* Acts as the **decision engine**
-* Responsibilities:
-
-  * Analyze user query
-  * Identify intent
-  * Select relevant agents
-  * Coordinate execution
-
-Current implementation:
-
-* Rule-based keyword routing
-
-Future upgrade:
-
-* LLM-based intent classification
-
----
-
-### 4. Agents (Domain Experts)
-
-Each agent is independent and handles a specific domain:
-
-####  Crop Agent
-
-* Diagnoses crop-related issues
-* Suggests treatments and improvements
-
-####  Finance Agent
-
-* Provides financial solutions:
-
-  * Loans
-  * Subsidies
-  * Cost-saving options
-
-####  Equipment Agent
-
-* Suggests tools and machinery
-* Recommends rental or alternatives
-
-####  Market Agent
-
-* Provides selling strategies
-* Suggests marketplaces and pricing insights
-
----
-
-##  Agent Interaction Model
-
-* Agents are **stateless**
-* Each agent:
-
-  * Receives query
-  * Returns structured response
-* No direct communication between agents
-
----
-
-## Response Aggregation
-
-* Combines outputs from multiple agents
-* Formats into a user-friendly response
-* Ensures clarity and readability
-
----
-
-##  Design Principles
-
-### 1. Modularity
-
-* Each component is independent
-* Easy to extend with new agents
-
-### 2. Scalability
-
-* New agents can be added without changing core logic
-
-### 3. Loose Coupling
-
-* Orchestrator does not depend on agent implementation details
-
-### 4. Extensibility
-
-* AI logic (LLM, RAG) can be plugged in later
-
----
-
-##  Integration Points (Future)
-
-### AI Integration
-
-* Replace rule-based routing with LLM
-* Add RAG for factual accuracy
-
-###  Data Integration
-
-* Government schemes database
-* Crop disease datasets
-* Market price APIs
-
-### 🎤Voice Processing
-
-* Speech-to-text using Whisper
-
-### Image Analysis
-
-* Crop disease detection using vision models
-
----
-
-## 🗂️ Backend Architecture Mapping
+## Decision score
 
 ```text
-api/query.py              → Entry point
-orchestrator/router.py    → Routing logic
-orchestrator/orchestrator.py → Core coordination
-agents/                   → Domain-specific logic
-services/aggregator.py    → Response formatting
+final_score = agronomic_weight * agronomic_score + economic_weight * economic_score
 ```
 
----
+Defaults: `0.6` / `0.4` (configurable). Risks for water, disease, and input cost reduce the component scores.
 
-##  Current Limitations
+## Backend map
 
-* Rule-based routing (not intelligent yet)
-* Static (dummy) agent responses
-* No database integration
-* No real-time data
+```text
+app/api/query.py, farmers.py     → HTTP API
+app/db/session.py                → SQLite FarmContext + tool traces
+app/orchestrator/router.py       → Multi-label routing
+app/orchestrator/orchestrator.py → Plan–Critique–Revise
+app/agents/*                     → Domain specialists
+app/tools/*                      → Typed tools + registry
+app/services/rag.py, llm.py, validator.py
+data/knowledge/                  → Seed corpus
+```
 
----
+## Out of scope (V1)
 
-## Future Enhancements
-
-* LLM-based orchestration
-* Context-aware reasoning
-* Real-time data integration
-* Personalized recommendations
-* Multilingual support
-
----
+- Image crop diagnosis
+- Large labeled routing evaluation suite
+- React frontend / voice
+- APSIM / DSSAT simulators

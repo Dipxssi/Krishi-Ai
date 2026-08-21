@@ -42,40 +42,35 @@ An **Orchestrator** analyzes the query and dynamically routes it to relevant age
 * Python
 * uv (dependency management)
 
-### AI (Planned / In Progress)
+### AI (V1)
 
-* LLMs (OpenAI / Ollama)
-* RAG (Retrieval-Augmented Generation)
-* Vector Database (pgvector )
-
-### Frontend
-
-* React (planned)
+* Google Gemini (`GEMINI_API_KEY`, models `gemini-3.6-flash` + `gemini-embedding-001`)
+* Local crop knowledge RAG (BM25 + optional dense)
+* Typed tools: weather, market, profit, decision score
+* React frontend (`frontend/`) for farm profile + advice
 
 ---
 
+## Current Status (V1 text-only MVP)
 
+* FastAPI backend with FarmContext (SQLite)
+* Multi-label router (keyword / embedding / hybrid) + cost-aware selection
+* Finance, market, weather, crop health, equipment, soil, knowledge agents
+* Evidence validator + Plan–Critique–Revise (max 2)
+* Structured `/query` responses with tool traces and citations
 
-
----
-
-##  Current Status (Phase 1)
-
-*  Backend architecture implemented
-* Multi-agent system (4 agents)
-*  Rule-based query routing
-*  Response aggregation
+See [backend/README.md](backend/README.md) and [docs/architecture.md](docs/architecture.md).
 
 ---
 
-##  Upcoming Features
+## Upcoming Features
 
-* LLM-based intelligent routing
-*  RAG with real agricultural datasets
-*  Voice input using Whisper
-*  Crop disease detection via images
-*  Regional language support
-*  Real-time market price integration
+* Routing evaluation suite (labeled queries)
+* Crop image diagnosis (two-stage reject/diagnose)
+* Voice input using Whisper
+* Live market/weather APIs
+* React frontend
+* Regional language support
 
 ---
 
