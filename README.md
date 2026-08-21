@@ -1,110 +1,125 @@
-#  AI Farmer Decision Support System (Multi-Agent AI)
+# KrishiAi — AI Farmer Decision Support System
 
-## Project Overview
+Multi-agent decision support for farmers: route a query to specialist agents, ground answers in tools + RAG, and return a structured recommendation.
 
-The **AI Farmer Decision Support System** is a multi-agent AI platform designed to help farmers make informed agricultural and financial decisions.
+## Key idea
 
-The system allows farmers to ask queries in natural language (text, voice, or image), and provides **actionable, real-world solutions** by leveraging multiple specialized AI agents.
+Not a single chatbot. An **orchestrator** selects a **set of agents** (finance, market, weather, crop health, equipment, soil, knowledge), runs typed tools, validates evidence, then revises (max 2 loops).
 
----
+## Features (V1)
 
-##  Key Idea
+* FastAPI backend + React frontend
+* Persistent FarmContext (SQLite)
+* Multi-label router (keyword / embedding / hybrid) with cost-aware selection
+* Typed tools: weather, market, profit, decision score, crop knowledge RAG
+* Evidence citations + tool traces
+* Plan–Critique–Revise orchestrator
+* Google Gemini for generation/embeddings when `GEMINI_API_KEY` is set
 
-Instead of a single chatbot, this system uses a **multi-agent architecture**, where each agent specializes in a specific domain:
+## Tech stack
 
-*  Crop Health
-*  Finance
-*  Equipment
-* Market
+| Layer | Stack |
+|-------|--------|
+| Backend | FastAPI, Python 3.12+, uv, SQLModel/SQLite |
+| LLM | Gemini (`gemini-3.6-flash`, `gemini-embedding-001`) |
+| Frontend | React + Vite (`frontend/`) |
+| RAG | Local corpus + BM25 (+ optional Gemini dense) |
 
-An **Orchestrator** analyzes the query and dynamically routes it to relevant agents, then combines their responses into a single, structured output.
+## Run
 
----
+```bash
+# Backend
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload
+# → http://127.0.0.1:8000/docs
 
+# Frontend
+cd frontend
+npm install
+npm run dev
+# → http://127.0.0.1:5173
+```
 
-##  Features
+Put secrets in the repo-root `.env` (never commit it). See `backend/.env.example`.
 
-*  Multi-agent AI architecture
-*  Dynamic query routing (Orchestrator)
-*  Aggregated, structured responses
-*  Modular and scalable design
-*  API-based backend (FastAPI)
-*  Planned voice input (Whisper)
-* Planned image-based crop analysis
+## Routing evaluation
 
----
+Labeled multi-label routing eval lives under the backend:
 
-##  Tech Stack
+| Path | Purpose |
+|------|---------|
+| [`backend/data/eval/queries.jsonl`](backend/data/eval/queries.jsonl) | 55 labeled farmer queries |
+| [`backend/scripts/eval_routing.py`](backend/scripts/eval_routing.py) | Precision / recall / F1 / Jaccard runner |
+| [`backend/scripts/sweep_threshold.py`](backend/scripts/sweep_threshold.py) | Threshold sweep (keyword only, no Gemini) |
+| [`backend/docs/ORCHESTRATOR_EVAL.md`](backend/docs/ORCHESTRATOR_EVAL.md) | Orchestrator / routing eval guide |
 
-### Backend
+### Recommended router settings
 
-* FastAPI
-* Python
-* uv (dependency management)
+```env
+ROUTER_MODE=keyword
+ROUTER_THRESHOLD=0.45
+ROUTER_COST_LAMBDA=0.02
+```
 
-### AI (V1)
+Use **keyword** mode while iterating on routing so eval does not burn Gemini embed quota (`429 RESOURCE_EXHAUSTED`). Hybrid/embedding modes are optional later.
 
-* Google Gemini (`GEMINI_API_KEY`, models `gemini-3.6-flash` + `gemini-embedding-001`)
-* Local crop knowledge RAG (BM25 + optional dense)
-* Typed tools: weather, market, profit, decision score
-* React frontend (`frontend/`) for farm profile + advice
+### How to run eval
 
----
+```bash
+cd backend
 
-## Current Status (V1 text-only MVP)
+# Metrics + mismatches
+uv run python scripts/eval_routing.py --mode keyword --threshold 0.45 --cost-lambda 0.02 --show-misses
 
-* FastAPI backend with FarmContext (SQLite)
-* Multi-label router (keyword / embedding / hybrid) + cost-aware selection
-* Finance, market, weather, crop health, equipment, soil, knowledge agents
-* Evidence validator + Plan–Critique–Revise (max 2)
-* Structured `/query` responses with tool traces and citations
+# Threshold sweep (no Gemini calls)
+uv run python scripts/sweep_threshold.py
+```
 
-See [backend/README.md](backend/README.md) and [docs/architecture.md](docs/architecture.md).
+### Latest baseline (keyword, threshold 0.45, λ 0.02, n=55)
 
----
+| Metric | Score |
+|--------|------:|
+| Precision | 0.96 |
+| Recall | 0.97 |
+| Multi-label F1 | **0.95** |
+| Jaccard | 0.93 |
+| Exact-match accuracy | 0.82 |
+| Avg agents selected | ~2.2 |
+| Unnecessary-agent rate | ~0.05 |
+| Missing-agent rate | ~0.04 |
 
-## Upcoming Features
+Threshold guidance from the sweep:
 
-* Routing evaluation suite (labeled queries)
-* Crop image diagnosis (two-stage reject/diagnose)
-* Voice input using Whisper
-* Live market/weather APIs
-* React frontend
-* Regional language support
+* **0.30–0.45** — best F1 / recall (preferred)
+* **0.55–0.60** — higher precision, more misses
+* **0.65+** — too strict; recall collapses
 
----
+Exact-match will not hit 100% on multi-label farming queries; remaining mismatches are mostly edge cases (e.g. pure price lookup vs finance).
 
-##  Team Roles
+## Team split
 
-* Backend & Orchestrator
-* AI / Agents & RAG
-* Frontend (UI/UX)
-* Data & Integrations
+| Role | Owns | Focus |
+|------|------|--------|
+| Orchestrator | `orchestrator/`, eval harness | Routing quality, validator, revise loop, metrics |
+| Data & tools | `tools/`, `data/knowledge/`, RAG | Live weather/market APIs, richer corpus |
+| Vision | new vision module | Tomato image diagnosis (quality → crop → disease → reject) |
+| Frontend | `frontend/` | UI, evidence display, later image upload |
 
----
+## Docs
 
-##  Problem Statement
+* [backend/README.md](backend/README.md) — API + setup
+* [docs/architecture.md](docs/architecture.md) — system flow
+* [backend/docs/ORCHESTRATOR_EVAL.md](backend/docs/ORCHESTRATOR_EVAL.md) — routing eval guide
+* [frontend/README.md](frontend/README.md) — UI run instructions
 
-Farmers often lack access to:
+## Out of scope / next
 
-* Reliable agricultural advice
-* Financial guidance
-* Market insights
-* Equipment accessibility
+* Image diagnosis (V3)
+* Larger labeled set (100–300) and tool-level eval
+* Live weather/market APIs (until keys are wired)
+* Voice / mobile
 
-This system provides a **unified platform** that combines all these aspects into a single intelligent assistant.
+## Problem statement
 
----
-
-##  Conclusion
-
-This project demonstrates a **scalable multi-agent AI system** capable of solving real-world agricultural problems through modular design and intelligent orchestration.
-
----
-
-##  Future Scope
-
-* Mobile app for rural accessibility
-* Offline/low-bandwidth support
-* Integration with government APIs
-* AI-driven personalized recommendations
+Farmers often lack reliable advice on crop health, finance, markets, and equipment. KrishiAi combines those domains in one evidence-grounded assistant.

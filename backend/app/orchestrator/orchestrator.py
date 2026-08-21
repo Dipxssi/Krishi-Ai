@@ -146,6 +146,24 @@ def _revise(draft: str, critique: str, evidence: list[EvidenceItem], context: Fa
     )
 
 
+def _clarifying_preface(missing: list[str]) -> str:
+    if not missing:
+        return ""
+    labels = {
+        "location": "farm location",
+        "crop": "current/planned crop",
+        "budget": "available budget (INR)",
+        "farm_area_acres": "farm area in acres",
+        "soil_type_or_soil_npk": "soil type or NPK values",
+    }
+    pretty = [labels.get(m, m) for m in missing]
+    return (
+        "Before acting on high-stakes advice, please update FarmContext with: "
+        + ", ".join(pretty)
+        + ".\n\n"
+    )
+
+
 def handle_query(query: str, context: FarmContext) -> QueryResponse:
     _ensure_tools()
     tool_registry.reset(farmer_id=context.farmer_id)
@@ -188,6 +206,11 @@ def handle_query(query: str, context: FarmContext) -> QueryResponse:
     decision = _compute_decision_score(context, validation["evidence"], query)
     confidences = [a.confidence for a in agent_results]
     confidence = sum(confidences) / len(confidences) if confidences else 0.0
+
+    # Lower confidence when critical farm fields are missing
+    if validation["missing_context"]:
+        confidence = min(confidence, 0.4)
+        final = _clarifying_preface(validation["missing_context"]) + final
 
     return QueryResponse(
         query=query,

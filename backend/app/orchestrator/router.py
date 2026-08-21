@@ -41,37 +41,159 @@ def _cosine_dense(a: list[float], b: list[float]) -> float:
     return dot / (na * nb)
 
 
+def _keyword_hit(keyword: str, query: str) -> bool:
+    """Match phrases by substring; match single tokens on word boundaries."""
+    kw = keyword.lower()
+    if " " in kw or "-" in kw:
+        return kw in query
+    return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", query) is not None
+
+
 def keyword_scores(query: str) -> dict[str, float]:
     q = query.lower()
     scores: dict[str, float] = {agent: 0.0 for agent in AGENTS}
     for agent, keywords in AGENT_KEYWORDS.items():
-        hits = sum(1 for kw in keywords if kw in q)
+        hits = sum(1 for kw in keywords if _keyword_hit(kw, q))
         if hits:
             scores[agent] = min(1.0, 0.45 + 0.2 * hits)
-    return scores
+    return apply_cooccurrence_boosts(q, scores)
 
 
-def embedding_scores(query: str) -> dict[str, float]:
-    profiles = [AGENT_PROFILES[a] for a in AGENTS]
-    dense = llm.embed([query, *profiles])
-    if dense and len(dense) == 1 + len(AGENTS):
-        q_vec = dense[0]
-        return {
-            agent: max(0.0, min(1.0, (_cosine_dense(q_vec, dense[i + 1]) + 1) / 2))
-            for i, agent in enumerate(AGENTS)
-        }
+def apply_cooccurrence_boosts(query: str, scores: dict[str, float]) -> dict[str, float]:
+    """Deterministic boosts for common multi-agent farmer intents."""
+    out = dict(scores)
+    q = query.lower()
 
-    # Bag-of-words fallback
+    def bump(agent: str, amount: float = 0.55) -> None:
+        out[agent] = max(out.get(agent, 0.0), amount)
+
+    planting = any(
+        p in q for p in ("plant now", "should i plant", "planting", "plant tomatoes", "plant rice")
+    )
+    if planting:
+        bump("weather")
+        bump("market")
+        bump("finance")
+        # soil only if fertility/soil cues present
+        if any(p in q for p in ("soil", "npk", "fertilizer", "fertility")):
+            bump("soil", 0.50)
+
+    # Profit / cost math → finance; market only when price/sell context
+    if any(p in q for p in ("profit", "break-even", "break even", "estimate total", "input cost")):
+        bump("finance")
+        if any(p in q for p in ("price", "mandi", "market", "sell", "acres")):
+            bump("market")
+
+    # Market decision (not pure price lookup)
+    if any(p in q for p in ("sell early", "hold or sell", "falling", "sell or", "decide selling")):
+        bump("market")
+        bump("finance")
+    elif any(p in q for p in ("mandi", "market price", "demand", "storage")):
+        bump("market")
+        # finance only if money decision words also present
+        if any(p in q for p in ("budget", "profit", "cost", "afford", "loan", "worth")):
+            bump("finance")
+
+    # Crop stress / disease → crop_health (boost high enough to survive cost tier 3)
+    if any(
+        p in q
+        for p in (
+            "blight",
+            "spots",
+            "fungus",
+            "infection",
+            "disease",
+            "pest",
+            "treat",
+            "treatment",
+            "deficiency",
+            "yellow",
+            "protect",
+            "flowers",
+            "scout",
+            "stems",
+        )
+    ):
+        bump("crop_health", 0.70)
+
+    # Fertilizer / nutrient management → soil (+ knowledge if asking what/how)
+    if any(p in q for p in ("fertilizer", "fertiliser", "nutrient", "npk", "potassium", "phosphorus", "nitrogen")):
+        bump("soil")
+        if any(
+            p in q
+            for p in (
+                "practice",
+                "what to apply",
+                "levels",
+                "guidance",
+                "how to",
+                "reduce dose",
+                "deficiency",
+                "risk",
+                "treatment",
+                "infection",
+                "blight",
+                "fungus",
+            )
+        ):
+            bump("knowledge_retriever", 0.60)
+
+    if any(p in q for p in ("soil", "ph ", " ph", "tuber")):
+        bump("soil")
+        if any(p in q for p in ("suitable", "levels", "quality", "apply")):
+            bump("knowledge_retriever", 0.60)
+
+    # Irrigation under drought/crop → weather + crop/soil
+    if "irrigate" in q or ("irrigation" in q and "loan" not in q and "drip" not in q):
+        bump("weather")
+        if any(p in q for p in ("maize", "tomato", "potato", "crop", "leaves", "deficiency")):
+            bump("crop_health", 0.70)
+            bump("soil", 0.55)
+
+    # Equipment rent/buy
+    if any(
+        _keyword_hit(p, q)
+        for p in ("tractor", "harvester", "sprayer", "rental", "tiller", "equipment", "tilling")
+    ):
+        bump("equipment")
+        if any(_keyword_hit(p, q) for p in ("cost", "buy", "hire", "worth", "payback", "afford", "rent")):
+            bump("finance")
+
+    # Weather stress (avoid loan+drip-only)
+    if "loan" not in q and any(
+        p in q for p in ("rain", "drought", "flood", "monsoon", "humidity", "temperature stress")
+    ):
+        bump("weather")
+
+    return out
+
+
+def bow_embedding_scores(query: str) -> dict[str, float]:
+    """Local bag-of-words similarity — no Gemini calls."""
     q_bow = _bow_vector(_tokenize(query))
     scores: dict[str, float] = {}
     for agent in AGENTS:
-        p_bow = _bow_vector(_tokenize(AGENT_PROFILES[agent] + " " + " ".join(AGENT_KEYWORDS.get(agent, []))))
+        p_bow = _bow_vector(
+            _tokenize(AGENT_PROFILES[agent] + " " + " ".join(AGENT_KEYWORDS.get(agent, [])))
+        )
         scores[agent] = _cosine(q_bow, p_bow)
-    # Softmax-ish normalize to 0-1 relative scale
     mx = max(scores.values()) if scores else 0.0
     if mx > 0:
         scores = {k: v / mx for k, v in scores.items()}
     return scores
+
+
+def embedding_scores(query: str, *, allow_remote: bool = True) -> dict[str, float]:
+    if allow_remote:
+        profiles = [AGENT_PROFILES[a] for a in AGENTS]
+        dense = llm.embed([query, *profiles])
+        if dense and len(dense) == 1 + len(AGENTS):
+            q_vec = dense[0]
+            return {
+                agent: max(0.0, min(1.0, (_cosine_dense(q_vec, dense[i + 1]) + 1) / 2))
+                for i, agent in enumerate(AGENTS)
+            }
+    return bow_embedding_scores(query)
 
 
 def combine_scores(
@@ -104,23 +226,42 @@ def select_agents(
     selected = [agent for agent, score in agent_scores.items() if score >= threshold]
     if not selected:
         selected = [max(agent_scores, key=agent_scores.get)]
-    # Preserve catalog order for stability
     order = {a: i for i, a in enumerate(AGENTS)}
     return sorted(selected, key=lambda a: order.get(a, 99))
 
 
-def route_query(query: str) -> tuple[list[str], dict[str, float]]:
-    """Return selected agents and raw (pre-penalty) scores for debugging."""
-    settings = get_settings()
+def score_query(
+    query: str,
+    *,
+    mode: str,
+    threshold: float,
+    cost_lambda: float,
+    allow_remote_embeddings: bool = True,
+) -> tuple[list[str], dict[str, float]]:
+    """Shared scoring path for production router and eval scripts."""
     kw = keyword_scores(query)
-    emb = embedding_scores(query)
-    base = combine_scores(kw, emb, settings.router_mode)
-    adjusted = apply_cost_penalty(base, settings.router_cost_lambda)
-    selected = select_agents(adjusted, settings.router_threshold)
+    if mode == "keyword":
+        emb: dict[str, float] = {a: 0.0 for a in AGENTS}
+    else:
+        emb = embedding_scores(query, allow_remote=allow_remote_embeddings)
+    base = combine_scores(kw, emb, mode)
+    adjusted = apply_cost_penalty(base, cost_lambda)
+    selected = select_agents(adjusted, threshold)
     return selected, adjusted
 
 
-# Back-compat alias used by older imports
+def route_query(query: str) -> tuple[list[str], dict[str, float]]:
+    """Return selected agents and adjusted scores."""
+    settings = get_settings()
+    return score_query(
+        query,
+        mode=settings.router_mode,
+        threshold=settings.router_threshold,
+        cost_lambda=settings.router_cost_lambda,
+        allow_remote_embeddings=True,
+    )
+
+
 def route_agents(query: str, agent_scores: dict[str, float] | None = None, threshold: float = 0.60):
     if agent_scores is None:
         selected, _ = route_query(query)
