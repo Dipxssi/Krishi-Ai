@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
     knowledge_dir: str = str(BACKEND_DIR / "data" / "knowledge")
 
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-3.6-flash"
     gemini_embedding_model: str = "gemini-embedding-001"

@@ -10,6 +10,7 @@ os.environ["ROUTER_MODE"] = "keyword"
 os.environ["ROUTER_THRESHOLD"] = "0.40"
 os.environ["ROUTER_COST_LAMBDA"] = "0.02"
 os.environ["GEMINI_API_KEY"] = ""
+os.environ["GROQ_API_KEY"] = ""
 
 from app.core.config import get_settings
 from app.db.session import init_db, reset_engine

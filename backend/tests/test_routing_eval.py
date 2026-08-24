@@ -1,6 +1,10 @@
 """Routing metrics and labeled eval tests."""
 
+import os
 from pathlib import Path
+
+os.environ.setdefault("GEMINI_API_KEY", "")
+os.environ.setdefault("GROQ_API_KEY", "")
 
 from app.orchestrator.metrics import aggregate_scores, score_sets
 from app.orchestrator.router import score_query

@@ -1,0 +1,158 @@
+[
+  {
+    "id": "knapsack-sprayer-manual",
+    "type": "sprayer",
+    "name": "Manual Knapsack Sprayer (16L)",
+    "price_range_inr": [1200, 2500],
+    "rental_per_day_inr": 100,
+    "suitable_area_acres": [0, 3],
+    "category": "plant_protection",
+    "source": "curated_2024"
+  },
+  {
+    "id": "battery-sprayer",
+    "type": "sprayer",
+    "name": "Battery-operated Sprayer (16L)",
+    "price_range_inr": [3000, 5500],
+    "rental_per_day_inr": 200,
+    "suitable_area_acres": [0, 5],
+    "category": "plant_protection",
+    "source": "curated_2024"
+  },
+  {
+    "id": "power-tiller",
+    "type": "tiller",
+    "name": "Power Tiller (5-9 HP)",
+    "price_range_inr": [80000, 180000],
+    "rental_per_day_inr": 1200,
+    "suitable_area_acres": [1, 10],
+    "category": "land_preparation",
+    "source": "curated_2024"
+  },
+  {
+    "id": "mini-tractor",
+    "type": "tractor",
+    "name": "Mini Tractor (15-25 HP)",
+    "price_range_inr": [250000, 500000],
+    "rental_per_day_inr": 2000,
+    "suitable_area_acres": [3, 20],
+    "category": "land_preparation",
+    "source": "curated_2024"
+  },
+  {
+    "id": "tractor-35hp",
+    "type": "tractor",
+    "name": "Tractor (35-50 HP)",
+    "price_range_inr": [450000, 900000],
+    "rental_per_day_inr": 3000,
+    "suitable_area_acres": [5, 50],
+    "category": "land_preparation",
+    "source": "curated_2024"
+  },
+  {
+    "id": "rotavator",
+    "type": "rotavator",
+    "name": "Rotavator (tractor-mounted)",
+    "price_range_inr": [55000, 130000],
+    "rental_per_day_inr": 1500,
+    "suitable_area_acres": [3, 50],
+    "category": "land_preparation",
+    "source": "curated_2024"
+  },
+  {
+    "id": "drip-irrigation-kit",
+    "type": "irrigation",
+    "name": "Drip Irrigation Kit (per acre)",
+    "price_range_inr": [25000, 45000],
+    "rental_per_day_inr": null,
+    "suitable_area_acres": [0.5, 100],
+    "category": "irrigation",
+    "subsidy_available": true,
+    "subsidy_scheme": "PMKSY - Per Drop More Crop",
+    "source": "curated_2024"
+  },
+  {
+    "id": "sprinkler-set",
+    "type": "irrigation",
+    "name": "Sprinkler Set (per acre)",
+    "price_range_inr": [15000, 30000],
+    "rental_per_day_inr": null,
+    "suitable_area_acres": [0.5, 50],
+    "category": "irrigation",
+    "subsidy_available": true,
+    "subsidy_scheme": "PMKSY - Per Drop More Crop",
+    "source": "curated_2024"
+  },
+  {
+    "id": "combined-harvester",
+    "type": "harvester",
+    "name": "Combined Harvester (self-propelled)",
+    "price_range_inr": [1500000, 3000000],
+    "rental_per_acre_inr": 3500,
+    "suitable_area_acres": [10, 500],
+    "category": "harvesting",
+    "source": "curated_2024"
+  },
+  {
+    "id": "thresher",
+    "type": "thresher",
+    "name": "Multi-crop Thresher",
+    "price_range_inr": [40000, 120000],
+    "rental_per_day_inr": 1500,
+    "suitable_area_acres": [2, 30],
+    "category": "harvesting",
+    "source": "curated_2024"
+  },
+  {
+    "id": "seed-drill",
+    "type": "seed_drill",
+    "name": "Seed Drill / Seed-cum-Fertilizer Drill",
+    "price_range_inr": [25000, 75000],
+    "rental_per_day_inr": 800,
+    "suitable_area_acres": [2, 50],
+    "category": "sowing",
+    "source": "curated_2024"
+  },
+  {
+    "id": "solar-pump",
+    "type": "pump",
+    "name": "Solar Water Pump (2-5 HP)",
+    "price_range_inr": [100000, 300000],
+    "rental_per_day_inr": null,
+    "suitable_area_acres": [1, 20],
+    "category": "irrigation",
+    "subsidy_available": true,
+    "subsidy_scheme": "PM-KUSUM",
+    "source": "curated_2024"
+  },
+  {
+    "id": "manual-weeder",
+    "type": "weeder",
+    "name": "Manual/Wheel Weeder",
+    "price_range_inr": [800, 3000],
+    "rental_per_day_inr": 50,
+    "suitable_area_acres": [0, 5],
+    "category": "weeding",
+    "source": "curated_2024"
+  },
+  {
+    "id": "power-weeder",
+    "type": "weeder",
+    "name": "Power Weeder (petrol, 2-5 HP)",
+    "price_range_inr": [20000, 50000],
+    "rental_per_day_inr": 500,
+    "suitable_area_acres": [1, 15],
+    "category": "weeding",
+    "source": "curated_2024"
+  },
+  {
+    "id": "mulch-layer",
+    "type": "mulch_layer",
+    "name": "Plastic Mulch Laying Machine",
+    "price_range_inr": [15000, 40000],
+    "rental_per_day_inr": 600,
+    "suitable_area_acres": [1, 20],
+    "category": "land_preparation",
+    "source": "curated_2024"
+  }
+]

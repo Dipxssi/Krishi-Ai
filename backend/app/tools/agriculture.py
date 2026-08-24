@@ -231,6 +231,121 @@ def search_crop_knowledge(query: str, crop: str | None = None, top_k: int = 3) -
     return {"query": query, "crop": crop, "results": hits}
 
 
+# ---- Equipment prices ----
+
+
+class EquipmentPriceArgs(BaseModel):
+    equipment_type: str | None = None
+    category: str | None = None
+    farm_area_acres: float | None = None
+
+
+def _load_equipment_data() -> list[dict[str, Any]]:
+    import json
+    path = Path(get_settings().knowledge_dir) / "equipment_prices.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def get_equipment_price(
+    equipment_type: str | None = None,
+    category: str | None = None,
+    farm_area_acres: float | None = None,
+) -> dict[str, Any]:
+    items = _load_equipment_data()
+    results = []
+    for item in items:
+        if equipment_type:
+            et = equipment_type.lower()
+            if et not in item.get("type", "").lower() and et not in item.get("name", "").lower():
+                continue
+        if category and category.lower() != item.get("category", "").lower():
+            continue
+        if farm_area_acres is not None:
+            suitable = item.get("suitable_area_acres", [0, 9999])
+            if farm_area_acres < suitable[0] or farm_area_acres > suitable[1]:
+                continue
+        results.append(item)
+    return {"matches": results[:5], "total": len(results), "source": "curated_2024"}
+
+
+# ---- Government schemes ----
+
+
+class SchemesSearchArgs(BaseModel):
+    category: str | None = None
+    crop: str | None = None
+    state: str | None = None
+
+
+def _load_schemes_data() -> list[dict[str, Any]]:
+    import json
+    path = Path(get_settings().knowledge_dir) / "schemes.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def search_schemes(
+    category: str | None = None,
+    crop: str | None = None,
+    state: str | None = None,
+) -> dict[str, Any]:
+    items = _load_schemes_data()
+    results = []
+    for item in items:
+        if category and category.lower() != item.get("category", "").lower():
+            continue
+        if crop:
+            if item.get("crop_specific") and "crops" in item:
+                if crop.lower() not in [c.lower() for c in item["crops"]]:
+                    continue
+        if state and item.get("state") != "all" and state.lower() != item.get("state", "").lower():
+            continue
+        results.append(item)
+    return {"matches": results, "total": len(results), "source": "curated_2024"}
+
+
+# ---- Loans ----
+
+
+class LoansSearchArgs(BaseModel):
+    category: str | None = None
+    amount_needed: float | None = None
+    purpose: str | None = None
+
+
+def _load_loans_data() -> list[dict[str, Any]]:
+    import json
+    path = Path(get_settings().knowledge_dir) / "loans.json"
+    if not path.exists():
+        return []
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def search_loans(
+    category: str | None = None,
+    amount_needed: float | None = None,
+    purpose: str | None = None,
+) -> dict[str, Any]:
+    items = _load_loans_data()
+    results = []
+    for item in items:
+        if category and category.lower() != item.get("category", "").lower():
+            continue
+        if amount_needed is not None and item.get("max_amount_inr") is not None:
+            if amount_needed > item["max_amount_inr"]:
+                continue
+        if purpose:
+            p = purpose.lower()
+            name_cat = (item.get("name", "") + " " + item.get("category", "")).lower()
+            if p not in name_cat and p not in item.get("eligibility", "").lower():
+                continue
+        results.append(item)
+    return {"matches": results, "total": len(results), "source": "curated_2024"}
+
+
 def default_today() -> str:
     return date.today().isoformat()
 
@@ -241,3 +356,6 @@ def register_all_tools(registry) -> None:
     registry.register("calculate_profit", calculate_profit, ProfitArgs)
     registry.register("estimate_decision_score", estimate_decision_score, DecisionScoreArgs)
     registry.register("search_crop_knowledge", search_crop_knowledge, KnowledgeSearchArgs)
+    registry.register("get_equipment_price", get_equipment_price, EquipmentPriceArgs)
+    registry.register("search_schemes", search_schemes, SchemesSearchArgs)
+    registry.register("search_loans", search_loans, LoansSearchArgs)

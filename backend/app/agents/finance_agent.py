@@ -1,5 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
-from app.schemas.models import AgentResult, FarmContext
+from app.schemas.models import AgentResult, EvidenceItem, FarmContext
 from app.tools.agriculture import default_today
 from app.tools.registry import tool_registry
 
@@ -63,6 +63,36 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
     evidence.extend(evidence_from_trace("finance", ptrace))
     profit = ptrace.output if ptrace.status.startswith("success") else {}
 
+    # Search for relevant loans
+    loan_trace = tool_registry.execute(
+        agent="finance",
+        tool="search_loans",
+        arguments={
+            "category": None,
+            "amount_needed": context.budget,
+            "purpose": None,
+        },
+    )
+    loan_lines = []
+    if loan_trace.status.startswith("success") and isinstance(loan_trace.output, dict):
+        for loan in loan_trace.output.get("matches", [])[:3]:
+            line = f"{loan['name']}: {loan['effective_rate_with_subvention_percent'] or loan['interest_rate_percent']}% up to ₹{loan.get('max_amount_inr') or 'varies'}"
+            loan_lines.append(line)
+            evidence.append(EvidenceItem(source=f"loan:{loan['id']}", value=line, unit="loan", agent="finance"))
+
+    # Search for relevant schemes
+    scheme_trace = tool_registry.execute(
+        agent="finance",
+        tool="search_schemes",
+        arguments={"category": None, "crop": context.crop, "state": None},
+    )
+    scheme_lines = []
+    if scheme_trace.status.startswith("success") and isinstance(scheme_trace.output, dict):
+        for s in scheme_trace.output.get("matches", [])[:3]:
+            line = f"{s['name']}: {s['benefit']}"
+            scheme_lines.append(line)
+            evidence.append(EvidenceItem(source=f"scheme:{s['id']}", value=line, unit="scheme", agent="finance"))
+
     budget_note = (
         f"Budget available: INR {context.budget}."
         if context.budget is not None
@@ -71,7 +101,10 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
     draft = (
         f"Estimated revenue INR {profit.get('revenue')}, total cost INR {profit.get('total_cost')}, "
         f"profit INR {profit.get('profit')}, break-even INR {profit.get('break_even_price')}/kg. "
-        f"{budget_note} Prefer lower-cost treatment or early sale if profit after full treatment is weak "
+        f"{budget_note}\n"
+        f"Loans available: {'; '.join(loan_lines) or 'none matched'}.\n"
+        f"Schemes: {'; '.join(scheme_lines) or 'none matched'}.\n"
+        f"Prefer lower-cost treatment or early sale if profit after full treatment is weak "
         f"and prices are soft."
     )
     recommendation = enrich_with_llm("finance", context, query, draft, evidence)

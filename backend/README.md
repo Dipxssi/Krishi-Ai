@@ -10,7 +10,7 @@ Text-only multi-agent farmer decision-support API.
 - Typed tools: weather, market price, profit calculator, decision score, crop knowledge RAG
 - Tool traces + evidence citations
 - Plan–Critique–Revise orchestrator (max 2 revisions)
-- Gemini for generation/embeddings when `GEMINI_API_KEY` is set
+- Groq for generation when `GROQ_API_KEY` is set; Gemini fallback + embeddings when `GEMINI_API_KEY` is set
 
 ## Setup
 
@@ -22,7 +22,9 @@ uv sync
 Create a `.env` at the repo root or in `backend/`:
 
 ```env
-GEMINI_API_KEY=your_key_here
+GROQ_API_KEY=your_groq_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+GEMINI_API_KEY=your_gemini_key_here
 GEMINI_MODEL=gemini-3.6-flash
 # optional
 ROUTER_MODE=hybrid
@@ -100,5 +102,6 @@ uv run pytest -q
 ## Notes
 
 - Without live weather/market API keys, tools return **labeled mock** data (`is_mock: true`).
-- Without `GEMINI_API_KEY`, recommendations use deterministic templates over tool/RAG evidence.
+- Without `GROQ_API_KEY` and `GEMINI_API_KEY`, recommendations use deterministic templates over tool/RAG evidence.
+- Generation uses Groq first and Gemini if Groq is missing or fails. Dense embeddings still require Gemini.
 - Image diagnosis is out of scope for V1.

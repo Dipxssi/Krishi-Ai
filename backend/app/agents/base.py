@@ -49,6 +49,15 @@ def evidence_from_trace(agent: str, trace) -> list[EvidenceItem]:
             )
     elif trace.tool == "estimate_decision_score":
         items.append(EvidenceItem(source="decision_score", value=out.get("final_score"), unit="score", agent=agent))
+    elif trace.tool == "get_equipment_price":
+        for m in out.get("matches", [])[:3]:
+            items.append(EvidenceItem(source="equipment_prices", value=m.get("name"), unit="equipment", agent=agent))
+    elif trace.tool == "search_schemes":
+        for m in out.get("matches", [])[:3]:
+            items.append(EvidenceItem(source=f"scheme:{m.get('id')}", value=m.get("name"), unit="scheme", agent=agent))
+    elif trace.tool == "search_loans":
+        for m in out.get("matches", [])[:3]:
+            items.append(EvidenceItem(source=f"loan:{m.get('id')}", value=m.get("name"), unit="loan", agent=agent))
     return items
 
 

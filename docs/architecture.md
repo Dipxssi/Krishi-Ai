@@ -34,7 +34,7 @@ Structured recommendation + evidence + tool traces
 | Tools | Validated args → execute → one repair retry → tool trace |
 | RAG | Local crop knowledge (BM25 + optional Gemini embeddings) |
 | Validator | Checks evidence, missing context, unsafe pesticide language |
-| LLM | Google Gemini via `app/services/llm.py` (`GEMINI_API_KEY`) |
+| LLM | Groq generation first, Gemini fallback, Gemini embeddings (`app/services/llm.py`) |
 
 ## Decision score
 
