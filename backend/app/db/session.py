@@ -72,6 +72,9 @@ def init_db() -> None:
         from pathlib import Path
 
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+    # Register audit tables before create_all (also used from tests without importing main).
+    from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401
+
     SQLModel.metadata.create_all(get_engine())
 
 

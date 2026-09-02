@@ -9,7 +9,6 @@ os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["ROUTER_MODE"] = "keyword"
 os.environ["ROUTER_THRESHOLD"] = "0.40"
 os.environ["ROUTER_COST_LAMBDA"] = "0.02"
-os.environ["GEMINI_API_KEY"] = ""
 os.environ["GROQ_API_KEY"] = ""
 
 from app.core.config import get_settings
@@ -115,6 +114,50 @@ def test_market_price_labeled_mock():
     assert out["is_mock"] is True
     assert out["current_price"] > 0
     assert out["forecast_uncertainty"] == "medium"
+
+
+def test_farmer_put_updates_context():
+    client = TestClient(app)
+    payload = {
+        "farmer_id": "f-put",
+        "location": "Nashik",
+        "farm_area_acres": 2.0,
+        "crop": "tomato",
+        "growth_stage": "fruiting",
+        "soil_type": "loam",
+        "soil_npk": {"n": 40, "p": 30, "k": 40},
+        "irrigation_available": True,
+        "budget": 20000,
+        "preferred_language": "English",
+        "season": "kharif",
+    }
+    assert client.post("/farmers", json=payload).status_code == 201
+
+    updated = {
+        "location": "Pune",
+        "crop": "wheat",
+        "growth_stage": "tillering",
+        "soil_type": "black",
+        "soil_npk": {"n": 55, "p": 22, "k": 38},
+        "irrigation_available": False,
+        "budget": 35000,
+        "preferred_language": "Hindi",
+        "season": "rabi",
+        "farm_area_acres": 3.5,
+    }
+    r = client.put("/farmers/f-put", json=updated)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["location"] == "Pune"
+    assert body["crop"] == "wheat"
+    assert body["growth_stage"] == "tillering"
+    assert body["soil_npk"]["n"] == 55
+    assert body["irrigation_available"] is False
+    assert body["preferred_language"] == "Hindi"
+
+    got = client.get("/farmers/f-put")
+    assert got.status_code == 200
+    assert got.json() == body
 
 
 def test_api_farmers_and_query():

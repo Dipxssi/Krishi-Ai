@@ -8,7 +8,7 @@ from collections import Counter
 
 from app.core.config import get_settings
 from app.orchestrator.catalog import AGENT_COST, AGENT_KEYWORDS, AGENT_PROFILES, AGENTS
-from app.services import llm
+from app.schemas.models import FarmContext
 
 
 def _tokenize(text: str) -> list[str]:
@@ -25,17 +25,6 @@ def _cosine(a: Counter, b: Counter) -> float:
     dot = sum(a[t] * b[t] for t in a)
     na = math.sqrt(sum(v * v for v in a.values()))
     nb = math.sqrt(sum(v * v for v in b.values()))
-    if na == 0 or nb == 0:
-        return 0.0
-    return dot / (na * nb)
-
-
-def _cosine_dense(a: list[float], b: list[float]) -> float:
-    if not a or not b or len(a) != len(b):
-        return 0.0
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
     if na == 0 or nb == 0:
         return 0.0
     return dot / (na * nb)
@@ -184,15 +173,8 @@ def bow_embedding_scores(query: str) -> dict[str, float]:
 
 
 def embedding_scores(query: str, *, allow_remote: bool = True) -> dict[str, float]:
-    if allow_remote:
-        profiles = [AGENT_PROFILES[a] for a in AGENTS]
-        dense = llm.embed([query, *profiles])
-        if dense and len(dense) == 1 + len(AGENTS):
-            q_vec = dense[0]
-            return {
-                agent: max(0.0, min(1.0, (_cosine_dense(q_vec, dense[i + 1]) + 1) / 2))
-                for i, agent in enumerate(AGENTS)
-            }
+    """Local bag-of-words similarity (no external embedding API)."""
+    del allow_remote  # kept for eval-script compatibility
     return bow_embedding_scores(query)
 
 
@@ -250,16 +232,60 @@ def score_query(
     return selected, adjusted
 
 
-def route_query(query: str) -> tuple[list[str], dict[str, float]]:
+def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict[str, float]]:
     """Return selected agents and adjusted scores."""
     settings = get_settings()
-    return score_query(
+    selected, scores = score_query(
         query,
-        mode=settings.router_mode,
+        mode=settings.router_mode if settings.router_mode != "supervised" else "hybrid",
         threshold=settings.router_threshold,
         cost_lambda=settings.router_cost_lambda,
         allow_remote_embeddings=True,
     )
+    if settings.router_mode == "supervised":
+        from app.orchestrator.supervised_router import route_supervised
+
+        selected, scores = route_supervised(
+            query,
+            threshold=settings.router_threshold,
+            cost_lambda=settings.router_cost_lambda,
+        )
+    if has_image:
+        scores = dict(scores)
+        scores["crop_health"] = max(scores.get("crop_health", 0.0), 0.72)
+        selected = select_agents(scores, settings.router_threshold)
+        if "crop_health" not in selected:
+            selected = [*selected, "crop_health"]
+    return selected, scores
+
+
+def infer_risk_level(query: str) -> str:
+    q = query.lower()
+    if any(w in q for w in ("blight", "pest", "disease", "sell early", "loss", "flood", "drought")):
+        return "high"
+    if any(w in q for w in ("profit", "budget", "price", "rain", "fertilizer")):
+        return "medium"
+    return "low"
+
+
+def route_for_debug(
+    query: str,
+    context: FarmContext | None = None,
+    *,
+    has_image: bool = False,
+) -> dict:
+    from app.services.validator import missing_farm_fields
+
+    settings = get_settings()
+    selected, scores = route_query(query, has_image=has_image)
+    missing = missing_farm_fields(context, selected) if context else []
+    return {
+        "routing_mode": settings.router_mode,
+        "selected_agents": selected,
+        "agent_scores": {k: round(v, 4) for k, v in scores.items()},
+        "missing_information": missing,
+        "risk_level": infer_risk_level(query),
+    }
 
 
 def route_agents(query: str, agent_scores: dict[str, float] | None = None, threshold: float = 0.60):

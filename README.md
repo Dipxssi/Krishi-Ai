@@ -26,16 +26,16 @@ KrishiAi adapts ideas from these papers (we implement a student-scale version, n
 * Typed tools: weather, market, profit, decision score, crop knowledge RAG
 * Evidence citations + tool traces
 * Plan–Critique–Revise orchestrator
-* Groq for generation (`GROQ_API_KEY`), Gemini as fallback; Gemini embeddings when `GEMINI_API_KEY` is set
+* Groq for text generation (`GROQ_API_KEY`)
 
 ## Tech stack
 
 | Layer | Stack |
 |-------|--------|
 | Backend | FastAPI, Python 3.12+, uv, SQLModel/SQLite |
-| LLM | Groq first (`llama-3.3-70b-versatile`), Gemini fallback (`gemini-3.6-flash`); embeddings via Gemini |
+| LLM | Groq (`llama-3.3-70b-versatile`) |
 | Frontend | React + Vite (`frontend/`) |
-| RAG | Local corpus + BM25 (+ optional Gemini dense) |
+| RAG | Local corpus + BM25 |
 
 ## Run
 

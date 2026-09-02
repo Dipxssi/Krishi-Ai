@@ -1,7 +1,9 @@
-"""Plan–Critique–Revise orchestrator."""
+"""Plan–Critique–Revise orchestrator with parallel agents + multimodal support."""
 
 from __future__ import annotations
 
+import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Callable
 
 from app.agents.crop_agent import crop_health_agent
@@ -12,15 +14,20 @@ from app.agents.market_agent import market_agent
 from app.agents.soil_agent import soil_agent
 from app.agents.weather_agent import weather_agent
 from app.core.config import get_settings
-from app.orchestrator.router import route_query
+from app.orchestrator.router import infer_risk_level, route_query
 from app.schemas.models import (
     AgentResult,
     DecisionScore,
     EvidenceItem,
     FarmContext,
+    ImageDiagnosisResult,
     QueryResponse,
+    StructuredRecommendation,
 )
 from app.services import llm
+from app.services.audit import new_request_id, save_query_run
+from app.services.conflict_resolver import resolve_conflicts
+from app.services.crop_registry import build_profit_inputs
 from app.services.validator import validate_draft
 from app.tools.agriculture import (
     calculate_profit,
@@ -31,8 +38,9 @@ from app.tools.agriculture import (
     register_all_tools,
 )
 from app.tools.registry import tool_registry
+from app.vision.diagnosis import diagnose_image_bytes
 
-AGENT_RUNNERS: dict[str, Callable[[str, FarmContext], AgentResult]] = {
+AGENT_RUNNERS: dict[str, Callable[..., AgentResult]] = {
     "finance": finance_agent,
     "market": market_agent,
     "weather": weather_agent,
@@ -52,6 +60,33 @@ def _ensure_tools() -> None:
         _tools_registered = True
 
 
+def _run_agents_parallel(
+    selected: list[str],
+    query: str,
+    context: FarmContext,
+    image_diagnosis: ImageDiagnosisResult | None,
+) -> list[AgentResult]:
+    results: list[AgentResult] = []
+
+    def _run(name: str) -> AgentResult | None:
+        runner = AGENT_RUNNERS.get(name)
+        if not runner:
+            return None
+        if name == "crop_health" and image_diagnosis is not None:
+            return runner(query, context, image_diagnosis=image_diagnosis)
+        return runner(query, context)
+
+    with ThreadPoolExecutor(max_workers=min(6, len(selected))) as pool:
+        futures = {pool.submit(_run, name): name for name in selected}
+        for fut in as_completed(futures):
+            ar = fut.result()
+            if ar:
+                results.append(ar)
+    order = {a: i for i, a in enumerate(selected)}
+    results.sort(key=lambda r: order.get(r.agent, 99))
+    return results
+
+
 def _build_draft(agent_results: list[AgentResult]) -> str:
     parts = []
     for ar in agent_results:
@@ -59,8 +94,12 @@ def _build_draft(agent_results: list[AgentResult]) -> str:
     return "\n\n".join(parts)
 
 
-def _compute_decision_score(context: FarmContext, evidence: list[EvidenceItem], query: str) -> DecisionScore | None:
-    # Pull weather/market/profit signals from evidence when present
+def _compute_decision_score(
+    context: FarmContext,
+    evidence: list[EvidenceItem],
+    query: str,
+    image_diagnosis: ImageDiagnosisResult | None = None,
+) -> DecisionScore | None:
     rainfall = None
     current_price = None
     profit_val = None
@@ -75,7 +114,6 @@ def _compute_decision_score(context: FarmContext, evidence: list[EvidenceItem], 
         if e.unit == "INR cost" and isinstance(e.value, (int, float)):
             cost_val = float(e.value)
 
-    # Ensure we have core numbers via deterministic tools if agents didn't run them
     location = context.location
     crop = context.crop or "tomato"
     if rainfall is None and location:
@@ -85,24 +123,33 @@ def _compute_decision_score(context: FarmContext, evidence: list[EvidenceItem], 
         m = get_market_price(crop, location, default_today())
         current_price = float(m["current_price"])
     if profit_val is None:
-        area = context.farm_area_acres
-        p = calculate_profit(
-            area=area,
-            expected_yield=8000,
+        profit_args = build_profit_inputs(
+            crop,
+            area_acres=context.farm_area_acres,
             selling_price=current_price or 30,
-            seed_cost=3000 * area,
-            fertilizer_cost=4000 * area,
-            pesticide_cost=2500 * area,
-            labor_cost=5000 * area,
-            irrigation_cost=2000 * area,
-            equipment_cost=1500 * area,
-            transport_cost=1000 * area,
+            irrigation_available=context.irrigation_available,
+            budget=context.budget,
+        )
+        p = calculate_profit(
+            area=profit_args["area"],
+            expected_yield=profit_args["expected_yield"],
+            selling_price=profit_args["selling_price"],
+            seed_cost=profit_args["seed_cost"],
+            fertilizer_cost=profit_args["fertilizer_cost"],
+            pesticide_cost=profit_args["pesticide_cost"],
+            labor_cost=profit_args["labor_cost"],
+            irrigation_cost=profit_args["irrigation_cost"],
+            equipment_cost=profit_args["equipment_cost"],
+            transport_cost=profit_args["transport_cost"],
         )
         profit_val = float(p["profit"])
         cost_val = float(p["total_cost"])
 
     water_risk = min(1.0, (rainfall or 0) / 40.0)
     disease_risk = 0.55 if any(k in query.lower() for k in ("spot", "disease", "blight", "pest")) else 0.3
+    if image_diagnosis and image_diagnosis.disease and image_diagnosis.disease != "healthy":
+        disease_risk = max(disease_risk, 0.65)
+
     agronomic = 0.7
     if context.irrigation_available:
         agronomic += 0.05
@@ -138,7 +185,6 @@ def _revise(draft: str, critique: str, evidence: list[EvidenceItem], context: Fa
         )
         if text:
             return text
-    # Deterministic fallback synthesis
     return (
         f"Revised recommendation based on specialist outputs and critique.\n"
         f"Critique addressed: {critique}\n\n{draft}\n\n"
@@ -164,20 +210,69 @@ def _clarifying_preface(missing: list[str]) -> str:
     )
 
 
-def handle_query(query: str, context: FarmContext) -> QueryResponse:
+def _build_structured(
+    final: str,
+    agent_results: list[AgentResult],
+    validation: dict,
+    conflict_notes: list[str],
+    decision: DecisionScore | None,
+    image_diagnosis: ImageDiagnosisResult | None,
+    query: str,
+) -> StructuredRecommendation:
+    sources = []
+    for e in validation["evidence"]:
+        sources.append(e.source)
+    for ar in agent_results:
+        sources.extend(ar.citations)
+    human_review = bool(validation["missing_context"]) or bool(
+        image_diagnosis and image_diagnosis.requires_expert
+    )
+    if any("Unsafe" in w for w in validation["warnings"]):
+        human_review = True
+    financial = None
+    if decision:
+        financial = {
+            "expected_profit_inr": decision.expected_profit,
+            "input_cost_inr": decision.input_cost,
+            "water_risk": decision.water_risk,
+            "disease_risk": decision.disease_risk,
+        }
+    reasons = conflict_notes[:5]
+    for ar in agent_results:
+        if ar.confidence >= 0.6:
+            reasons.append(f"{ar.agent}: high-confidence specialist input")
+    return StructuredRecommendation(
+        action_summary=final.split("\n")[0][:500],
+        reasons=reasons[:8],
+        financial_summary=financial,
+        sources=list(dict.fromkeys(sources))[:20],
+        human_review_required=human_review,
+        risk_level=infer_risk_level(query),
+        conflicts_resolved=conflict_notes,
+    )
+
+
+def handle_query(
+    query: str,
+    context: FarmContext,
+    *,
+    image_base64: str | None = None,
+    request_id: str | None = None,
+    persist: bool = True,
+) -> QueryResponse:
     _ensure_tools()
+    req_id = request_id or new_request_id()
     tool_registry.reset(farmer_id=context.farmer_id)
 
-    selected, _scores = route_query(query)
-    # Always include knowledge retriever for citations on multi-factor farm decisions
+    image_diagnosis: ImageDiagnosisResult | None = None
+    if image_base64:
+        image_diagnosis = diagnose_image_bytes(image_base64, crop_hint=context.crop)
+
+    selected, _scores = route_query(query, has_image=image_base64 is not None)
     if "knowledge_retriever" not in selected and len(selected) >= 2:
         selected = [*selected, "knowledge_retriever"]
 
-    agent_results: list[AgentResult] = []
-    for name in selected:
-        runner = AGENT_RUNNERS.get(name)
-        if runner:
-            agent_results.append(runner(query, context))
+    agent_results = _run_agents_parallel(selected, query, context, image_diagnosis)
 
     draft = _build_draft(agent_results)
     revision_count = 0
@@ -187,6 +282,7 @@ def handle_query(query: str, context: FarmContext) -> QueryResponse:
         agent_results=agent_results,
         tool_traces=tool_registry.traces,
         draft_text=draft,
+        image_diagnosis=image_diagnosis,
     )
     final = draft
 
@@ -198,24 +294,34 @@ def handle_query(query: str, context: FarmContext) -> QueryResponse:
             agent_results=agent_results,
             tool_traces=tool_registry.traces,
             draft_text=final,
+            image_diagnosis=image_diagnosis,
         )
-        # Stop early if critique is clean enough
         if validation["ok"] and not validation["missing_context"] and revision_count >= 1:
             break
 
-    decision = _compute_decision_score(context, validation["evidence"], query)
+    conflict_notes, _ = resolve_conflicts(agent_results, validation["evidence"])
+    if conflict_notes:
+        final = final + "\n\nConflict resolution:\n" + "\n".join(f"- {n}" for n in conflict_notes)
+
+    decision = _compute_decision_score(context, validation["evidence"], query, image_diagnosis)
     confidences = [a.confidence for a in agent_results]
     confidence = sum(confidences) / len(confidences) if confidences else 0.0
 
-    # Lower confidence when critical farm fields are missing
     if validation["missing_context"]:
         confidence = min(confidence, 0.4)
         final = _clarifying_preface(validation["missing_context"]) + final
 
-    return QueryResponse(
+    structured = _build_structured(
+        final, agent_results, validation, conflict_notes, decision, image_diagnosis, query
+    )
+
+    response = QueryResponse(
+        request_id=req_id,
         query=query,
         farmer_id=context.farmer_id,
         final_recommendation=final,
+        structured_recommendation=structured,
+        image_diagnosis=image_diagnosis,
         decision_score=decision,
         agents_used=selected,
         confidence=round(confidence, 3),
@@ -226,3 +332,6 @@ def handle_query(query: str, context: FarmContext) -> QueryResponse:
         revision_count=revision_count,
         agent_results=agent_results,
     )
+    if persist:
+        save_query_run(req_id, context.farmer_id, query, response)
+    return response

@@ -43,7 +43,70 @@ class FarmContext(FarmContextBase):
 class QueryRequest(BaseModel):
     query: str
     farmer_id: str
-    image_url: str | None = None  # ignored in V1
+    image_url: str | None = None
+    image_base64: str | None = None
+
+
+class RouteRequest(BaseModel):
+    query: str
+    farmer_id: str | None = None
+    image_url: str | None = None
+
+
+class RouteResponse(BaseModel):
+    request_id: str
+    selected_agents: list[str]
+    agent_scores: dict[str, float]
+    missing_information: list[str]
+    risk_level: str
+    routing_mode: str
+
+
+class ImageDiagnosisRequest(BaseModel):
+    image_base64: str
+    crop_hint: str | None = None
+
+
+class ImageDiagnosisResult(BaseModel):
+    status: str  # ok | rejected
+    rejection_reason: str | None = None
+    image_quality_score: float
+    crop_id: str | None = None
+    crop_confidence: float | None = None
+    disease: str | None = None
+    disease_confidence: float | None = None
+    severity: str | None = None
+    requires_expert: bool = False
+    expert_id: str | None = None
+    treatment_hints: list[str] = Field(default_factory=list)
+
+
+class StructuredRecommendation(BaseModel):
+    action_summary: str
+    reasons: list[str] = Field(default_factory=list)
+    financial_summary: dict[str, Any] | None = None
+    sources: list[str] = Field(default_factory=list)
+    human_review_required: bool = False
+    risk_level: str = "medium"
+    conflicts_resolved: list[str] = Field(default_factory=list)
+
+
+class FeedbackRequest(BaseModel):
+    request_id: str
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+    expert_verdict: str | None = None  # correct | incorrect | unsafe
+
+
+class VoiceTranscribeRequest(BaseModel):
+    audio_base64: str
+    language_hint: str | None = None
+
+
+class VoiceTranscribeResponse(BaseModel):
+    text: str
+    normalized_crop: str | None = None
+    note: str | None = None
 
 
 class EvidenceItem(BaseModel):
@@ -85,9 +148,12 @@ class AgentResult(BaseModel):
 
 
 class QueryResponse(BaseModel):
+    request_id: str
     query: str
     farmer_id: str
     final_recommendation: str
+    structured_recommendation: StructuredRecommendation | None = None
+    image_diagnosis: ImageDiagnosisResult | None = None
     decision_score: DecisionScore | None = None
     agents_used: list[str]
     confidence: float

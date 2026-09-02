@@ -18,6 +18,12 @@
     "text": "Tomato is perishable with short shelf life. If mandi prices are falling and storage or cold chain is unavailable, consider staged early harvest of ripe fruit rather than holding for a recovery that may not come."
   },
   {
+    "id": "tomato-harvest-timing",
+    "crop": "tomato",
+    "title": "Tomato harvest timing",
+    "text": "Harvest at breaker to pink stage for distant markets; fully ripe for local sale. Morning harvest reduces heat stress. Sort by grade before transport — damaged fruit lowers overall mandi realisation."
+  },
+  {
     "id": "potato-blight",
     "crop": "potato",
     "title": "Potato late blight",
@@ -28,6 +34,24 @@
     "crop": "potato",
     "title": "Potato soil and NPK",
     "text": "Potato prefers well-drained loamy soil. Maintain adequate potassium for tuber quality. Avoid waterlogging which raises disease and reduces marketable yield."
+  },
+  {
+    "id": "potato-storage",
+    "crop": "potato",
+    "title": "Potato storage basics",
+    "text": "Cure tubers in shade for 7–10 days before storage. Store in ventilated structures at 2–4°C if cold storage is available. Sprouting and weight loss increase above 8°C. Check PMFBY coverage before storing large volumes."
+  },
+  {
+    "id": "onion-thrips",
+    "crop": "onion",
+    "title": "Onion thrips and bulb quality",
+    "text": "Thrips cause silvery streaks on leaves and reduce bulb size. Scout weekly during dry spells. Staggered planting reduces peak pest pressure. Harvest when 50–75% tops fall naturally for best storage life."
+  },
+  {
+    "id": "onion-market",
+    "crop": "onion",
+    "title": "Onion price volatility",
+    "text": "Onion prices swing sharply with arrival volumes. When prices spike, graded sorting and proper curing improve realisation. During glut, consider value addition (drying) or staggered release if storage is available."
   },
   {
     "id": "maize-nutrient",
@@ -42,10 +66,46 @@
     "text": "Scout whorls for larvae. Early detection allows mechanical control or targeted insecticide. Avoid blanket sprays when beneficial insects are active."
   },
   {
+    "id": "wheat-rust",
+    "crop": "wheat",
+    "title": "Wheat rust management",
+    "text": "Yellow and brown rust spread in cool humid conditions. Use resistant varieties where available. Apply fungicide at flag leaf stage if disease exceeds economic threshold. NFSM districts may offer subsidized inputs — check locally."
+  },
+  {
+    "id": "wheat-irrigation",
+    "crop": "wheat",
+    "title": "Wheat irrigation critical stages",
+    "text": "Crown root initiation, tillering, jointing, flowering, and grain filling are sensitive to water stress. One missed irrigation at flowering can cut yield 15–25%. Skip irrigation only when rain exceeds 15 mm."
+  },
+  {
+    "id": "rice-transplant",
+    "crop": "rice",
+    "title": "Rice transplanting window",
+    "text": "Transplant 25–30 day old seedlings at 2–3 seedlings per hill. Maintain 2–5 cm standing water during tillering. Drain briefly before panicle initiation to strengthen roots."
+  },
+  {
+    "id": "rice-pest",
+    "crop": "rice",
+    "title": "Rice stem borer scouting",
+    "text": "Dead hearts in vegetative stage and white ears at heading indicate stem borer. Monitor weekly. Release Trichogramma egg parasitoids where available before resorting to chemical control."
+  },
+  {
+    "id": "cotton-aphid",
+    "crop": "cotton",
+    "title": "Cotton aphid and whitefly",
+    "text": "Honeydew from aphids leads to sooty mould. Whitefly transmits leaf curl virus. Avoid repeated broad-spectrum sprays that kill natural enemies. Rotate insecticide modes of action."
+  },
+  {
     "id": "general-irrigation",
     "crop": null,
     "title": "Irrigation and rain timing",
     "text": "Skip irrigation when significant rainfall is forecast. Standing water increases fungal disease risk for tomato and potato. Schedule sprays after rain when leaves dry."
+  },
+  {
+    "id": "general-drip",
+    "crop": null,
+    "title": "Drip irrigation benefits",
+    "text": "Drip saves 30–50% water versus flood irrigation and reduces weed pressure. PMKSY offers 45–55% subsidy on micro-irrigation. Pair drip with fertigation for better nutrient use efficiency on horticulture crops."
   },
   {
     "id": "general-budget",
@@ -54,9 +114,33 @@
     "text": "Under tight budget, compare treatment cost against expected salvageable yield and current mandi price. If expected post-treatment profit is negative and prices are falling, selling early or reducing input intensity may be safer than full treatment."
   },
   {
+    "id": "general-soil-health",
+    "crop": null,
+    "title": "Soil Health Card usage",
+    "text": "Test soil every 2 years through the Soil Health Card scheme. Apply nutrients based on recommendations rather than habit. Over-application of nitrogen is a common profit leak on small farms."
+  },
+  {
+    "id": "general-pmfby",
+    "crop": null,
+    "title": "Crop insurance before risky decisions",
+    "text": "Enroll in PMFBY before sowing notified crops. Insurance does not replace good agronomy but limits downside when weather or pest causes total loss. Premium is heavily subsidized for most food crops."
+  },
+  {
     "id": "equipment-sprayer",
     "crop": null,
     "title": "Sprayer equipment guidance",
     "text": "For small farms under 3 acres, knapsack or rental battery sprayers are usually more cost-effective than owning tractor-mounted sprayers. Factor rental into treatment cost."
+  },
+  {
+    "id": "greenhouse-polyhouse-subsidy",
+    "crop": null,
+    "title": "Greenhouse and polyhouse government subsidy (India)",
+    "text": "Under MIDH/NHM, farmers can get credit-linked back-ended subsidy for polyhouses, greenhouses, and shade-net houses. Baseline central support is often about 50% of admissible project cost for private farmers; many states add top-ups so effective support can be higher for SC/ST, small/marginal, or hilly-area farmers. Application is through the District Horticulture Officer or state horticulture portal. A bank loan is usually required. Subsidy is typically released after construction and inspection, not upfront. Area limits and exact percentages vary by state — confirm on your state horticulture website before applying."
+  },
+  {
+    "id": "post-harvest-loss",
+    "crop": null,
+    "title": "Reducing post-harvest losses",
+    "text": "Sort and grade at harvest. Use clean crates, avoid stacking beyond 4 layers for tomatoes. Cold storage or AIF-backed warehouse loans can improve holding capacity when prices are depressed at peak arrival."
   }
 ]

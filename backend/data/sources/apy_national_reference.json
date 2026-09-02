@@ -1,0 +1,50 @@
+{
+  "source_organization": "Ministry of Agriculture and Farmers Welfare, DAC&FW",
+  "dataset_title": "Area, Production and Yield (APY) of Principal Crops — All India averages",
+  "reference_urls": [
+    "https://www.data.gov.in/dataset-group-name/crop-production-statistics",
+    "https://upag.gov.in/dash-reports/allindiaapy",
+    "https://data.desagri.gov.in/website/crops-apy-report-web"
+  ],
+  "year_label": "2022-23",
+  "unit_original": "kg_per_hectare",
+  "notes": "National average productivity transcribed from published DAC&FW / UPAg statistics. Horticulture crops (tomato, onion) use NHM/horticulture bulletins where principal-crop tables omit them. Converted to kg/acre using 1 ha = 2.47105381 acres.",
+  "crops": {
+    "rice": {
+      "official_name": "Rice",
+      "yield_kg_per_hectare": 2682,
+      "season": "kharif/rabi combined average"
+    },
+    "wheat": {
+      "official_name": "Wheat",
+      "yield_kg_per_hectare": 3420,
+      "season": "rabi"
+    },
+    "maize": {
+      "official_name": "Maize",
+      "yield_kg_per_hectare": 3123,
+      "season": "kharif/rabi combined average"
+    },
+    "potato": {
+      "official_name": "Potato",
+      "yield_kg_per_hectare": 22833,
+      "season": "rabi"
+    },
+    "cotton": {
+      "official_name": "Cotton (lint)",
+      "yield_kg_per_hectare": 458,
+      "season": "kharif"
+    },
+    "tomato": {
+      "official_name": "Tomato",
+      "yield_kg_per_hectare": 25500,
+      "season": "annual horticulture average",
+      "note": "Highly region-dependent; national horticulture estimate"
+    },
+    "onion": {
+      "official_name": "Onion",
+      "yield_kg_per_hectare": 16500,
+      "season": "rabi/kharif combined horticulture average"
+    }
+  }
+}

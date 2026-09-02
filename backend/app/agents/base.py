@@ -58,6 +58,18 @@ def evidence_from_trace(agent: str, trace) -> list[EvidenceItem]:
     elif trace.tool == "search_loans":
         for m in out.get("matches", [])[:3]:
             items.append(EvidenceItem(source=f"loan:{m.get('id')}", value=m.get("name"), unit="loan", agent=agent))
+    elif trace.tool == "interpret_soil_npk":
+        items.append(EvidenceItem(source="soil_npk", value=out.get("summary"), unit="soil summary", agent=agent))
+        for gap in out.get("gaps", []):
+            if gap.get("status") != "adequate":
+                items.append(
+                    EvidenceItem(
+                        source=f"soil_npk:{gap.get('symbol')}",
+                        value=f"{gap.get('status')} ({gap.get('farmer_kg_per_acre')} vs {gap.get('target_kg_per_acre')} kg/acre)",
+                        unit="nutrient gap",
+                        agent=agent,
+                    )
+                )
     return items
 
 

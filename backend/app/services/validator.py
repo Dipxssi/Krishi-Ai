@@ -5,7 +5,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from app.schemas.models import AgentResult, EvidenceItem, FarmContext, ToolTrace
+from app.schemas.models import AgentResult, EvidenceItem, FarmContext, ImageDiagnosisResult, ToolTrace
 
 
 UNSAFE_PESTICIDE_PATTERNS = [
@@ -47,6 +47,7 @@ def validate_draft(
     agent_results: list[AgentResult],
     tool_traces: list[ToolTrace],
     draft_text: str,
+    image_diagnosis: ImageDiagnosisResult | None = None,
 ) -> dict[str, Any]:
     warnings: list[str] = []
     agents_used = [a.agent for a in agent_results]
@@ -77,6 +78,19 @@ def validate_draft(
     mock_sources = [t for t in tool_traces if isinstance(t.output, dict) and t.output.get("is_mock")]
     if mock_sources:
         warnings.append("Some weather/market values are from labeled mock services, not live APIs.")
+
+    # Validator v2: vision uncertainty escalation
+    if image_diagnosis and image_diagnosis.requires_expert:
+        warnings.append("Image diagnosis uncertain — human agronomist review recommended.")
+
+    if image_diagnosis and image_diagnosis.disease and image_diagnosis.disease != "healthy":
+        if not any(e.source == "vision_diagnosis" for e in all_evidence):
+            warnings.append("Disease mentioned but vision evidence missing from agent outputs.")
+
+    # Validator v2: agent conflict hint
+    agent_texts = [ar.recommendation.lower() for ar in agent_results]
+    if any("sell" in t for t in agent_texts) and any("spray" in t or "treat" in t for t in agent_texts):
+        warnings.append("Possible treat-vs-sell conflict — verify economics before acting.")
 
     # Critique strengths/weaknesses for revise loop
     critique_parts = []

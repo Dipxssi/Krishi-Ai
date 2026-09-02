@@ -53,3 +53,73 @@
 {"id": "q053", "query": "Leaf nutrient deficiency after heavy rain leaching.", "required_agents": ["crop_health", "soil", "weather"], "expected_tools": ["get_weather", "search_crop_knowledge"], "risk_level": "medium"}
 {"id": "q054", "query": "How to reduce input cost without killing yield.", "required_agents": ["finance", "knowledge_retriever"], "expected_tools": ["calculate_profit", "search_crop_knowledge"], "risk_level": "medium"}
 {"id": "q055", "query": "Forecast market price next month for tomato and decide selling.", "required_agents": ["market", "finance"], "expected_tools": ["get_market_price", "calculate_profit"], "risk_level": "medium"}
+{"id": "q056", "query": "Should I plant tomato now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "tomato"}
+{"id": "q057", "query": "What is the mandi price for tomato today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "tomato"}
+{"id": "q058", "query": "Calculate profit for 2 acres of tomato.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "tomato"}
+{"id": "q059", "query": "tomato leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "tomato"}
+{"id": "q060", "query": "Is my soil NPK suitable for tomato?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "tomato"}
+{"id": "q061", "query": "Drought forecast — irrigate tomato now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "tomato"}
+{"id": "q062", "query": "Loan or subsidy for tomato fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "tomato"}
+{"id": "q063", "query": "Sell tomato early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "tomato"}
+{"id": "q064", "query": "Break-even price for my tomato harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "tomato"}
+{"id": "q065", "query": "Equipment rental for tomato land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "tomato"}
+{"id": "q066", "query": "Should I plant potato now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "potato"}
+{"id": "q067", "query": "What is the mandi price for potato today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "potato"}
+{"id": "q068", "query": "Calculate profit for 2 acres of potato.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "potato"}
+{"id": "q069", "query": "potato leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "potato"}
+{"id": "q070", "query": "Is my soil NPK suitable for potato?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "potato"}
+{"id": "q071", "query": "Drought forecast — irrigate potato now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "potato"}
+{"id": "q072", "query": "Loan or subsidy for potato fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "potato"}
+{"id": "q073", "query": "Sell potato early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "potato"}
+{"id": "q074", "query": "Break-even price for my potato harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "potato"}
+{"id": "q075", "query": "Equipment rental for potato land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "potato"}
+{"id": "q076", "query": "Should I plant onion now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "onion"}
+{"id": "q077", "query": "What is the mandi price for onion today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "onion"}
+{"id": "q078", "query": "Calculate profit for 2 acres of onion.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "onion"}
+{"id": "q079", "query": "onion leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "onion"}
+{"id": "q080", "query": "Is my soil NPK suitable for onion?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "onion"}
+{"id": "q081", "query": "Drought forecast — irrigate onion now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "onion"}
+{"id": "q082", "query": "Loan or subsidy for onion fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "onion"}
+{"id": "q083", "query": "Sell onion early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "onion"}
+{"id": "q084", "query": "Break-even price for my onion harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "onion"}
+{"id": "q085", "query": "Equipment rental for onion land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "onion"}
+{"id": "q086", "query": "Should I plant maize now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "maize"}
+{"id": "q087", "query": "What is the mandi price for maize today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "maize"}
+{"id": "q088", "query": "Calculate profit for 2 acres of maize.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "maize"}
+{"id": "q089", "query": "maize leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "maize"}
+{"id": "q090", "query": "Is my soil NPK suitable for maize?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "maize"}
+{"id": "q091", "query": "Drought forecast — irrigate maize now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "maize"}
+{"id": "q092", "query": "Loan or subsidy for maize fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "maize"}
+{"id": "q093", "query": "Sell maize early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "maize"}
+{"id": "q094", "query": "Break-even price for my maize harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "maize"}
+{"id": "q095", "query": "Equipment rental for maize land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "maize"}
+{"id": "q096", "query": "Should I plant wheat now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "wheat"}
+{"id": "q097", "query": "What is the mandi price for wheat today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "wheat"}
+{"id": "q098", "query": "Calculate profit for 2 acres of wheat.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "wheat"}
+{"id": "q099", "query": "wheat leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "wheat"}
+{"id": "q100", "query": "Is my soil NPK suitable for wheat?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "wheat"}
+{"id": "q101", "query": "Drought forecast — irrigate wheat now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "wheat"}
+{"id": "q102", "query": "Loan or subsidy for wheat fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "wheat"}
+{"id": "q103", "query": "Sell wheat early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "wheat"}
+{"id": "q104", "query": "Break-even price for my wheat harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "wheat"}
+{"id": "q105", "query": "Equipment rental for wheat land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "wheat"}
+{"id": "q106", "query": "Should I plant rice now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "rice"}
+{"id": "q107", "query": "What is the mandi price for rice today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "rice"}
+{"id": "q108", "query": "Calculate profit for 2 acres of rice.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "rice"}
+{"id": "q109", "query": "rice leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "rice"}
+{"id": "q110", "query": "Is my soil NPK suitable for rice?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "rice"}
+{"id": "q111", "query": "Drought forecast — irrigate rice now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "rice"}
+{"id": "q112", "query": "Loan or subsidy for rice fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "rice"}
+{"id": "q113", "query": "Sell rice early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "rice"}
+{"id": "q114", "query": "Break-even price for my rice harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "rice"}
+{"id": "q115", "query": "Equipment rental for rice land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "rice"}
+{"id": "q116", "query": "Should I plant cotton now with my budget and weather?", "required_agents": ["weather", "finance", "market", "soil"], "expected_tools": [], "risk_level": "medium", "crop": "cotton"}
+{"id": "q117", "query": "What is the mandi price for cotton today?", "required_agents": ["market"], "expected_tools": [], "risk_level": "low", "crop": "cotton"}
+{"id": "q118", "query": "Calculate profit for 2 acres of cotton.", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "cotton"}
+{"id": "q119", "query": "cotton leaves have spots after rain — treat or wait?", "required_agents": ["crop_health", "weather", "knowledge_retriever"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "cotton"}
+{"id": "q120", "query": "Is my soil NPK suitable for cotton?", "required_agents": ["soil", "knowledge_retriever"], "expected_tools": [], "risk_level": "medium", "crop": "cotton"}
+{"id": "q121", "query": "Drought forecast — irrigate cotton now?", "required_agents": ["weather", "crop_health", "soil"], "expected_tools": ["search_crop_knowledge"], "risk_level": "high", "crop": "cotton"}
+{"id": "q122", "query": "Loan or subsidy for cotton fertilizer cost?", "required_agents": ["finance"], "expected_tools": [], "risk_level": "low", "crop": "cotton"}
+{"id": "q123", "query": "Sell cotton early or store if price is falling?", "required_agents": ["market", "finance"], "expected_tools": [], "risk_level": "medium", "crop": "cotton"}
+{"id": "q124", "query": "Break-even price for my cotton harvest?", "required_agents": ["finance", "market"], "expected_tools": [], "risk_level": "medium", "crop": "cotton"}
+{"id": "q125", "query": "Equipment rental for cotton land preparation?", "required_agents": ["equipment"], "expected_tools": [], "risk_level": "low", "crop": "cotton"}

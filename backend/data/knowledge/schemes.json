@@ -10,6 +10,7 @@
     "state": "all",
     "how_to_apply": "Register at pmkisan.gov.in or through CSC/local agriculture office",
     "link": "https://pmkisan.gov.in",
+    "keywords": ["pm kisan", "income support", "6000", "installment"],
     "source": "curated_2024"
   },
   {
@@ -23,6 +24,7 @@
     "state": "all",
     "how_to_apply": "Through bank (loan farmers auto-enrolled) or CSC portal",
     "link": "https://pmfby.gov.in",
+    "keywords": ["crop insurance", "fasal bima", "premium", "weather loss"],
     "source": "curated_2024"
   },
   {
@@ -36,6 +38,7 @@
     "state": "all",
     "how_to_apply": "Apply through state agriculture/horticulture department",
     "link": "https://pmksy.gov.in",
+    "keywords": ["drip", "sprinkler", "micro irrigation", "per drop more crop", "water saving"],
     "source": "curated_2024"
   },
   {
@@ -95,14 +98,54 @@
     "id": "midh",
     "name": "Mission for Integrated Development of Horticulture (MIDH)",
     "category": "production_support",
-    "benefit": "Subsidy on planting material, drip, shade nets, cold storage, pack houses for horticulture crops",
+    "benefit": "Subsidy on planting material, drip, shade nets, polyhouse/greenhouse, cold storage, pack houses for horticulture crops",
     "eligibility": "Farmers growing fruits, vegetables, flowers, spices, plantation crops",
     "max_land_acres": null,
     "crop_specific": true,
     "crops": ["tomato", "potato", "onion", "mango", "banana", "flowers", "spices"],
+    "keywords": ["horticulture", "drip", "shade net", "planting material"],
     "state": "all",
     "how_to_apply": "Through state horticulture department",
     "link": "https://midh.gov.in",
+    "source": "curated_2024"
+  },
+  {
+    "id": "midh-polyhouse-greenhouse",
+    "name": "MIDH — Polyhouse / Greenhouse / Protected Cultivation Subsidy",
+    "category": "infrastructure_subsidy",
+    "benefit": "Typically 50% credit-linked back-ended subsidy on admissible project cost for private farmers (baseline under MIDH/NHM). States may add top-ups (often 65–95% total for SC/ST, small/marginal, or hilly areas). Covers naturally ventilated polyhouses, fan-and-pad greenhouses, and shade-net houses.",
+    "eligibility": "Farmers, FPOs, cooperatives setting up protected cultivation for horticulture crops. Area norms commonly 500–4,000 sqm per beneficiary under NHM (verify with state). Bank loan usually required (credit-linked).",
+    "max_land_acres": null,
+    "crop_specific": false,
+    "keywords": [
+      "greenhouse",
+      "green house",
+      "polyhouse",
+      "poly house",
+      "protected cultivation",
+      "shade net house",
+      "fan and pad",
+      "naturally ventilated",
+      "horticulture structure"
+    ],
+    "state": "all",
+    "how_to_apply": "Apply through District Horticulture Officer (DHO) or state horticulture portal (e.g. MahaDBT in Maharashtra, HORTNET in Haryana). Submit land records, bank loan sanction if required, and project estimate. Subsidy is usually released after construction and joint inspection.",
+    "link": "https://midh.gov.in",
+    "notes": "Rates vary by state and farmer category. NE/Himalayan states may get higher central share. Confirm current percentage on your state horticulture website before applying.",
+    "source": "curated_2024"
+  },
+  {
+    "id": "nhb-protected-cultivation",
+    "name": "National Horticulture Board (NHB) — Protected Cultivation",
+    "category": "infrastructure_subsidy",
+    "benefit": "Credit-linked back-ended subsidy (commonly 50% of project cost) for commercial polyhouse/greenhouse projects. Higher support possible in NE/Himalayan/hilly areas per NHB norms.",
+    "eligibility": "Farmers and horticulture entrepreneurs; larger commercial units (often 2,500+ sqm depending on component). Credit linkage typically required.",
+    "max_land_acres": null,
+    "crop_specific": false,
+    "keywords": ["greenhouse", "polyhouse", "protected cultivation", "commercial horticulture", "NHB"],
+    "state": "all",
+    "how_to_apply": "Apply via NHB/MIDH channels through approved bank loan and DHO/NHB procedure",
+    "link": "https://nhb.gov.in",
     "source": "curated_2024"
   },
   {

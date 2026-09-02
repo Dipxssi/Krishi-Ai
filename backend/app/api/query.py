@@ -15,4 +15,8 @@ def query_endpoint(request: QueryRequest):
             status_code=404,
             detail=f"Farmer {request.farmer_id} not found. Create FarmContext via POST /farmers first.",
         )
-    return handle_query(request.query, context)
+    return handle_query(
+        request.query,
+        context,
+        image_base64=request.image_base64,
+    )

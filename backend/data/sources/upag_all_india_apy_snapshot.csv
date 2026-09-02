@@ -1,0 +1,8 @@
+fiscal_year,state,crop,crop_yield,yield_unit,source
+2024-25,All India,Wheat,3.6065805439553746,tonnes_per_hectare,upag_dataful_dataset_4889
+2024-25,All India,Rice,2.9671728504901598,tonnes_per_hectare,upag_dataful_dataset_4889
+2024-25,All India,Maize,3.478317570359385,tonnes_per_hectare,upag_dataful_dataset_4889
+2024-25,All India,Cotton(lint),437.05958291587234,kilogram_per_hectare,upag_dataful_dataset_4889
+2024-25,All India,Potato,24.5,tonnes_per_hectare,dacfw_horticulture_final_2024-25
+2024-25,All India,Onion,15.637,tonnes_per_hectare,dacfw_horticulture_final_2024-25
+2024-25,All India,Tomato,24.0,tonnes_per_hectare,dacfw_horticulture_final_2024-25

@@ -1,0 +1,241 @@
+{
+  "version": "1.0",
+  "crops": {
+    "tomato": {
+      "display_name": "Tomato",
+      "default_input_costs_per_acre": {
+        "seed_cost": 8000,
+        "fertilizer_cost": 12000,
+        "pesticide_cost": 6000,
+        "labor_cost": 25000,
+        "irrigation_cost": 8000,
+        "equipment_cost": 3000,
+        "transport_cost": 4000
+      },
+      "growth_stages": [
+        "nursery",
+        "transplant",
+        "vegetative",
+        "flowering",
+        "fruiting",
+        "harvest"
+      ],
+      "common_diseases": [
+        "early_blight",
+        "late_blight",
+        "septoria_leaf_spot",
+        "bacterial_wilt"
+      ],
+      "market_commodity_name": "Tomato",
+      "npk_targets": {
+        "n_kg_per_acre": 120,
+        "p_kg_per_acre": 60,
+        "k_kg_per_acre": 150,
+        "optimal_ph_min": 6.0,
+        "optimal_ph_max": 6.8
+      }
+    },
+    "potato": {
+      "display_name": "Potato",
+      "default_input_costs_per_acre": {
+        "seed_cost": 35000,
+        "fertilizer_cost": 10000,
+        "pesticide_cost": 5000,
+        "labor_cost": 22000,
+        "irrigation_cost": 6000,
+        "equipment_cost": 4000,
+        "transport_cost": 5000
+      },
+      "growth_stages": [
+        "sprouting",
+        "vegetative",
+        "tuber_initiation",
+        "tuber_bulking",
+        "maturation",
+        "harvest"
+      ],
+      "common_diseases": [
+        "late_blight",
+        "early_blight",
+        "bacterial_wilt",
+        "potato_virus"
+      ],
+      "market_commodity_name": "Potato",
+      "npk_targets": {
+        "n_kg_per_acre": 120,
+        "p_kg_per_acre": 80,
+        "k_kg_per_acre": 180,
+        "optimal_ph_min": 5.2,
+        "optimal_ph_max": 6.4
+      }
+    },
+    "onion": {
+      "display_name": "Onion",
+      "default_input_costs_per_acre": {
+        "seed_cost": 25000,
+        "fertilizer_cost": 9000,
+        "pesticide_cost": 4500,
+        "labor_cost": 20000,
+        "irrigation_cost": 5000,
+        "equipment_cost": 2500,
+        "transport_cost": 3500
+      },
+      "growth_stages": [
+        "nursery",
+        "transplant",
+        "vegetative",
+        "bulb_formation",
+        "maturity",
+        "harvest"
+      ],
+      "common_diseases": [
+        "purple_blotch",
+        "thrips",
+        "stemphylium_blight"
+      ],
+      "market_commodity_name": "Onion",
+      "npk_targets": {
+        "n_kg_per_acre": 100,
+        "p_kg_per_acre": 50,
+        "k_kg_per_acre": 120,
+        "optimal_ph_min": 6.0,
+        "optimal_ph_max": 7.0
+      }
+    },
+    "maize": {
+      "display_name": "Maize",
+      "default_input_costs_per_acre": {
+        "seed_cost": 3500,
+        "fertilizer_cost": 8000,
+        "pesticide_cost": 2500,
+        "labor_cost": 12000,
+        "irrigation_cost": 4000,
+        "equipment_cost": 2000,
+        "transport_cost": 2000
+      },
+      "growth_stages": [
+        "germination",
+        "vegetative",
+        "tasseling",
+        "silking",
+        "grain_filling",
+        "harvest"
+      ],
+      "common_diseases": [
+        "fall_armyworm",
+        "stem_borer",
+        "turcicum_leaf_blight"
+      ],
+      "market_commodity_name": "Maize",
+      "npk_targets": {
+        "n_kg_per_acre": 150,
+        "p_kg_per_acre": 60,
+        "k_kg_per_acre": 80,
+        "optimal_ph_min": 5.8,
+        "optimal_ph_max": 7.0
+      }
+    },
+    "wheat": {
+      "display_name": "Wheat",
+      "default_input_costs_per_acre": {
+        "seed_cost": 2500,
+        "fertilizer_cost": 7000,
+        "pesticide_cost": 2000,
+        "labor_cost": 10000,
+        "irrigation_cost": 3500,
+        "equipment_cost": 1500,
+        "transport_cost": 1500
+      },
+      "growth_stages": [
+        "germination",
+        "tillering",
+        "jointing",
+        "flowering",
+        "grain_filling",
+        "harvest"
+      ],
+      "common_diseases": [
+        "yellow_rust",
+        "brown_rust",
+        "powdery_mildew",
+        "karnal_bunt"
+      ],
+      "market_commodity_name": "Wheat",
+      "npk_targets": {
+        "n_kg_per_acre": 120,
+        "p_kg_per_acre": 60,
+        "k_kg_per_acre": 40,
+        "optimal_ph_min": 6.0,
+        "optimal_ph_max": 7.5
+      }
+    },
+    "rice": {
+      "display_name": "Rice",
+      "default_input_costs_per_acre": {
+        "seed_cost": 2000,
+        "fertilizer_cost": 7500,
+        "pesticide_cost": 2500,
+        "labor_cost": 18000,
+        "irrigation_cost": 3000,
+        "equipment_cost": 2000,
+        "transport_cost": 2000
+      },
+      "growth_stages": [
+        "nursery",
+        "transplant",
+        "tillering",
+        "panicle_initiation",
+        "flowering",
+        "harvest"
+      ],
+      "common_diseases": [
+        "blast",
+        "sheath_blight",
+        "stem_borer",
+        "brown_planthopper"
+      ],
+      "market_commodity_name": "Rice",
+      "npk_targets": {
+        "n_kg_per_acre": 100,
+        "p_kg_per_acre": 50,
+        "k_kg_per_acre": 50,
+        "optimal_ph_min": 5.5,
+        "optimal_ph_max": 6.5
+      }
+    },
+    "cotton": {
+      "display_name": "Cotton",
+      "default_input_costs_per_acre": {
+        "seed_cost": 4500,
+        "fertilizer_cost": 9000,
+        "pesticide_cost": 8000,
+        "labor_cost": 15000,
+        "irrigation_cost": 5000,
+        "equipment_cost": 3000,
+        "transport_cost": 2500
+      },
+      "growth_stages": [
+        "germination",
+        "squaring",
+        "flowering",
+        "boll_formation",
+        "boll_opening",
+        "harvest"
+      ],
+      "common_diseases": [
+        "bacterial_blight",
+        "leaf_curl_virus",
+        "aphid",
+        "whitefly"
+      ],
+      "market_commodity_name": "Cotton",
+      "npk_targets": {
+        "n_kg_per_acre": 100,
+        "p_kg_per_acre": 50,
+        "k_kg_per_acre": 60,
+        "optimal_ph_min": 5.8,
+        "optimal_ph_max": 8.0
+      }
+    }
+  }
+}

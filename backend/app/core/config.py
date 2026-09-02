@@ -20,11 +20,7 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
 
-    gemini_api_key: str | None = None
-    gemini_model: str = "gemini-3.6-flash"
-    gemini_embedding_model: str = "gemini-embedding-001"
-
-    router_mode: str = "hybrid"  # keyword | embedding | hybrid
+    router_mode: str = "keyword"  # keyword | embedding | hybrid | supervised
     router_threshold: float = 0.60
     router_cost_lambda: float = 0.05
 
@@ -34,6 +30,12 @@ class Settings(BaseSettings):
 
     weather_api_key: str | None = None
     market_api_key: str | None = None
+    data_gov_api_key: str | None = None
+    weather_cache_ttl_seconds: int = 3600
+    market_cache_ttl_seconds: int = 21600
+
+    upag_api_username: str | None = None
+    upag_api_password: str | None = None
 
 
 @lru_cache
