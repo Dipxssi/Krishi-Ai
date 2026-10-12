@@ -9,3 +9,7 @@ backend/data/*.db
 *.egg-info/
 .mypy_cache/
 .ruff_cache/
+.DS_Store
+backend/data/knowledge/fastapi/env/
+backend/data/knowledge/fastapi/__pycache__/
+frontend/dist/
