@@ -1,0 +1,4 @@
+image_path,specimen_id,plant_id,condition,true_label,split,expert_evaluator_id,crop,location,camera_model,notes
+ml/field_data/images/MH_NAS_TOM_001_guided.jpg,MH_NAS_TOM_001,TOM_PLOT_A_12,guided,Tomato Early Blight,locked_test,KVK_AGR_402,tomato,"Nashik, Maharashtra",Redmi Note 11,"Single leaf against white cardboard, diffuse morning light"
+ml/field_data/images/MH_NAS_TOM_001_ordinary.jpg,MH_NAS_TOM_001,TOM_PLOT_A_12,ordinary,Tomato Early Blight,locked_test,KVK_AGR_402,tomato,"Nashik, Maharashtra",Redmi Note 11,In-situ field background with soil and partial weed clutter
+ml/field_data/images/MH_NAS_WEED_002_ordinary.jpg,MH_NAS_WEED_002,WEED_BORDER_03,ordinary,unsupported_plant,locked_test,KVK_AGR_402,parthenium,"Nashik, Maharashtra",Redmi Note 11,Parthenium weed in field furrow (out-of-distribution control)

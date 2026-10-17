@@ -13,3 +13,35 @@ backend/data/*.db
 backend/data/knowledge/fastapi/env/
 backend/data/knowledge/fastapi/__pycache__/
 frontend/dist/
+
+# Datasets and raw data
+ml/PlantVillage/
+ml/PlantDoc/
+ml/**/raw/
+ml/**/processed/
+*.zip
+*.tar
+*.tar.gz
+
+# Model weights, checkpoints, and exports
+*.pth
+*.pt
+*.onnx
+*.tflite
+*.safetensors
+*.ckpt
+*.joblib
+*.pkl
+ml/weights/
+ml/checkpoints/
+ml/models/
+ml/artifacts/
+
+# ML training runs, logs, features, and caches
+ml/runs/
+ml/logs/
+ml/features/
+*.npy
+*.npz
+wandb/
+.tensorboard/

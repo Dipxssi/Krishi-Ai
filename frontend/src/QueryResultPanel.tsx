@@ -1,4 +1,5 @@
 import type { QueryResponse, ToolTrace } from "./api";
+import SafeRecommendationRenderer from "./SafeRecommendationRenderer";
 
 const MISSING_FIELD_LABELS: Record<string, string> = {
   location: "Location (district / mandi)",
@@ -14,13 +15,33 @@ export default function QueryResultPanel({ result }: { result: QueryResponse }) 
   return (
     <section className="panel result" aria-labelledby="result-title">
       <h2 id="result-title">Recommendation</h2>
-      <p className="recommendation">{result.final_recommendation}</p>
+      {(result.selected_crop || result.farm_profile_crop) && (
+        <div className="crop-context-row" role="region" aria-label="Crop context summary">
+          {result.selected_crop && (
+            <span className="crop-badge selected-badge">
+              Inquiry crop: <strong>{result.selected_crop}</strong>
+            </span>
+          )}
+          {result.farm_profile_crop && (
+            <span className="crop-badge profile-badge">
+              Farm profile crop: <strong>{result.farm_profile_crop}</strong>
+            </span>
+          )}
+        </div>
+      )}
+      <div className="recommendation">
+        <SafeRecommendationRenderer text={result.final_recommendation} />
+      </div>
 
       <div className="meta-row">
-        <span>Confidence {(result.confidence * 100).toFixed(0)}%</span>
+        <span title="Composite heuristic consensus of specialist agents (not a calibrated disease probability)">
+          Pipeline confidence {(result.confidence * 100).toFixed(0)}% (Heuristic)
+        </span>
         <span>Revisions {result.revision_count}</span>
         {result.decision_score && (
-          <span>Decision score {(result.decision_score.final_score * 100).toFixed(0)}</span>
+          <span title="Heuristic composite index combining agronomic suitability and economics">
+            Decision index {(result.decision_score.final_score * 100).toFixed(0)} / 100
+          </span>
         )}
       </div>
 
@@ -39,9 +60,9 @@ export default function QueryResultPanel({ result }: { result: QueryResponse }) 
       {result.decision_score && (
         <>
           <div className="score-bars">
-            <ScoreBar label="Agronomic" value={result.decision_score.agronomic_score} tone="leaf" />
-            <ScoreBar label="Economic" value={result.decision_score.economic_score} tone="gold" />
-            <ScoreBar label="Overall" value={result.decision_score.final_score} tone="soil" />
+            <ScoreBar label="Agronomic suitability" value={result.decision_score.agronomic_score} tone="leaf" />
+            <ScoreBar label="Economic viability" value={result.decision_score.economic_score} tone="gold" />
+            <ScoreBar label="Overall decision index" value={result.decision_score.final_score} tone="soil" />
           </div>
           <div className="risk-metrics">
             <MetricCard
@@ -60,30 +81,155 @@ export default function QueryResultPanel({ result }: { result: QueryResponse }) 
               hint="Higher = more rainfall stress"
               tone="risk"
             />
-            <MetricCard
-              label="Disease risk"
-              value={`${(result.decision_score.disease_risk * 100).toFixed(0)}%`}
-              hint="From query + context cues"
-              tone="risk"
-            />
+            {result.decision_score.disease_risk !== null &&
+            result.decision_score.disease_risk !== undefined ? (
+              <MetricCard
+                label="Disease risk"
+                value={`${(result.decision_score.disease_risk * 100).toFixed(0)}%`}
+                hint="Heuristic indicator (not calibrated probability)"
+                tone="risk"
+              />
+            ) : (
+              <MetricCard
+                label="Disease risk"
+                value="Suppressed"
+                hint="Unconfirmed diagnosis — expert review needed"
+                tone="risk"
+              />
+            )}
           </div>
         </>
       )}
 
-      {result.image_diagnosis && (
-        <div className="image-diagnosis">
-          <h3>Image diagnosis</h3>
-          <p>
-            Status: {result.image_diagnosis.status}
-            {result.image_diagnosis.crop_id && ` · Crop: ${result.image_diagnosis.crop_id}`}
-            {result.image_diagnosis.disease && ` · ${result.image_diagnosis.disease}`}
-            {result.image_diagnosis.severity && ` (${result.image_diagnosis.severity})`}
-          </p>
-          {result.image_diagnosis.rejection_reason && (
-            <p className="status err">{result.image_diagnosis.rejection_reason}</p>
-          )}
-        </div>
-      )}
+      {result.image_diagnosis && (() => {
+        const diag = result.image_diagnosis;
+        const isAccepted = (diag.status === "ok" || diag.status === "accepted") && !diag.requires_expert;
+        const isMobileNet = diag.model_version?.includes("mobilenetv3");
+        const plantName = diag.plant_name || (diag.crop_id ? diag.crop_id.charAt(0).toUpperCase() + diag.crop_id.slice(1) : "Crop");
+        const diseaseLabel = diag.predicted_disease || (diag.disease ? diag.disease.replace(/_/g, " ") : "Unknown");
+        const confScore = diag.confidence ?? diag.disease_confidence;
+
+        return (
+          <div
+            className={`image-diagnosis diagnosis-${
+              isAccepted
+                ? "accepted"
+                : diag.requires_expert
+                ? "expert-review"
+                : "rejected"
+            }`}
+          >
+            <div className="diagnosis-status-header">
+              <h3>Image diagnosis</h3>
+              {isAccepted && (
+                <span className="diagnosis-badge badge-accepted">
+                  {isMobileNet ? "MobileNetV3 Visual Prediction" : "Automated screening match"}
+                </span>
+              )}
+              {diag.requires_expert && (
+                <span className="diagnosis-badge badge-expert">Unconfirmed · Expert review recommended</span>
+              )}
+              {diag.status === "rejected" && !diag.requires_expert && (
+                <span className="diagnosis-badge badge-rejected">Abstained · Image not diagnostic</span>
+              )}
+            </div>
+
+            {isAccepted ? (
+              <div className="diagnosis-body">
+                <p className="diagnosis-summary">
+                  <strong>Plant: {plantName}</strong> ·{" "}
+                  {diag.is_healthy ? (
+                    <span className="status-healthy" style={{ color: "#2e7d32", fontWeight: 600 }}>
+                      No supported disease detected (Healthy leaf scan)
+                    </span>
+                  ) : (
+                    <span>
+                      Predicted condition: <strong>{diseaseLabel}</strong>
+                      {diag.severity && ` (${diag.severity})`}
+                    </span>
+                  )}
+                  {confScore !== null && confScore !== undefined && (
+                    <span className="conf-tag">
+                      {" "}· Confidence: {(confScore * 100).toFixed(1)}% <em style={{ fontSize: "0.85em", opacity: 0.8 }}>(Uncalibrated)</em>
+                    </span>
+                  )}
+                </p>
+
+                {isMobileNet ? (
+                  <div className="diagnosis-disclaimer" style={{ background: "#fff8e1", borderLeft: "4px solid #ffa000", padding: "8px 12px", margin: "10px 0", borderRadius: "4px" }}>
+                    <p style={{ margin: 0, fontSize: "0.88rem", color: "#5d4037" }}>
+                      ⚠️ <strong>Experimental model — not verified for field diagnosis</strong> (PlantDoc evaluation: 20.85% in-scope accuracy; uncalibrated softmax probability).
+                      Do not apply chemical pesticides or fungicides based solely on AI predictions.
+                      Physical verification by local Krishi Vigyan Kendra (KVK) or extension officer is required before chemical spraying.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="diagnosis-disclaimer">
+                    Note: Automated preliminary screening only. Does not constitute certified expert diagnosis or
+                    established field accuracy. Scout the field and verify physical leaf symptoms before taking action.
+                  </p>
+                )}
+
+                {diag.treatment_hints && diag.treatment_hints.length > 0 && (
+                  <ul className="diagnosis-hints">
+                    {diag.treatment_hints.map((h, i) => (
+                      <li key={i}>{h}</li>
+                    ))}
+                  </ul>
+                )}
+
+                {diag.top_3 && diag.top_3.length > 0 && (
+                  <div className="diagnosis-top3-box" style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #dce8d6" }}>
+                    <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#2e5b37", textTransform: "uppercase", letterSpacing: "0.04em", display: "block", marginBottom: "8px" }}>
+                      Alternative Candidate Predictions (MobileNetV3 Output)
+                    </span>
+                    <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                      {diag.top_3.map((cand, idx) => (
+                        <div key={idx} style={{ background: "#f1f8ed", border: "1px solid #c8e0be", padding: "6px 10px", borderRadius: "6px", fontSize: "0.84rem", color: "#1b3e23" }}>
+                          <strong>#{idx + 1} {cand.display_name}</strong>: {(cand.confidence * 100).toFixed(1)}%
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : diag.requires_expert ? (
+              <div className="diagnosis-body">
+                <div className="diagnosis-abstain-notice notice-expert">
+                  <p>
+                    <strong>Automated diagnosis is unconfirmed.</strong> Do not apply chemical pesticides or fungicides
+                    based on unverified automated scans. Physical inspection by a local Krishi Vigyan Kendra (KVK) or
+                    extension agronomist is recommended.
+                  </p>
+                </div>
+                {diag.rejection_reason && (
+                  <p className="status err">{diag.rejection_reason}</p>
+                )}
+                {diag.treatment_hints && diag.treatment_hints.length > 0 && (
+                  <ul className="diagnosis-hints">
+                    {diag.treatment_hints.map((h, i) => (
+                      <li key={i}>{h}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : (
+              <div className="diagnosis-body">
+                <div className="diagnosis-abstain-notice notice-rejected">
+                  <p>
+                    <strong>Automated diagnosis abstained.</strong> The uploaded photo could not be verified reliably.
+                    Photograph a single fully visible leaf centered against a plain neutral background in bright
+                    daylight, or consult a local agronomist.
+                  </p>
+                </div>
+                {diag.rejection_reason && (
+                  <p className="status err">{diag.rejection_reason}</p>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {result.structured_recommendation && (
         <div className="structured-rec">

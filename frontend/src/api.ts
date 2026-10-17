@@ -31,7 +31,7 @@ export type DecisionScore = {
   agronomic_suitability: number;
   expected_profit: number;
   water_risk: number;
-  disease_risk: number;
+  disease_risk?: number | null;
   input_cost: number;
   agronomic_score: number;
   economic_score: number;
@@ -44,6 +44,8 @@ export type QueryResponse = {
   request_id: string;
   query: string;
   farmer_id: string;
+  selected_crop?: string | null;
+  farm_profile_crop?: string | null;
   final_recommendation: string;
   structured_recommendation?: {
     action_summary: string;
@@ -57,12 +59,27 @@ export type QueryResponse = {
   image_diagnosis?: {
     status: string;
     rejection_reason?: string | null;
+    plant_name?: string | null;
+    predicted_disease?: string | null;
+    is_healthy?: boolean;
+    confidence?: number | null;
+    confidence_is_calibrated?: boolean;
+    model_version?: string | null;
     crop_id?: string | null;
     disease?: string | null;
     disease_confidence?: number | null;
     severity?: string | null;
     requires_expert: boolean;
     treatment_hints: string[];
+    disclaimer?: string | null;
+    top_3?: {
+      display_name: string;
+      confidence: number;
+      class_idx?: number;
+      crop?: string;
+      disease?: string;
+      is_healthy?: boolean;
+    }[] | null;
   } | null;
   decision_score: DecisionScore | null;
   agents_used: string[];
@@ -171,6 +188,8 @@ export async function askAdvice(
   farmerId: string,
   query: string,
   imageBase64?: string | null,
+  selectedCrop?: string | null,
+  visionModel?: string | null,
 ): Promise<QueryResponse> {
   const res = await fetch(`${API_BASE}/query`, {
     method: "POST",
@@ -179,6 +198,8 @@ export async function askAdvice(
       farmer_id: farmerId,
       query,
       image_base64: imageBase64 || undefined,
+      selected_crop: selectedCrop || undefined,
+      vision_model: visionModel || undefined,
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
@@ -219,3 +240,49 @@ export async function fetchCropArticles(crop?: string, q?: string): Promise<{ it
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
+
+export type MobileNetV3PredictionItem = {
+  class_idx: number;
+  display_name: string;
+  crop: string;
+  disease: string;
+  is_healthy: boolean;
+  confidence: number;
+  confidence_is_calibrated: boolean;
+};
+
+export type MobileNetV3DiagnosisResponse = {
+  status: "accepted" | "rejected";
+  rejection_reason?: string | null;
+  predicted_class?: string | null;
+  crop_id?: string | null;
+  disease?: string | null;
+  confidence?: number | null;
+  confidence_is_calibrated: boolean;
+  top_3: MobileNetV3PredictionItem[];
+  requires_expert: boolean;
+  treatment_hints: string[];
+  image_quality_score?: number | null;
+  inference_time_ms: number;
+  model_version: string;
+  disclaimer: string;
+};
+
+export async function diagnoseMobileNetV3(
+  imageBase64: string,
+  cropHint?: string | null,
+  confidenceThreshold?: number,
+): Promise<MobileNetV3DiagnosisResponse> {
+  const res = await fetch(`${API_BASE}/crop/mobilenetv3-diagnosis`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      image_base64: imageBase64,
+      crop_hint: cropHint || undefined,
+      confidence_threshold: confidenceThreshold ?? 0.60,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+

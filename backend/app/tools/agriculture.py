@@ -194,7 +194,7 @@ class DecisionScoreArgs(BaseModel):
     agronomic_suitability: float = Field(ge=0, le=1)
     expected_profit: float  # normalized later if large
     water_risk: float = Field(ge=0, le=1)
-    disease_risk: float = Field(ge=0, le=1)
+    disease_risk: float | None = None
     input_cost: float = Field(ge=0)  # absolute or 0-1; we normalize
     agronomic_weight: float | None = None
     economic_weight: float | None = None
@@ -206,7 +206,7 @@ def estimate_decision_score(
     agronomic_suitability: float,
     expected_profit: float,
     water_risk: float,
-    disease_risk: float,
+    disease_risk: float | None,
     input_cost: float,
     agronomic_weight: float | None = None,
     economic_weight: float | None = None,
@@ -223,7 +223,8 @@ def estimate_decision_score(
         economic_raw = max(0.0, 0.5 + expected_profit / max_profit_scale)
     input_norm = max(0.0, min(1.0, input_cost / max_input_cost_scale))
 
-    agronomic_score = max(0.0, min(1.0, agronomic_suitability - 0.3 * water_risk - 0.3 * disease_risk))
+    disease_penalty = 0.3 * disease_risk if disease_risk is not None else 0.0
+    agronomic_score = max(0.0, min(1.0, agronomic_suitability - 0.3 * water_risk - disease_penalty))
     economic_score = max(0.0, min(1.0, economic_raw - 0.25 * input_norm))
     final_score = aw * agronomic_score + ew * economic_score
 

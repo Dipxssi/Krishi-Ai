@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
 
+    vision_model: str = "mobilenetv3"  # mobilenetv3 | heuristic
+    vision_confidence_threshold: float = 0.60
+    hf_model_repo: str = "Ishan2702/krishiai-mobilenetv3"
+    hf_model_filename: str = "mobilenetv3_plantdisease_best.pth"
+    hf_token: str | None = None
+
     router_mode: str = "keyword"  # keyword | embedding | hybrid | supervised
     router_threshold: float = 0.60
     router_cost_lambda: float = 0.05
