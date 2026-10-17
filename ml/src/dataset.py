@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import os
 from pathlib import Path
 from typing import Any, Callable
 
@@ -13,8 +14,8 @@ from torchvision import transforms
 
 from ml.src.config import IDX_TO_CLASS, PROJECT_ROOT, TARGET_CLASSES
 
-PLANTDOC_ROOT = Path("/Users/ishansharma2702/Downloads/PlantDoc-Dataset-master")
-PLANTVILLAGE_ROOT = PROJECT_ROOT / "ml" / "PlantVillage" / "raw" / "color"
+PLANTDOC_ROOT = Path(os.getenv("PLANTDOC_ROOT", str(PROJECT_ROOT / "ml" / "PlantDoc" / "raw")))
+PLANTVILLAGE_ROOT = Path(os.getenv("PLANTVILLAGE_ROOT", str(PROJECT_ROOT / "ml" / "PlantVillage" / "raw" / "color")))
 
 # Standard ImageNet normalization constants for pretrained torchvision models
 IMAGENET_MEAN = [0.485, 0.456, 0.406]

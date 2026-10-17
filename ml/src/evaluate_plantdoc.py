@@ -17,6 +17,7 @@ import hashlib
 import json
 import time
 from concurrent.futures import ProcessPoolExecutor
+import os
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from ml.src.config import FEATURES_DIR, MODELS_DIR, PROJECT_ROOT, TARGET_CLASSES
 from ml.src.features import extract_features_from_image
 
-PLANTDOC_ROOT = Path("/Users/ishansharma2702/Downloads/PlantDoc-Dataset-master")
+PLANTDOC_ROOT = Path(os.getenv("PLANTDOC_ROOT", str(PROJECT_ROOT / "ml" / "PlantDoc" / "raw")))
 PLANTDOC_DIR = PROJECT_ROOT / "ml" / "plantdoc"
 ARTIFACTS_DIR = PROJECT_ROOT / "ml" / "artifacts"
 

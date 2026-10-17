@@ -39,7 +39,9 @@ from app.vision.diagnosis import _color_ratios, _image_quality_score
 from app.vision.experts import SUPPORTED_VISION_CROPS, run_crop_expert
 from ml.src.config import IDX_TO_CLASS, TARGET_CLASSES
 
-PLANTDOC_ROOT = Path("/Users/ishansharma2702/Downloads/PlantDoc-Dataset-master")
+import os
+
+PLANTDOC_ROOT = Path(os.getenv("PLANTDOC_ROOT", str(REPO_ROOT / "ml" / "PlantDoc" / "raw")))
 PLANTDOC_DIR = REPO_ROOT / "ml" / "plantdoc"
 ARTIFACTS_DIR = REPO_ROOT / "ml" / "artifacts"
 MODELS_DIR = REPO_ROOT / "ml" / "models"

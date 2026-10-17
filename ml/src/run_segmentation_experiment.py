@@ -12,6 +12,7 @@ import hashlib
 import json
 import time
 from concurrent.futures import ProcessPoolExecutor
+import os
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,7 @@ ARTIFACTS_DIR = PROJECT_ROOT / "ml" / "artifacts"
 from ml.src.features import extract_features_from_image
 from ml.src.segmentation import segment_leaf_foreground
 
-PLANTDOC_ROOT = Path("/Users/ishansharma2702/Downloads/PlantDoc-Dataset-master")
+PLANTDOC_ROOT = Path(os.getenv("PLANTDOC_ROOT", str(PROJECT_ROOT / "ml" / "PlantDoc" / "raw")))
 PLANTDOC_DIR = PROJECT_ROOT / "ml" / "plantdoc"
 
 
