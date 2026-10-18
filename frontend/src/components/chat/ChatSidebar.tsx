@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link } from "react-router-dom";
 import { LogOut, MessageSquare, MoreVertical, Plus, Search, Settings, Trash2 } from "lucide-react";
 import { Logo } from "@/components/Logo";
 import {
@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Conversation } from "@/data/mockChats";
+import { initialsFromName, useAuthUser } from "@/hooks/useAuthUser";
+import { clearAuthSession } from "@/lib/authSession";
 import { cn } from "@/lib/utils";
 
 interface ChatSidebarProps {
@@ -33,6 +35,10 @@ export function ChatSidebar({
   onOpenSettings,
 }: ChatSidebarProps) {
   const [query, setQuery] = useState("");
+  const authUser = useAuthUser();
+  const displayName = authUser?.name?.trim() || authUser?.email?.split("@")[0] || "Farmer";
+  const displayEmail = authUser?.email || "Not signed in";
+  const initials = initialsFromName(displayName);
   const filtered = conversations.filter((c) =>
     (c.title + " " + c.messages.map((m) => m.content).join(" "))
       .toLowerCase()
@@ -131,17 +137,20 @@ export function ChatSidebar({
               className="flex w-full items-center gap-3 rounded-2xl p-2 text-left transition-colors hover:bg-sidebar-accent/70"
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
-                FU
+                {initials}
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold">Farmer User</span>
-                <span className="block text-xs text-sidebar-foreground/60">Free Account</span>
+                <span className="block truncate text-sm font-semibold">{displayName}</span>
+                <span className="block truncate text-xs text-sidebar-foreground/60">{displayEmail}</span>
               </span>
               <Settings className="size-4 text-sidebar-foreground/60" aria-hidden="true" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            <DropdownMenuLabel>Farmer User</DropdownMenuLabel>
+            <DropdownMenuLabel className="font-normal">
+              <span className="block text-sm font-semibold text-foreground">{displayName}</span>
+              <span className="block truncate text-xs text-muted-foreground">{displayEmail}</span>
+            </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onOpenSettings}>
               <Settings className="size-4" />
@@ -149,7 +158,12 @@ export function ChatSidebar({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" asChild>
-              <Link to="/auth">
+              <Link
+                to="/auth"
+                onClick={() => {
+                  clearAuthSession();
+                }}
+              >
                 <LogOut className="size-4" />
                 Log out
               </Link>

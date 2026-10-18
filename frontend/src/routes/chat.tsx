@@ -6,7 +6,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
-import { SettingsModal } from "@/components/chat/SettingsModal";
+import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import {
@@ -272,7 +272,7 @@ function ChatPage() {
         <ChatInput onSend={handleSend} disabled={thinking} />
       </main>
 
-      <SettingsModal
+      <SettingsPanel
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
         onClearAll={() => {

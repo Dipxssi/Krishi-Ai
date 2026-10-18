@@ -1,11 +1,22 @@
+import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
   server: {
     port: 5173,
     proxy: {
+      // Only API auth routes — not GET /auth (that is the React page).
+      "/auth/signup": "http://127.0.0.1:8000",
+      "/auth/login": "http://127.0.0.1:8000",
+      "/auth/me": "http://127.0.0.1:8000",
       "/farmers": "http://127.0.0.1:8000",
       "/query": "http://127.0.0.1:8000",
       "/route": "http://127.0.0.1:8000",

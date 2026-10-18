@@ -15,7 +15,22 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/routes",
+    "src/router.tsx",
+    "src/start.ts",
+    "src/server.ts",
+    "src/routeTree.gen.ts",
+    "src/LegacyApp.tsx",
+    "src/lib/error-capture.ts",
+    "src/lib/error-page.ts",
+    "src/lib/lovable-error-reporting.ts"
+  ]
 }

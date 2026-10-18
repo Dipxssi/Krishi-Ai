@@ -1,3 +1,5 @@
+import type { QueryResponse } from "@/api";
+
 export type AgentId = "crop" | "disease" | "finance" | "general";
 
 export interface Agent {
@@ -40,6 +42,10 @@ export interface ChatMessageData {
   content: string;
   agent?: AgentId | undefined;
   feedback?: "up" | "down" | undefined;
+  requestId?: string | undefined;
+  imagePreview?: string | undefined;
+  /** Full backend payload — used for scores, confidence, and rich UI. */
+  queryResult?: QueryResponse | undefined;
 }
 
 export interface Conversation {

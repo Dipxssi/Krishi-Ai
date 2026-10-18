@@ -1,5 +1,12 @@
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+# Vision services import `ml.*` from the monorepo root (sibling of backend/).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,6 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 from app.api.audit import router as audit_router
+from app.api.auth import router as auth_router
 from app.api.farmers import router as farmers_router
 from app.api.knowledge import router as knowledge_router
 from app.api.query import router as query_router
@@ -14,6 +22,7 @@ from app.api.route import router as route_router
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
 from app.db.session import init_db
+from app.db.users import UserRow  # noqa: F401 — register tables
 from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401 — register tables
 
 
@@ -42,6 +51,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(query_router)
 app.include_router(route_router)
 app.include_router(farmers_router)
@@ -57,6 +67,9 @@ def root():
         "message": "KrishiAi V1 backend is running",
         "docs": "/docs",
         "endpoints": [
+            "/auth/signup",
+            "/auth/login",
+            "/auth/me",
             "/query",
             "/route",
             "/farmers",

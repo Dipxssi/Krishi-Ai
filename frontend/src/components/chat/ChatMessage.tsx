@@ -1,5 +1,6 @@
 import { Copy, RefreshCw, ThumbsDown, ThumbsUp, Sprout } from "lucide-react";
 import { toast } from "sonner";
+import { AdviceResult } from "@/components/chat/AdviceResult";
 import { AgentIndicator } from "@/components/chat/AgentIndicator";
 import type { ChatMessageData } from "@/data/mockChats";
 import { cn } from "@/lib/utils";
@@ -8,14 +9,21 @@ interface ChatMessageProps {
   message: ChatMessageData;
   onRegenerate?: (() => void) | undefined;
   onFeedback?: ((value: "up" | "down") => void) | undefined;
+  onOpenDetails?: (() => void) | undefined;
 }
 
-export function ChatMessage({ message, onRegenerate, onFeedback }: ChatMessageProps) {
+export function ChatMessage({
+  message,
+  onRegenerate,
+  onFeedback,
+  onOpenDetails,
+}: ChatMessageProps) {
   const isUser = message.role === "user";
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(message.content);
+      const text = message.queryResult?.final_recommendation || message.content;
+      await navigator.clipboard.writeText(text);
       toast.success("Response copied");
     } catch {
       toast.error("Could not copy the response");
@@ -26,6 +34,13 @@ export function ChatMessage({ message, onRegenerate, onFeedback }: ChatMessagePr
     return (
       <div className="flex animate-in fade-in slide-in-from-bottom-2 justify-end gap-3 duration-300">
         <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-primary px-5 py-3.5 text-primary-foreground shadow-soft sm:max-w-[70%]">
+          {message.imagePreview && (
+            <img
+              src={message.imagePreview}
+              alt="Attached leaf"
+              className="mb-3 max-h-40 w-full rounded-2xl object-cover"
+            />
+          )}
           <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
         </div>
         <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-earth text-xs font-semibold text-earth-foreground">
@@ -44,7 +59,15 @@ export function ChatMessage({ message, onRegenerate, onFeedback }: ChatMessagePr
         {message.agent && <AgentIndicator agent={message.agent} />}
         <p className="text-sm font-semibold text-foreground">Krishi AI</p>
         <div className="mt-2 rounded-3xl rounded-tl-lg border border-border bg-card px-5 py-4 shadow-soft">
-          <FormattedContent content={message.content} />
+          {message.queryResult ? (
+            <AdviceResult
+              result={message.queryResult}
+              compact
+              onOpenScores={onOpenDetails}
+            />
+          ) : (
+            <FormattedContent content={message.content} />
+          )}
         </div>
         <div className="mt-2 flex items-center gap-1">
           <IconAction label="Copy response" onClick={copy} icon={Copy} />

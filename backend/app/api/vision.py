@@ -9,8 +9,6 @@ from app.schemas.models import (
     MobileNetV3DiagnosisResponse,
 )
 from app.vision.diagnosis import diagnose_image_bytes
-from app.vision.elasticnet_service import run_elasticnet_diagnosis
-from app.vision.mobilenetv3_service import run_mobilenetv3_diagnosis
 
 router = APIRouter(prefix="/crop", tags=["vision"])
 
@@ -29,6 +27,8 @@ def elasticnet_diagnosis(request: ElasticNetDiagnosisRequest):
     Kept separate from the live heuristic endpoint until field evaluation passes.
     """
     try:
+        from app.vision.elasticnet_service import run_elasticnet_diagnosis
+
         return run_elasticnet_diagnosis(request)
     except Exception as exc:
         raise HTTPException(
@@ -45,6 +45,8 @@ def mobilenetv3_diagnosis(request: MobileNetV3DiagnosisRequest):
     Kept separate from the live heuristic endpoint until expert-verified field evaluation passes.
     """
     try:
+        from app.vision.mobilenetv3_service import run_mobilenetv3_diagnosis
+
         return run_mobilenetv3_diagnosis(request)
     except Exception as exc:
         raise HTTPException(

@@ -1,4 +1,6 @@
 .env
+.env.local
+.neon
 *.db
 __pycache__/
 *.py[cod]
@@ -45,3 +47,4 @@ ml/features/
 *.npz
 wandb/
 .tensorboard/
+node_modules/

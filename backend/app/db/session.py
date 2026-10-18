@@ -48,31 +48,45 @@ def reset_engine() -> None:
         _engine = None
 
 
+def normalize_database_url(url: str) -> str:
+    """Accept Neon/postgres URLs and prefer the psycopg3 SQLAlchemy driver."""
+    cleaned = url.strip()
+    if cleaned.startswith("postgres://"):
+        cleaned = "postgresql://" + cleaned[len("postgres://") :]
+    if cleaned.startswith("postgresql://") and "+psycopg" not in cleaned.split("://", 1)[0]:
+        cleaned = cleaned.replace("postgresql://", "postgresql+psycopg://", 1)
+    return cleaned
+
+
 def get_engine():
     global _engine
     if _engine is None:
         settings = get_settings()
-        url = settings.database_url
+        url = normalize_database_url(settings.database_url)
         if url.startswith("sqlite") and ":memory:" in url:
             _engine = create_engine(
                 url,
                 connect_args={"check_same_thread": False},
                 poolclass=StaticPool,
             )
+        elif url.startswith("sqlite"):
+            _engine = create_engine(url, connect_args={"check_same_thread": False})
         else:
-            connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-            _engine = create_engine(url, connect_args=connect_args)
+            # Neon and other hosted Postgres: recycle dropped connections.
+            _engine = create_engine(url, pool_pre_ping=True)
     return _engine
 
 
 def init_db() -> None:
     settings = get_settings()
-    if settings.database_url.startswith("sqlite") and ":memory:" not in settings.database_url:
-        db_path = settings.database_url.replace("sqlite:///", "", 1)
+    url = normalize_database_url(settings.database_url)
+    if url.startswith("sqlite") and ":memory:" not in url:
+        db_path = url.replace("sqlite:///", "", 1)
         from pathlib import Path
 
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-    # Register audit tables before create_all (also used from tests without importing main).
+    # Register tables before create_all (also used from tests without importing main).
+    from app.db.users import UserRow  # noqa: F401
     from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401
 
     SQLModel.metadata.create_all(get_engine())
