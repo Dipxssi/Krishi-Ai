@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
     knowledge_dir: str = str(BACKEND_DIR / "data" / "knowledge")
 
+    jwt_secret: str = "dev-only-change-me-krishiai-jwt"
+    jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
+
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
 

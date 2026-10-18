@@ -141,6 +141,57 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  farmer_id: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  token_type: string;
+  user: AuthUser;
+};
+
+export async function signup(
+  name: string,
+  email: string,
+  password: string,
+  location?: string,
+): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      email,
+      password,
+      location: location || undefined,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
+export async function fetchMe(accessToken: string): Promise<AuthUser> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
+}
+
 export async function createFarmer(payload: FarmContext): Promise<FarmContext> {
   const res = await fetch(`${API_BASE}/farmers`, {
     method: "POST",
@@ -161,21 +212,26 @@ export async function updateFarmer(farmerId: string, payload: FarmContextUpdate)
   return res.json();
 }
 
-/** Create a new profile or update an existing one (POST then PUT on 409). */
+/** Update an existing profile, or create one if missing (PUT then POST on 404). */
 export async function saveFarmer(payload: FarmContext): Promise<"created" | "updated"> {
-  const res = await fetch(`${API_BASE}/farmers`, {
+  const { farmer_id, ...rest } = payload;
+  const putRes = await fetch(`${API_BASE}/farmers/${encodeURIComponent(farmer_id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(rest),
+  });
+  if (putRes.ok) return "updated";
+  if (putRes.status !== 404) {
+    throw new Error(await parseError(putRes));
+  }
+
+  const postRes = await fetch(`${API_BASE}/farmers`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-  if (res.status === 201) return "created";
-  if (res.status === 409) {
-    const { farmer_id, ...rest } = payload;
-    await updateFarmer(farmer_id, rest);
-    return "updated";
-  }
-  if (!res.ok) throw new Error(await parseError(res));
-  return "created";
+  if (postRes.status === 201 || postRes.ok) return "created";
+  throw new Error(await parseError(postRes));
 }
 
 export async function getFarmer(farmerId: string): Promise<FarmContext> {
@@ -284,5 +340,22 @@ export async function diagnoseMobileNetV3(
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
+}
+
+export async function submitFeedback(
+  requestId: string,
+  rating: number,
+  comment?: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/feedback`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      request_id: requestId,
+      rating,
+      comment: comment || undefined,
+    }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
 }
 
