@@ -19,4 +19,6 @@ def query_endpoint(request: QueryRequest):
         request.query,
         context,
         image_base64=request.image_base64,
+        selected_crop=request.selected_crop,
+        vision_model=request.vision_model,
     )

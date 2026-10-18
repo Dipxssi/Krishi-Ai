@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from functools import lru_cache
 from pathlib import Path
+import re
 from typing import Any
 
 from app.core.config import get_settings
@@ -24,6 +25,20 @@ def normalize_crop_name(crop: str | None) -> str | None:
         return None
     key = str(crop).strip().lower().replace("-", "_").replace(" ", "_")
     return _CROP_ALIASES.get(key, key)
+
+
+def extract_crop_from_text(text: str | None) -> str | None:
+    """Extract and normalize a recognized crop name from text (query, prompt, or title)."""
+    if not text or not str(text).strip():
+        return None
+    lowered = f" {text.lower()} "
+    for alias, canonical in _CROP_ALIASES.items():
+        if re.search(rf"\b{re.escape(alias)}\b", lowered):
+            return canonical
+    for crop in list_supported_crops():
+        if re.search(rf"\b{re.escape(crop)}\b", lowered):
+            return crop
+    return None
 
 
 @lru_cache(maxsize=1)

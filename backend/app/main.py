@@ -1,7 +1,10 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
 from app.api.audit import router as audit_router
 from app.api.farmers import router as farmers_router
@@ -53,5 +56,14 @@ def root():
     return {
         "message": "KrishiAi V1 backend is running",
         "docs": "/docs",
-        "endpoints": ["/query", "/route", "/farmers", "/knowledge", "/crop/image-diagnosis", "/audit", "/voice"],
+        "endpoints": [
+            "/query",
+            "/route",
+            "/farmers",
+            "/knowledge",
+            "/crop/image-diagnosis",
+            "/crop/elasticnet-diagnosis",
+            "/audit",
+            "/voice",
+        ],
     }

@@ -19,6 +19,7 @@ export default function App() {
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [selectedCrop, setSelectedCrop] = useState<string>("");
 
   const handleFarmerIdChange = useCallback((id: string) => {
     setFarmerId(id);
@@ -46,7 +47,7 @@ export default function App() {
     setError(null);
     setStatus(null);
     try {
-      const data = await askAdvice(farmerId, query, imageBase64);
+      const data = await askAdvice(farmerId, query, imageBase64, selectedCrop || undefined, "mobilenetv3");
       setResult(data);
       setStatus("Advice generated.");
       setTab("ask");
@@ -110,13 +111,98 @@ export default function App() {
                   Your question
                   <textarea value={query} onChange={(e) => setQuery(e.target.value)} rows={5} required />
                 </label>
+                <div className="camera-guidance" role="region" aria-label="Photo guidelines for diagnosis">
+                  <div className="guidance-header">
+                    <span className="guidance-tag">Photo Guidelines</span>
+                    <p className="guidance-title">For accurate plant disease diagnosis:</p>
+                  </div>
+                  <ul className="guidance-list">
+                    <li>
+                      <strong>Single leaf:</strong> Photograph a single, fully visible leaf centered in the frame.
+                    </li>
+                    <li>
+                      <strong>Plain neutral background:</strong> Place the leaf flat against a plain white paper or neutral surface (avoid outdoor soil, weeds, or hands).
+                    </li>
+                    <li>
+                      <strong>Good lighting:</strong> Capture in bright daylight without strong cast shadows or sunny glare.
+                    </li>
+                    <li>
+                      <strong>No surrounding foliage:</strong> Keep stems, weeds, and other garden clutter out of view.
+                    </li>
+                  </ul>
+                  <p className="guidance-note">
+                    Note: Complex field backgrounds (soil, weeds, shadows) may cause misclassification.
+                  </p>
+                </div>
                 <label>
-                  Crop leaf photo (optional)
-                  <input type="file" accept="image/*" onChange={onImageChange} disabled={busy} />
+                  Crop for this inquiry / leaf photo (optional)
+                  <select
+                    value={selectedCrop}
+                    onChange={(e) => setSelectedCrop(e.target.value)}
+                    disabled={busy}
+                    className="select-crop-inquiry"
+                  >
+                    <option value="">Auto-detect from question</option>
+                    <option value="tomato">Tomato</option>
+                    <option value="onion">Onion</option>
+                    <option value="potato">Potato</option>
+                    <option value="maize">Maize (Corn)</option>
+                    <option value="wheat">Wheat</option>
+                    <option value="rice">Rice</option>
+                    <option value="cotton">Cotton</option>
+                  </select>
                 </label>
-                {imagePreview && (
-                  <img src={imagePreview} alt="Upload preview" className="image-preview" />
-                )}
+                <div className="leaf-upload-card">
+                  <div className="leaf-upload-header">
+                    <div className="leaf-upload-title-row">
+                      <span className="leaf-upload-icon">🍃</span>
+                      <span className="leaf-upload-title">Crop Leaf Photo (Optional)</span>
+                      <span className="default-model-badge">Default: MobileNetV3 AI</span>
+                    </div>
+                    <span className="leaf-upload-subtitle">
+                      Instant foliar disease screening for Tomato, Potato, and Maize (Corn).
+                    </span>
+                  </div>
+
+                  {!imagePreview ? (
+                    <label className="leaf-file-dropzone">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={onImageChange}
+                        disabled={busy}
+                        className="leaf-file-input"
+                      />
+                      <span className="dropzone-icon">📷</span>
+                      <span className="dropzone-text">Choose or drop a leaf photo</span>
+                      <span className="dropzone-hint">Supports JPG, PNG, WEBP · Single leaf against plain background</span>
+                    </label>
+                  ) : (
+                    <div className="leaf-preview-container">
+                      <div className="leaf-preview-img-box">
+                        <img src={imagePreview} alt="Uploaded leaf preview" className="leaf-preview-img" />
+                      </div>
+                      <div className="leaf-preview-meta">
+                        <span className="leaf-ready-badge">✓ Leaf Attached for MobileNetV3 Analysis</span>
+                        <p className="leaf-ready-note">
+                          MobileNetV3 will automatically screen plant identity and foliar disease symptoms when you submit.
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-remove-leaf"
+                          onClick={() => {
+                            setImagePreview(null);
+                            setImageBase64(null);
+                          }}
+                          disabled={busy}
+                        >
+                          Remove photo
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <button type="submit" disabled={busy}>
                   {busy ? "Thinking…" : "Get recommendation"}
                 </button>
