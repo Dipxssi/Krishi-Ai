@@ -45,6 +45,8 @@ class QueryRequest(BaseModel):
     farmer_id: str
     image_url: str | None = None
     image_base64: str | None = None
+    selected_crop: str | None = None
+    vision_model: str | None = None  # "mobilenetv3" | "heuristic"
 
 
 class RouteRequest(BaseModel):
@@ -62,15 +64,32 @@ class RouteResponse(BaseModel):
     routing_mode: str
 
 
+class MobileNetV3PredictionItem(BaseModel):
+    class_idx: int
+    display_name: str
+    crop: str
+    disease: str
+    is_healthy: bool
+    confidence: float
+    confidence_is_calibrated: bool = False
+
+
 class ImageDiagnosisRequest(BaseModel):
     image_base64: str
     crop_hint: str | None = None
 
 
 class ImageDiagnosisResult(BaseModel):
-    status: str  # ok | rejected
+    status: str  # "accepted" | "rejected" | "ok"
     rejection_reason: str | None = None
-    image_quality_score: float
+    plant_name: str | None = None
+    predicted_disease: str | None = None
+    is_healthy: bool = False
+    confidence: float | None = None
+    confidence_is_calibrated: bool = False
+    model_version: str | None = None
+    top_3: list[MobileNetV3PredictionItem] = Field(default_factory=list)
+    image_quality_score: float | None = None
     crop_id: str | None = None
     crop_confidence: float | None = None
     disease: str | None = None
@@ -79,6 +98,76 @@ class ImageDiagnosisResult(BaseModel):
     requires_expert: bool = False
     expert_id: str | None = None
     treatment_hints: list[str] = Field(default_factory=list)
+    latency_ms: float | None = None
+    disclaimer: str | None = (
+        "Model confidence is uncalibrated softmax probability. This prediction is from an "
+        "experimental MobileNetV3 model not verified for field production. Physical expert confirmation required."
+    )
+
+
+class ElasticNetPredictionItem(BaseModel):
+    class_idx: int
+    display_name: str
+    crop: str
+    disease: str
+    is_healthy: bool
+    confidence: float
+    confidence_is_calibrated: bool = False
+
+
+class ElasticNetDiagnosisRequest(BaseModel):
+    image_base64: str
+    crop_hint: str | None = None
+    confidence_threshold: float = Field(default=0.60, ge=0.0, le=1.0)
+
+
+class ElasticNetDiagnosisResponse(BaseModel):
+    status: str  # "accepted" | "rejected"
+    rejection_reason: str | None = None
+    predicted_class: str | None = None
+    crop_id: str | None = None
+    disease: str | None = None
+    confidence: float | None = None
+    confidence_is_calibrated: bool = False
+    top_3: list[ElasticNetPredictionItem] = Field(default_factory=list)
+    requires_expert: bool = False
+    treatment_hints: list[str] = Field(default_factory=list)
+    image_quality_score: float | None = None
+    inference_time_ms: float
+    model_version: str = "elasticnet_plantdisease_best"
+    disclaimer: str = (
+        "Model confidence is uncalibrated. This test endpoint is strictly for offline "
+        "and experimental evaluation and is not verified for field production."
+    )
+
+
+class MobileNetV3DiagnosisRequest(BaseModel):
+    image_base64: str
+    crop_hint: str | None = None
+    confidence_threshold: float = Field(default=0.60, ge=0.0, le=1.0)
+
+
+class MobileNetV3DiagnosisResponse(BaseModel):
+    status: str  # "accepted" | "rejected"
+    rejection_reason: str | None = None
+    plant_name: str | None = None
+    predicted_disease: str | None = None
+    is_healthy: bool = False
+    predicted_class: str | None = None
+    crop_id: str | None = None
+    disease: str | None = None
+    confidence: float | None = None
+    confidence_is_calibrated: bool = False
+    top_3: list[MobileNetV3PredictionItem] = Field(default_factory=list)
+    requires_expert: bool = False
+    treatment_hints: list[str] = Field(default_factory=list)
+    image_quality_score: float | None = None
+    inference_time_ms: float
+    model_version: str = "mobilenetv3_plantdisease_best"
+    disclaimer: str = (
+        "Model confidence is uncalibrated softmax probability. This test endpoint is strictly for offline "
+        "and experimental evaluation and is not verified for field production."
+    )
 
 
 class StructuredRecommendation(BaseModel):
@@ -130,7 +219,7 @@ class DecisionScore(BaseModel):
     agronomic_suitability: float
     expected_profit: float
     water_risk: float
-    disease_risk: float
+    disease_risk: float | None = None
     input_cost: float
     agronomic_score: float
     economic_score: float
@@ -151,6 +240,8 @@ class QueryResponse(BaseModel):
     request_id: str
     query: str
     farmer_id: str
+    selected_crop: str | None = None
+    farm_profile_crop: str | None = None
     final_recommendation: str
     structured_recommendation: StructuredRecommendation | None = None
     image_diagnosis: ImageDiagnosisResult | None = None

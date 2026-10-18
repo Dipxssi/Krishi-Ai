@@ -87,12 +87,15 @@ def run_crop_expert(
             "treatment_hints": ["No strong disease signal — continue scouting and monitor after rain."],
         }
 
-    conf = 0.62
     return {
-        "disease": diseases[-1][0],
-        "disease_confidence": conf,
-        "severity": "uncertain",
+        "disease": None,
+        "disease_confidence": None,
+        "severity": None,
         "requires_expert": True,
         "expert_id": f"{crop_id}_expert_v1",
-        "treatment_hints": ["Uncertain diagnosis — upload a clearer close-up of affected leaves."],
+        "treatment_hints": [
+            "Automated diagnosis is unconfirmed. Avoid unverified chemical spraying.",
+            "Consult local Krishi Vigyan Kendra (KVK) or agricultural extension specialist for physical leaf confirmation.",
+            "Uncertain diagnosis — upload a clearer close-up of affected leaves.",
+        ],
     }

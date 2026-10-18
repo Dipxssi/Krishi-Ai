@@ -83,7 +83,46 @@ def validate_draft(
     if image_diagnosis and image_diagnosis.requires_expert:
         warnings.append("Image diagnosis uncertain — human agronomist review recommended.")
 
-    if image_diagnosis and image_diagnosis.disease and image_diagnosis.disease != "healthy":
+    from app.vision.diagnosis import is_image_diagnosis_unconfirmed
+
+    if image_diagnosis and is_image_diagnosis_unconfirmed(image_diagnosis):
+        if any(
+            re.search(pat, lowered)
+            for pat in [
+                r"\bmancozeb\b",
+                r"\bcopper[\s\-]oxychloride\b",
+                r"\bcopper[\s\-]based\b",
+                r"\bchlorothalonil\b",
+                r"\bazoxystrobin\b",
+                r"\bfungicide\b",
+                r"\bpesticide\b",
+                r"\bspray\s+schedule\b",
+                r"\bapplication\s+rate\b",
+                r"\bearly\s+blight\b",
+                r"\blate\s+blight\b",
+                r"\bbacterial\s+speck\b",
+            ]
+        ):
+            warnings.append("Unsafe chemical treatment advice in draft despite unconfirmed image diagnosis.")
+
+    if image_diagnosis and (image_diagnosis.is_healthy or (image_diagnosis.disease and image_diagnosis.disease.lower() == "healthy")):
+        if any(
+            re.search(pat, lowered)
+            for pat in [
+                r"\bmancozeb\b",
+                r"\bcopper[\s\-]oxychloride\b",
+                r"\bcopper[\s\-]based\b",
+                r"\bchlorothalonil\b",
+                r"\bazoxystrobin\b",
+                r"\bfungicide\b",
+                r"\bpesticide\b",
+                r"\bspray\s+schedule\b",
+                r"\bchemical\s+spray\b",
+            ]
+        ):
+            warnings.append("Unsafe chemical pesticide/fungicide advice in draft for healthy plant leaf scan.")
+
+    if image_diagnosis and image_diagnosis.disease and image_diagnosis.disease != "healthy" and not image_diagnosis.is_healthy:
         if not any(e.source == "vision_diagnosis" for e in all_evidence):
             warnings.append("Disease mentioned but vision evidence missing from agent outputs.")
 

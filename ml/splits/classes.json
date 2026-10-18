@@ -1,0 +1,138 @@
+[
+  {
+    "class_idx": 0,
+    "folder_name": "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "crop": "maize",
+    "disease": "gray_leaf_spot",
+    "display_name": "Corn Gray Leaf Spot",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 1,
+    "folder_name": "Corn_(maize)___Common_rust_",
+    "crop": "maize",
+    "disease": "rust",
+    "display_name": "Corn Common Rust",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 2,
+    "folder_name": "Corn_(maize)___Northern_Leaf_Blight",
+    "crop": "maize",
+    "disease": "northern_leaf_blight",
+    "display_name": "Corn Northern Leaf Blight",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 3,
+    "folder_name": "Corn_(maize)___healthy",
+    "crop": "maize",
+    "disease": "healthy",
+    "display_name": "Corn Healthy",
+    "is_healthy": true
+  },
+  {
+    "class_idx": 4,
+    "folder_name": "Potato___Early_blight",
+    "crop": "potato",
+    "disease": "early_blight",
+    "display_name": "Potato Early Blight",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 5,
+    "folder_name": "Potato___Late_blight",
+    "crop": "potato",
+    "disease": "late_blight",
+    "display_name": "Potato Late Blight",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 6,
+    "folder_name": "Potato___healthy",
+    "crop": "potato",
+    "disease": "healthy",
+    "display_name": "Potato Healthy",
+    "is_healthy": true
+  },
+  {
+    "class_idx": 7,
+    "folder_name": "Tomato___Bacterial_spot",
+    "crop": "tomato",
+    "disease": "bacterial_spot",
+    "display_name": "Tomato Bacterial Spot",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 8,
+    "folder_name": "Tomato___Early_blight",
+    "crop": "tomato",
+    "disease": "early_blight",
+    "display_name": "Tomato Early Blight",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 9,
+    "folder_name": "Tomato___Late_blight",
+    "crop": "tomato",
+    "disease": "late_blight",
+    "display_name": "Tomato Late Blight",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 10,
+    "folder_name": "Tomato___Leaf_Mold",
+    "crop": "tomato",
+    "disease": "leaf_mold",
+    "display_name": "Tomato Leaf Mold",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 11,
+    "folder_name": "Tomato___Septoria_leaf_spot",
+    "crop": "tomato",
+    "disease": "septoria_leaf_spot",
+    "display_name": "Tomato Septoria Leaf Spot",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 12,
+    "folder_name": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "crop": "tomato",
+    "disease": "spider_mites",
+    "display_name": "Tomato Two-spotted Spider Mite",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 13,
+    "folder_name": "Tomato___Target_Spot",
+    "crop": "tomato",
+    "disease": "target_spot",
+    "display_name": "Tomato Target Spot",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 14,
+    "folder_name": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "crop": "tomato",
+    "disease": "yellow_leaf_curl_virus",
+    "display_name": "Tomato Yellow Leaf Curl Virus",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 15,
+    "folder_name": "Tomato___Tomato_mosaic_virus",
+    "crop": "tomato",
+    "disease": "mosaic_virus",
+    "display_name": "Tomato Mosaic Virus",
+    "is_healthy": false
+  },
+  {
+    "class_idx": 16,
+    "folder_name": "Tomato___healthy",
+    "crop": "tomato",
+    "disease": "healthy",
+    "display_name": "Tomato Healthy",
+    "is_healthy": true
+  }
+]

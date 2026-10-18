@@ -1,0 +1,180 @@
+{
+  "dataset_name": "PlantVillage",
+  "target_classes_count": 17,
+  "split_ratio": "70/15/15",
+  "split_counts": {
+    "train": 16908,
+    "val": 3621,
+    "test": 3621,
+    "total_unique": 24150,
+    "redundant_duplicates_excluded": 14,
+    "raw_total": 24164
+  },
+  "group_leakage_audit": {
+    "train_val_overlap": 0,
+    "train_test_overlap": 0,
+    "val_test_overlap": 0
+  },
+  "class_distributions": {
+    "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot": {
+      "class_idx": 0,
+      "crop": "maize",
+      "disease": "gray_leaf_spot",
+      "total": 513,
+      "train": 360,
+      "val": 77,
+      "test": 76
+    },
+    "Corn_(maize)___Common_rust_": {
+      "class_idx": 1,
+      "crop": "maize",
+      "disease": "rust",
+      "total": 1192,
+      "train": 834,
+      "val": 180,
+      "test": 178
+    },
+    "Corn_(maize)___Northern_Leaf_Blight": {
+      "class_idx": 2,
+      "crop": "maize",
+      "disease": "northern_leaf_blight",
+      "total": 985,
+      "train": 690,
+      "val": 147,
+      "test": 148
+    },
+    "Corn_(maize)___healthy": {
+      "class_idx": 3,
+      "crop": "maize",
+      "disease": "healthy",
+      "total": 1162,
+      "train": 812,
+      "val": 176,
+      "test": 174
+    },
+    "Potato___Early_blight": {
+      "class_idx": 4,
+      "crop": "potato",
+      "disease": "early_blight",
+      "total": 1000,
+      "train": 700,
+      "val": 150,
+      "test": 150
+    },
+    "Potato___Late_blight": {
+      "class_idx": 5,
+      "crop": "potato",
+      "disease": "late_blight",
+      "total": 1000,
+      "train": 700,
+      "val": 150,
+      "test": 150
+    },
+    "Potato___healthy": {
+      "class_idx": 6,
+      "crop": "potato",
+      "disease": "healthy",
+      "total": 152,
+      "train": 104,
+      "val": 24,
+      "test": 24
+    },
+    "Tomato___Bacterial_spot": {
+      "class_idx": 7,
+      "crop": "tomato",
+      "disease": "bacterial_spot",
+      "total": 2127,
+      "train": 1491,
+      "val": 318,
+      "test": 318
+    },
+    "Tomato___Early_blight": {
+      "class_idx": 8,
+      "crop": "tomato",
+      "disease": "early_blight",
+      "total": 1000,
+      "train": 700,
+      "val": 150,
+      "test": 150
+    },
+    "Tomato___Late_blight": {
+      "class_idx": 9,
+      "crop": "tomato",
+      "disease": "late_blight",
+      "total": 1901,
+      "train": 1330,
+      "val": 285,
+      "test": 286
+    },
+    "Tomato___Leaf_Mold": {
+      "class_idx": 10,
+      "crop": "tomato",
+      "disease": "leaf_mold",
+      "total": 952,
+      "train": 669,
+      "val": 141,
+      "test": 142
+    },
+    "Tomato___Septoria_leaf_spot": {
+      "class_idx": 11,
+      "crop": "tomato",
+      "disease": "septoria_leaf_spot",
+      "total": 1771,
+      "train": 1240,
+      "val": 265,
+      "test": 266
+    },
+    "Tomato___Spider_mites Two-spotted_spider_mite": {
+      "class_idx": 12,
+      "crop": "tomato",
+      "disease": "spider_mites",
+      "total": 1676,
+      "train": 1174,
+      "val": 252,
+      "test": 250
+    },
+    "Tomato___Target_Spot": {
+      "class_idx": 13,
+      "crop": "tomato",
+      "disease": "target_spot",
+      "total": 1404,
+      "train": 982,
+      "val": 210,
+      "test": 212
+    },
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus": {
+      "class_idx": 14,
+      "crop": "tomato",
+      "disease": "yellow_leaf_curl_virus",
+      "total": 5357,
+      "train": 3751,
+      "val": 803,
+      "test": 803
+    },
+    "Tomato___Tomato_mosaic_virus": {
+      "class_idx": 15,
+      "crop": "tomato",
+      "disease": "mosaic_virus",
+      "total": 373,
+      "train": 260,
+      "val": 56,
+      "test": 57
+    },
+    "Tomato___healthy": {
+      "class_idx": 16,
+      "crop": "tomato",
+      "disease": "healthy",
+      "total": 1585,
+      "train": 1111,
+      "val": 237,
+      "test": 237
+    }
+  },
+  "group_counts": {
+    "total_unique_groups": 23319,
+    "train_groups": 16326,
+    "val_groups": 3496,
+    "test_groups": 3497,
+    "reconciliation_note": "Initial naive regex produced 23,412 groups. Corrected multi-day/camera series merging (93 series) consolidated physical leaf specimens into single groups, yielding exactly 23,319 unique specimen groups with 0 cross-split leakage."
+  }
+}
