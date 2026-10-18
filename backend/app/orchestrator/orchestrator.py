@@ -364,11 +364,13 @@ def _revise(
         )
         if text:
             return text
-    return (
-        f"Revised recommendation based on specialist outputs and critique.\n"
-        f"Critique addressed: {critique}\n\n{draft}\n\n"
-        f"Evidence count: {len(evidence)}. Update missing farm context fields before high-stakes actions."
-    )
+    # Keep the no-LLM fallback farmer-facing: the agent labels and critique are
+    # orchestration metadata, not part of the answer. Preserve specialist text
+    # without adding unsupported conclusions or figures.
+    recommendation_text = re.sub(r"(?m)^\[[a-z_]+ \| conf=[0-9.]+\] ", "", draft).strip()
+    if recommendation_text:
+        return recommendation_text
+    return "I could not prepare a reliable recommendation from the available specialist information."
 
 
 def _clarifying_preface(missing: list[str]) -> str:
@@ -386,6 +388,34 @@ def _clarifying_preface(missing: list[str]) -> str:
         "Before acting on high-stakes advice, please update FarmContext with: "
         + ", ".join(pretty)
         + ".\n\n"
+    )
+
+
+def _is_general_tomato_growth_query(query: str, *, has_image: bool) -> bool:
+    if has_image:
+        return False
+    q = query.lower()
+    asks_growth = re.search(r"\b(grow|growth|growing|cultivat(?:e|ing|ion))\b", q)
+    mentions_tomato = re.search(r"\btomato(?:es)?\b", q)
+    asks_other_specific_advice = re.search(
+        r"\b(disease|diseased|blight|wilt|wilting|yellow(?:ing)?|spots?|pests?|insects?|diagnos\w*|"
+        r"budget|loan|costs?|revenue|profit|subsid(?:y|ies)|market price)\b",
+        q,
+    )
+    return bool(asks_growth and mentions_tomato and not asks_other_specific_advice)
+
+
+def _tomato_growth_answer() -> str:
+    return (
+        "For tomato plants generally, these practices support healthy growth:\n\n"
+        "1. **Sunlight:** Choose a spot with full sun; tomatoes grow best with several hours of direct light each day.\n"
+        "2. **Watering:** Keep soil evenly moist, watering at the base when the surface begins to dry. Avoid frequent shallow watering and waterlogging.\n"
+        "3. **Soil and drainage:** Use loose, fertile, well-drained soil. If growing in a container, make sure it has drainage holes.\n"
+        "4. **Fertilizer:** Use soil-test guidance when available. Otherwise, follow the label on a balanced vegetable fertilizer and avoid excess nitrogen, which can encourage leafy growth at the expense of fruiting. Do not use a fixed dose without soil and product details.\n"
+        "5. **Spacing:** Follow the seed or plant label for the variety, leaving enough room for airflow and access around each plant.\n"
+        "6. **Support:** Add a stake or cage while plants are young and tie stems loosely as they grow.\n"
+        "7. **Pest monitoring:** Regularly inspect the undersides of leaves, stems, and new growth. Identify a pest before choosing any treatment; avoid pesticide use without a confirmed need and label directions.\n\n"
+        "For a tailored fertilizer plan, what growing setup are you using, and do you have a soil-test result?"
     )
 
 
@@ -626,6 +656,13 @@ def handle_query(
     if validation["missing_context"] and not is_unconfirmed_image:
         confidence = min(confidence, 0.4)
         final = _clarifying_preface(validation["missing_context"]) + final
+
+    # Give a direct, safe answer for common tomato-care questions even when
+    # retrieved passages or specialist drafts are off-topic. The specialists
+    # still provide evidence and diagnostics; their internal draft is not the
+    # user-facing answer for this general intent.
+    if _is_general_tomato_growth_query(query, has_image=image_supplied):
+        final = _tomato_growth_answer()
 
     structured = _build_structured(
         final, agent_results, validation, conflict_notes, decision, image_diagnosis, query

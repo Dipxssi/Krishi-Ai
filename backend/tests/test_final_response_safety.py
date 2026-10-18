@@ -11,12 +11,31 @@ import io
 from PIL import Image
 import pytest
 
-from app.orchestrator.orchestrator import handle_query
+from app.orchestrator.orchestrator import _revise, handle_query
 from app.schemas.models import FarmContext
 from app.services import llm
 
 
 from app.services import live_market, live_weather
+
+
+def test_no_llm_final_response_omits_agent_labels(monkeypatch):
+    monkeypatch.setattr(llm, "is_llm_available", lambda: False)
+    draft = (
+        "[crop_health | conf=0.55] Inspect plants regularly for stress.\n\n"
+        "[knowledge_retriever | conf=0.65] Keep recommendations grounded in local soil and crop guidance."
+    )
+
+    context = FarmContext(
+        farmer_id="farmer-fallback-test",
+        location="Nashik",
+        farm_area_acres=1.0,
+    )
+    final = _revise(draft, "", [], context, "How do I help plants grow?")
+
+    assert "[crop_health" not in final
+    assert "[knowledge_retriever" not in final
+    assert "Inspect plants regularly for stress." in final
 
 
 def _make_synthetic_b64(color=(30, 160, 40), size=(100, 100)) -> str:
@@ -45,6 +64,27 @@ class TestFinalResponseSafetyBoundary:
             budget=50000.0,
             irrigation_available=True,
         )
+
+    def test_general_tomato_growth_answer_is_relevant_and_numbered(self, monkeypatch):
+        monkeypatch.setattr(llm, "is_llm_available", lambda: False)
+
+        response = handle_query(
+            "How can I improve the growth of tomato plants?",
+            self.context,
+            persist=False,
+        )
+        answer = response.final_recommendation
+        lowered = answer.lower()
+
+        assert "text-only crop health" not in lowered
+        assert "post-harvest" not in lowered
+        assert "[finance" not in lowered
+        for heading in ("sunlight", "watering", "soil and drainage", "fertilizer", "spacing", "support", "pest monitoring"):
+            assert heading in lowered
+        for number in range(1, 8):
+            assert f"{number}. **" in answer
+        assert "vegetative" not in lowered
+        assert "pesticide" in lowered
 
     def test_rejected_image_blocks_fungicide_and_spray_schedules_at_boundary(self, monkeypatch):
         """When an image diagnosis is rejected, unsafe LLM advice mentioning fungicides,

@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
-import { Paperclip, SendHorizontal, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Mic, Paperclip, SendHorizontal, Square, X } from "lucide-react";
 import { toast } from "sonner";
+import { transcribeAudio } from "@/api";
 
 interface ChatInputProps {
   onSend: (text: string, imageBase64?: string | null) => void;
@@ -19,9 +20,92 @@ function fileToDataUrl(file: File): Promise<string> {
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const canSend = (value.trim().length > 0 || !!imageBase64) && !disabled;
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const canSend = (value.trim().length > 0 || !!imageBase64) && !disabled && !recording && !transcribing;
+
+  useEffect(() => () => {
+    if (recorderRef.current) {
+      recorderRef.current.onstop = null;
+      recorderRef.current.onerror = null;
+    }
+    recorderRef.current?.stop();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  const transcribe = async (blob: Blob) => {
+    setTranscribing(true);
+    try {
+      if (blob.size > 25 * 1024 * 1024) {
+        throw new Error("Recording is too large. Please record a shorter question.");
+      }
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
+        reader.onerror = () => reject(new Error("Could not read recording."));
+        reader.readAsDataURL(blob);
+      });
+      const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      const result = await transcribeAudio(base64, blob.type || "audio/webm", `recording.${ext}`);
+      setValue(result.text);
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = "auto";
+          textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+        }
+      });
+      toast.success("Speech transcribed. Review it, then send your question.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not transcribe the recording.");
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const toggleRecording = async () => {
+    if (recording) {
+      recorderRef.current?.stop();
+      setRecording(false);
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast.error("This browser does not support audio recording.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const options = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? { mimeType: "audio/webm;codecs=opus" }
+        : undefined;
+      const recorder = new MediaRecorder(stream, options);
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+      recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        recorder.onstop = null;
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        setRecording(false);
+        toast.error("Audio recording failed. Please try again.");
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        if (blob.size) void transcribe(blob);
+      };
+      recorder.start();
+      setRecording(true);
+    } catch {
+      toast.error("Microphone access was denied or is unavailable.");
+    }
+  };
 
   const submit = () => {
     if (!canSend) return;
@@ -129,6 +213,17 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
           />
 
           <button
+            type="button"
+            aria-label={recording ? "Stop recording" : "Record a voice question"}
+            title={recording ? "Stop recording" : "Record a voice question"}
+            onClick={() => void toggleRecording()}
+            disabled={disabled || transcribing}
+            className="grid size-10 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+          >
+            {recording ? <Square className="size-4 fill-current" /> : <Mic className="size-5" />}
+          </button>
+
+          <button
             type="submit"
             disabled={!canSend}
             aria-label="Send message"
@@ -139,7 +234,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         </div>
       </form>
       <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
-        Live backend advice — verify critical spray/dose decisions with a local expert or KVK.
+        {transcribing ? "Transcribing your recording…" : recording ? "Recording… select stop when finished." : "Live backend advice — verify critical spray/dose decisions with a local expert or KVK."}
       </p>
     </div>
   );

@@ -188,14 +188,21 @@ class FeedbackRequest(BaseModel):
 
 
 class VoiceTranscribeRequest(BaseModel):
-    audio_base64: str
-    language_hint: str | None = None
+    audio_base64: str = Field(min_length=1)
+    language_hint: str | None = Field(default=None, max_length=20)
+    filename: str = Field(default="recording.webm", max_length=255)
+    content_type: str = Field(default="audio/webm", max_length=128)
 
 
 class VoiceTranscribeResponse(BaseModel):
     text: str
     normalized_crop: str | None = None
     note: str | None = None
+
+
+class VoiceSpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=4000)
+    voice: str = Field(default="alloy", min_length=1, max_length=40)
 
 
 class EvidenceItem(BaseModel):

@@ -7,7 +7,7 @@ os.environ.setdefault("GEMINI_API_KEY", "")
 os.environ.setdefault("GROQ_API_KEY", "")
 
 from app.orchestrator.metrics import aggregate_scores, score_sets
-from app.orchestrator.router import score_query
+from app.orchestrator.router import route_query, score_query
 
 
 EVAL_PATH = Path(__file__).resolve().parents[1] / "data" / "eval" / "queries.jsonl"
@@ -75,3 +75,30 @@ def test_keyword_mode_skips_remote_path():
     assert "finance" in selected
     assert "market" in selected
     assert "weather" in selected
+
+
+def test_crop_growth_question_routes_to_agronomy_not_finance(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.orchestrator.router.get_settings",
+        lambda: SimpleNamespace(router_mode="keyword", router_threshold=0.60, router_cost_lambda=0.05),
+    )
+    selected, _ = route_query("How can I improve the growth of tomato plants?")
+
+    assert "crop_health" in selected
+    assert "knowledge_retriever" in selected
+    assert "finance" not in selected
+
+
+def test_explicit_finance_question_keeps_finance_specialist(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.orchestrator.router.get_settings",
+        lambda: SimpleNamespace(router_mode="keyword", router_threshold=0.60, router_cost_lambda=0.05),
+    )
+    selected, _ = route_query("What will it cost to grow tomatoes, and what loan can cover the expenses?")
+
+    assert "finance" in selected
+    assert "crop_health" in selected

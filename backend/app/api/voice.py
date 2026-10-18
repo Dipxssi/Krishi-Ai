@@ -1,48 +1,155 @@
-"""Voice input layer (Phase 5) — stub STT; swap Whisper when deployed."""
+"""Speech conversion endpoints. Chat answers still flow through POST /query."""
 
 from __future__ import annotations
 
 import base64
+import binascii
+import logging
+import re
 
-from fastapi import APIRouter
+import httpx
+from fastapi import APIRouter, HTTPException, Response
 
-from app.schemas.models import VoiceTranscribeRequest, VoiceTranscribeResponse
+from app.core.config import get_settings
+from app.schemas.models import (
+    VoiceSpeechRequest,
+    VoiceTranscribeRequest,
+    VoiceTranscribeResponse,
+)
 from app.services.crop_registry import normalize_crop_name
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
+MAX_AUDIO_BYTES = 25 * 1024 * 1024
+_SECRET_VALUE_RE = re.compile(
+    r"(?i)\b(?:sk|gsk|sess|rk)-[A-Za-z0-9_-]{8,}\b|\bBearer\s+[A-Za-z0-9._~-]+"
+)
+_NAMED_SECRET_RE = re.compile(
+    r"(?i)(api[_ -]?key|authorization|access[_ -]?token)(\s*[:=]\s*)[^\s,;]+"
+)
+
+
+class AudioResponse(Response):
+    media_type = "audio/mpeg"
+
+
+def _provider_error_message(response: httpx.Response) -> str:
+    """Extract a useful provider diagnostic while redacting credential-like values."""
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = {"message": response.text}
+
+    error = payload.get("error", payload) if isinstance(payload, dict) else payload
+    if isinstance(error, dict):
+        detail = " | ".join(
+            str(error[key])
+            for key in ("type", "code", "message")
+            if error.get(key) is not None
+        )
+    else:
+        detail = str(error)
+    detail = _NAMED_SECRET_RE.sub(r"\1\2[REDACTED]", detail)
+    detail = _SECRET_VALUE_RE.sub("[REDACTED]", detail)
+    return " ".join(detail.split())[:1000] or "No provider error details returned."
+
 
 _CROP_WORDS = {
-    "tomato": "tomato",
-    "tomatoes": "tomato",
-    "potato": "potato",
-    "potatoes": "potato",
-    "maize": "maize",
-    "corn": "maize",
-    "wheat": "wheat",
-    "rice": "rice",
-    "paddy": "rice",
-    "onion": "onion",
-    "cotton": "cotton",
+    "tomato": "tomato", "tomatoes": "tomato", "potato": "potato",
+    "potatoes": "potato", "maize": "maize", "corn": "maize",
+    "wheat": "wheat", "rice": "rice", "paddy": "rice",
+    "onion": "onion", "cotton": "cotton",
 }
+
+
+def _decode_audio(payload: str) -> bytes:
+    encoded = payload.split(",", 1)[-1]
+    if len(encoded) > ((MAX_AUDIO_BYTES + 2) // 3) * 4:
+        raise HTTPException(status_code=413, detail="Audio must be 25 MB or smaller.")
+    try:
+        audio = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid base64 audio.") from exc
+    if not audio:
+        raise HTTPException(status_code=400, detail="Audio is empty.")
+    if len(audio) > MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio must be 25 MB or smaller.")
+    return audio
 
 
 @router.post("/transcribe", response_model=VoiceTranscribeResponse)
 def transcribe(request: VoiceTranscribeRequest):
-    # V1 stub: decode payload size check only; production should call Whisper/OpenAI STT.
+    settings = get_settings()
+    if not settings.groq_api_key or not settings.groq_api_key.strip():
+        raise HTTPException(status_code=503, detail="Speech transcription is not configured (GROQ_API_KEY).")
+    audio = _decode_audio(request.audio_base64)
+    if len(audio) < 16:
+        raise HTTPException(status_code=400, detail="Audio is too short to transcribe.")
+    if not request.content_type.lower().startswith("audio/"):
+        raise HTTPException(status_code=400, detail="The uploaded recording must have an audio content type.")
+
+    headers = {"Authorization": f"Bearer {settings.groq_api_key.strip()}"}
+    safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", request.filename.replace("\\", "/").rsplit("/", 1)[-1])[:100]
+    files = {"file": (safe_name or "recording.webm", audio, request.content_type)}
+    data = {"model": "whisper-large-v3-turbo", "response_format": "json"}
+    if request.language_hint:
+        data["language"] = request.language_hint
     try:
-        raw = base64.b64decode(request.audio_base64.split(",", 1)[-1])
-    except Exception:
-        raw = b""
-    if len(raw) < 16:
-        return VoiceTranscribeResponse(
-            text="",
-            note="Audio too short or invalid. Send base64 WAV/WEBM with farmer speech.",
+        result = httpx.post(
+            "https://api.groq.com/openai/v1/audio/transcriptions",
+            headers=headers, data=data, files=files, timeout=90.0,
         )
+        result.raise_for_status()
+        payload = result.json()
+        if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
+            raise ValueError("Unexpected transcription response")
+        text = payload["text"].strip()
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Groq transcription rejected request (HTTP %s)", exc.response.status_code)
+        raise HTTPException(status_code=502, detail="Speech transcription provider rejected the audio.") from exc
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.exception("Groq transcription request failed")
+        raise HTTPException(status_code=502, detail="Speech transcription is temporarily unavailable.") from exc
+    if not text:
+        raise HTTPException(status_code=422, detail="No speech was recognized. Please try again.")
+    crop = next((canonical for word, canonical in _CROP_WORDS.items() if word in text.lower().split()), None)
     return VoiceTranscribeResponse(
-        text="[voice stub] Please type your question in the Ask tab until Whisper STT is configured.",
-        normalized_crop=None,
-        note=f"Received {len(raw)} bytes audio. Configure Whisper API for real transcription.",
+        text=text,
+        normalized_crop=normalize_crop_name(crop) if crop else None,
     )
+
+
+@router.post(
+    "/speech",
+    response_class=AudioResponse,
+    responses={200: {"content": {"audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
+)
+def synthesize_speech(request: VoiceSpeechRequest) -> AudioResponse:
+    settings = get_settings()
+    if not settings.openai_api_key or not settings.openai_api_key.strip():
+        raise HTTPException(status_code=503, detail="Speech playback is not configured (OPENAI_API_KEY).")
+    try:
+        result = httpx.post(
+            "https://api.openai.com/v1/audio/speech",
+            headers={"Authorization": f"Bearer {settings.openai_api_key.strip()}"},
+            json={"model": settings.openai_tts_model, "voice": request.voice, "input": request.text, "response_format": "mp3"},
+            timeout=90.0,
+        )
+        result.raise_for_status()
+        if not result.content:
+            raise HTTPException(status_code=502, detail="Speech provider returned empty audio.")
+        return AudioResponse(content=result.content)
+    except httpx.HTTPStatusError as exc:
+        provider_detail = _provider_error_message(exc.response)
+        logger.warning(
+            "OpenAI speech request failed (HTTP %s): %s",
+            exc.response.status_code,
+            provider_detail,
+        )
+        raise HTTPException(status_code=502, detail="Speech playback provider rejected the request.") from exc
+    except httpx.HTTPError as exc:
+        logger.exception("OpenAI speech request failed")
+        raise HTTPException(status_code=502, detail="Speech playback is temporarily unavailable.") from exc
 
 
 @router.post("/normalize-crop")

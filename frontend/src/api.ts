@@ -262,6 +262,26 @@ export async function askAdvice(
   return res.json();
 }
 
+export async function transcribeAudio(audioBase64: string, contentType: string, filename: string) {
+  const res = await fetch(`${API_BASE}/voice/transcribe`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ audio_base64: audioBase64, content_type: contentType, filename }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json() as Promise<{ text: string; normalized_crop?: string | null; note?: string | null }>;
+}
+
+export async function synthesizeSpeech(text: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/voice/speech`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.blob();
+}
+
 export async function fetchKnowledgeSummary(): Promise<KnowledgeSummary> {
   const res = await fetch(`${API_BASE}/knowledge/summary`);
   if (!res.ok) throw new Error(await parseError(res));

@@ -24,6 +24,8 @@ Create a `.env` at the repo root or in `backend/`:
 ```env
 GROQ_API_KEY=your_groq_key_here
 GROQ_MODEL=llama-3.3-70b-versatile
+OPENAI_API_KEY=your_openai_key_here
+OPENAI_TTS_MODEL=gpt-4o-mini-tts
 # optional
 ROUTER_MODE=hybrid
 ROUTER_THRESHOLD=0.60
@@ -33,6 +35,8 @@ ECONOMIC_WEIGHT=0.4
 ```
 
 Never commit API keys.
+
+Voice recording is transcribed by Groq's `whisper-large-v3-turbo` through `POST /voice/transcribe`. Assistant messages can be played with OpenAI `gpt-4o-mini-tts` through `POST /voice/speech`; set `OPENAI_API_KEY` to enable playback. The microphone inserts a transcript into the chat composer for review. Sending it uses the normal `POST /query` endpoint and existing multi-agent router.
 
 ## Frontend
 

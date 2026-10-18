@@ -1,4 +1,4 @@
-import { Copy, RefreshCw, ThumbsDown, ThumbsUp, Sprout } from "lucide-react";
+import { Copy, RefreshCw, ThumbsDown, ThumbsUp, Sprout, Volume2, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import { AdviceResult } from "@/components/chat/AdviceResult";
 import { AgentIndicator } from "@/components/chat/AgentIndicator";
@@ -10,6 +10,8 @@ interface ChatMessageProps {
   onRegenerate?: (() => void) | undefined;
   onFeedback?: ((value: "up" | "down") => void) | undefined;
   onOpenDetails?: (() => void) | undefined;
+  onSpeak?: (() => void) | undefined;
+  isSpeaking?: boolean;
 }
 
 export function ChatMessage({
@@ -17,6 +19,8 @@ export function ChatMessage({
   onRegenerate,
   onFeedback,
   onOpenDetails,
+  onSpeak,
+  isSpeaking = false,
 }: ChatMessageProps) {
   const isUser = message.role === "user";
 
@@ -71,6 +75,13 @@ export function ChatMessage({
         </div>
         <div className="mt-2 flex items-center gap-1">
           <IconAction label="Copy response" onClick={copy} icon={Copy} />
+          {onSpeak && (
+            <IconAction
+              label={isSpeaking ? "Stop speaking" : "Read response aloud"}
+              onClick={onSpeak}
+              icon={isSpeaking ? VolumeX : Volume2}
+            />
+          )}
           {onRegenerate && (
             <IconAction label="Regenerate response" onClick={onRegenerate} icon={RefreshCw} />
           )}

@@ -23,3 +23,7 @@ Open **Settings** in chat to set farmer ID, location, crop, and acres. The profi
 ## Leaf photos
 
 Use the paperclip control in the composer to attach a leaf image. Chat sends it as `image_base64` with `vision_model=mobilenetv3`.
+
+## Voice chat
+
+Use the microphone button to record a question. The transcript appears in the composer for review and is sent through the usual chat endpoint. Assistant messages have a read-aloud control. Configure `GROQ_API_KEY` and `OPENAI_API_KEY` in the backend environment; no provider keys belong in the frontend.

@@ -31,6 +31,72 @@ export function ChatPage() {
   const [detailsResult, setDetailsResult] = useState<QueryResponse | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speakingMessageRef = useRef<string | null>(null);
+  const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+
+  useEffect(() => () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  }, []);
+
+  const speak = (text: string, messageId: string) => {
+    if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
+      toast.error("Speech playback is not supported by this browser.");
+      return;
+    }
+
+    const synthesis = window.speechSynthesis;
+    if (speakingMessageRef.current === messageId) {
+      synthesis.cancel();
+      speechUtteranceRef.current = null;
+      speakingMessageRef.current = null;
+      setSpeakingMessageId(null);
+      return;
+    }
+
+    synthesis.cancel();
+    speechUtteranceRef.current = null;
+    speakingMessageRef.current = null;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    const language = /[\u0C80-\u0CFF]/u.test(text)
+      ? "kn-IN"
+      : /[\u0900-\u097F]/u.test(text)
+        ? "hi-IN"
+        : "en-IN";
+    utterance.lang = language;
+
+    const voices = synthesis.getVoices();
+    const matchingVoice = voices.find((voice) => voice.lang.toLowerCase() === language.toLowerCase())
+      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()))
+      ?? (language === "en-IN" ? voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) : undefined);
+    if (matchingVoice) {
+      utterance.voice = matchingVoice;
+    } else if (voices.length > 0) {
+      toast.info(`No ${language} voice is installed. Using the device's default voice.`);
+    }
+
+    speechUtteranceRef.current = utterance;
+    speakingMessageRef.current = messageId;
+    setSpeakingMessageId(messageId);
+    const finish = () => {
+      if (speechUtteranceRef.current === utterance) {
+        speechUtteranceRef.current = null;
+        speakingMessageRef.current = null;
+        setSpeakingMessageId(null);
+      }
+    };
+    utterance.onend = finish;
+    utterance.onerror = (event) => {
+      finish();
+      if (event.error !== "canceled" && event.error !== "interrupted") {
+        toast.error("The device could not speak this response.");
+      }
+    };
+    synthesis.speak(utterance);
+  };
 
   useEffect(() => {
     try {
@@ -276,6 +342,8 @@ export function ChatPage() {
                         }
                       : undefined
                   }
+                  onSpeak={m.role === "assistant" ? () => speak(m.queryResult?.final_recommendation ?? m.content, m.id) : undefined}
+                  isSpeaking={speakingMessageId === m.id}
                 />
               ))}
 

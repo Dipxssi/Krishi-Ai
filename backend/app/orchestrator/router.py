@@ -11,6 +11,19 @@ from app.orchestrator.catalog import AGENT_COST, AGENT_KEYWORDS, AGENT_PROFILES,
 from app.schemas.models import FarmContext
 
 
+_AGRONOMY_INTENT_MARKERS = (
+    "growth", "grow", "growing", "plant", "plants", "planting", "cultivation", "crop care",
+    "irrigation", "irrigate", "fertilizer", "fertilizers", "fertiliser", "fertilisers",
+    "nutrient", "nutrients", "soil", "disease", "diseases", "pest", "pests",
+    "harvest", "harvesting", "blight", "leaf", "leaves",
+)
+_FINANCE_INTENT_MARKERS = (
+    "budget", "loan", "loans", "cost", "costs", "expense", "expenses", "revenue",
+    "profit", "break-even", "break even", "subsidy", "subsidies", "financial",
+    "income", "cash flow", "credit", "afford", "payback",
+)
+
+
 def _tokenize(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", text.lower())
 
@@ -256,6 +269,25 @@ def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict
         selected = select_agents(scores, settings.router_threshold)
         if "crop_health" not in selected:
             selected = [*selected, "crop_health"]
+
+    # A cost-penalized all-zero score set otherwise falls back to the cheapest
+    # agent (finance). Route explicit crop-care questions to agronomy specialists
+    # using this request's text, while retaining finance for explicit money intents.
+    q = query.lower()
+    has_agronomy_intent = any(_keyword_hit(marker, q) for marker in _AGRONOMY_INTENT_MARKERS)
+    has_finance_intent = any(_keyword_hit(marker, q) for marker in _FINANCE_INTENT_MARKERS)
+    if has_agronomy_intent:
+        selected = [agent for agent in selected if agent != "finance" or has_finance_intent]
+        for agent in ("crop_health", "knowledge_retriever"):
+            if agent not in selected:
+                selected.append(agent)
+        if any(_keyword_hit(marker, q) for marker in ("soil", "fertilizer", "fertiliser", "nutrient")):
+            if "soil" not in selected:
+                selected.append("soil")
+        selected.sort(key=AGENTS.index)
+        scores = dict(scores)
+        scores["crop_health"] = max(scores.get("crop_health", 0.0), 0.70)
+        scores["knowledge_retriever"] = max(scores.get("knowledge_retriever", 0.0), 0.60)
     return selected, scores
 
 

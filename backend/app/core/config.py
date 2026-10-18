@@ -22,6 +22,8 @@ class Settings(BaseSettings):
 
     groq_api_key: str | None = None
     groq_model: str = "llama-3.3-70b-versatile"
+    openai_api_key: str | None = None
+    openai_tts_model: str = "gpt-4o-mini-tts"
 
     vision_model: str = "mobilenetv3"  # mobilenetv3 | heuristic
     vision_confidence_threshold: float = 0.60
