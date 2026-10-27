@@ -16,6 +16,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.farmers import router as farmers_router
+from app.api.help import router as help_router
 from app.api.knowledge import router as knowledge_router
 from app.api.query import router as query_router
 from app.api.route import router as route_router
@@ -56,6 +57,7 @@ app.include_router(query_router)
 app.include_router(route_router)
 app.include_router(farmers_router)
 app.include_router(knowledge_router)
+app.include_router(help_router)
 app.include_router(vision_router)
 app.include_router(audit_router)
 app.include_router(voice_router)

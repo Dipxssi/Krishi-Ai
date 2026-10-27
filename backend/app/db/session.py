@@ -48,9 +48,12 @@ def reset_engine() -> None:
         _engine = None
 
 
-def normalize_database_url(url: str) -> str:
-    """Accept Neon/postgres URLs and prefer the psycopg3 SQLAlchemy driver."""
-    cleaned = url.strip()
+def normalize_database_url(url: str | None) -> str:
+    """Accept Neon/postgres URLs and prefer the psycopg3 SQLAlchemy driver. Falls back to default SQLite if unset or empty."""
+    cleaned = (url or "").strip()
+    if not cleaned:
+        from app.core.config import BACKEND_DIR
+        return f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
     if cleaned.startswith("postgres://"):
         cleaned = "postgresql://" + cleaned[len("postgres://") :]
     if cleaned.startswith("postgresql://") and "+psycopg" not in cleaned.split("://", 1)[0]:

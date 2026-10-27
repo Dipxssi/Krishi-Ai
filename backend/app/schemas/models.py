@@ -47,6 +47,7 @@ class QueryRequest(BaseModel):
     image_base64: str | None = None
     selected_crop: str | None = None
     vision_model: str | None = None  # "mobilenetv3" | "heuristic"
+    language: str | None = None
 
 
 class RouteRequest(BaseModel):
@@ -243,6 +244,15 @@ class AgentResult(BaseModel):
     citations: list[str] = Field(default_factory=list)
 
 
+class EscalationDetailsSchema(BaseModel):
+    requires_escalation: bool = False
+    urgency: str = "low"  # "high" | "medium" | "low"
+    reason: str = ""
+    safe_next_step: str = ""
+    sample_instructions: str = ""
+    action_label: str = ""
+
+
 class QueryResponse(BaseModel):
     request_id: str
     query: str
@@ -250,6 +260,12 @@ class QueryResponse(BaseModel):
     selected_crop: str | None = None
     farm_profile_crop: str | None = None
     final_recommendation: str
+    response_language: str = "en"
+    disclaimer: str = (
+        "KrishiAI provides AI-generated guidance that may not always be accurate. "
+        "Verify important crop diagnoses and treatment decisions with a qualified agricultural expert."
+    )
+    escalation: EscalationDetailsSchema | None = None
     structured_recommendation: StructuredRecommendation | None = None
     image_diagnosis: ImageDiagnosisResult | None = None
     decision_score: DecisionScore | None = None

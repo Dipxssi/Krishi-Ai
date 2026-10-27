@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
@@ -17,11 +18,25 @@ class Settings(BaseSettings):
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
     knowledge_dir: str = str(BACKEND_DIR / "data" / "knowledge")
 
-    jwt_secret: str = "dev-only-change-me-krishiai-jwt"
+    jwt_secret: str = "dev-only-change-me-krishiai-jwt-secret-key-32b"
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
 
+    @field_validator("jwt_secret", mode="before")
+    @classmethod
+    def validate_jwt_secret(cls, v: object) -> str:
+        if not v or not str(v).strip():
+            return "dev-only-change-me-krishiai-jwt-secret-key-32b"
+        return str(v).strip()
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def validate_database_url(cls, v: object) -> str:
+        if not v or not str(v).strip():
+            return f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
+        return str(v).strip()
+
     groq_api_key: str | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "qwen/qwen3.8-27b"
     openai_api_key: str | None = None
     openai_tts_model: str = "gpt-4o-mini-tts"
 

@@ -137,7 +137,7 @@ export function ChatPage() {
     return profile;
   };
 
-  const respond = async (conversationId: string, question: string, imageBase64?: string | null) => {
+  const respond = async (conversationId: string, question: string, imageBase64?: string | null, cropHint?: string | null) => {
     setThinking(true);
     try {
       const profile = await ensureFarmer();
@@ -145,8 +145,9 @@ export function ChatPage() {
         profile.farmer_id,
         question,
         imageBase64,
-        profile.crop,
+        cropHint || profile.crop || undefined,
         imageBase64 ? "mobilenetv3" : undefined,
+        profile.preferred_language,
       );
       const reply: ChatMessageData = {
         id: newId(),
@@ -180,7 +181,7 @@ export function ChatPage() {
     }
   };
 
-  const handleSend = (text: string, imageBase64?: string | null) => {
+  const handleSend = (text: string, imageBase64?: string | null, cropHint?: string | null) => {
     const userMessage: ChatMessageData = {
       id: newId(),
       role: "user",
@@ -197,7 +198,7 @@ export function ChatPage() {
       };
       setConversations((prev) => [conversation, ...prev]);
       setActiveId(conversation.id);
-      void respond(conversation.id, text, imageBase64);
+      void respond(conversation.id, text, imageBase64, cropHint);
       return;
     }
 
@@ -207,7 +208,7 @@ export function ChatPage() {
       updatedAt: Date.now(),
       messages: [...c.messages, userMessage],
     }));
-    void respond(active.id, text, imageBase64);
+    void respond(active.id, text, imageBase64, cropHint);
   };
 
   const handleNewChat = () => {
@@ -371,7 +372,11 @@ export function ChatPage() {
           )}
         </div>
 
-        <ChatInput onSend={handleSend} disabled={thinking} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={thinking}
+          preferredLanguage={loadFarmProfile().preferred_language}
+        />
       </main>
 
       <SettingsPanel

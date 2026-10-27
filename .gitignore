@@ -12,8 +12,7 @@ backend/data/*.db
 .mypy_cache/
 .ruff_cache/
 .DS_Store
-backend/data/knowledge/fastapi/env/
-backend/data/knowledge/fastapi/__pycache__/
+backend/data/knowledge/fastapi/
 frontend/dist/
 
 # Datasets and raw data

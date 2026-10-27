@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,
     port: 5173,
     proxy: {
       // Only API auth routes — not GET /auth (that is the React page).
@@ -25,6 +26,7 @@ export default defineConfig({
       "/voice": "http://127.0.0.1:8000",
       "/feedback": "http://127.0.0.1:8000",
       "/knowledge": "http://127.0.0.1:8000",
+      "/help": "http://127.0.0.1:8000",
     },
   },
 });

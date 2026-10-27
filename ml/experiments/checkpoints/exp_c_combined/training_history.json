@@ -1,0 +1,112 @@
+[
+  {
+    "epoch": 1,
+    "phase": "head_warmup",
+    "train_loss": 1.0394,
+    "train_acc": 0.5603,
+    "train_macro_f1": 0.5749,
+    "val_loss": 0.6266,
+    "val_acc": 0.7905,
+    "val_macro_f1": 0.7693,
+    "time_sec": 59.9
+  },
+  {
+    "epoch": 2,
+    "phase": "head_warmup",
+    "train_loss": 0.6763,
+    "train_acc": 0.6956,
+    "train_macro_f1": 0.7098,
+    "val_loss": 0.5631,
+    "val_acc": 0.8067,
+    "val_macro_f1": 0.7874,
+    "time_sec": 59.1
+  },
+  {
+    "epoch": 3,
+    "phase": "head_warmup",
+    "train_loss": 0.5884,
+    "train_acc": 0.7372,
+    "train_macro_f1": 0.7505,
+    "val_loss": 0.5376,
+    "val_acc": 0.8127,
+    "val_macro_f1": 0.7958,
+    "time_sec": 58.5
+  },
+  {
+    "epoch": 4,
+    "phase": "fine_tuning",
+    "train_loss": 0.3823,
+    "train_acc": 0.8159,
+    "train_macro_f1": 0.8248,
+    "val_loss": 0.3062,
+    "val_acc": 0.8989,
+    "val_macro_f1": 0.8804,
+    "time_sec": 86.4
+  },
+  {
+    "epoch": 5,
+    "phase": "fine_tuning",
+    "train_loss": 0.2648,
+    "train_acc": 0.8692,
+    "train_macro_f1": 0.875,
+    "val_loss": 0.2888,
+    "val_acc": 0.9075,
+    "val_macro_f1": 0.891,
+    "time_sec": 94.0
+  },
+  {
+    "epoch": 6,
+    "phase": "fine_tuning",
+    "train_loss": 0.208,
+    "train_acc": 0.8937,
+    "train_macro_f1": 0.8976,
+    "val_loss": 0.2285,
+    "val_acc": 0.9261,
+    "val_macro_f1": 0.9166,
+    "time_sec": 92.8
+  },
+  {
+    "epoch": 7,
+    "phase": "fine_tuning",
+    "train_loss": 0.1651,
+    "train_acc": 0.9161,
+    "train_macro_f1": 0.9187,
+    "val_loss": 0.2213,
+    "val_acc": 0.9308,
+    "val_macro_f1": 0.9223,
+    "time_sec": 93.2
+  },
+  {
+    "epoch": 8,
+    "phase": "fine_tuning",
+    "train_loss": 0.1496,
+    "train_acc": 0.9246,
+    "train_macro_f1": 0.9271,
+    "val_loss": 0.2155,
+    "val_acc": 0.9316,
+    "val_macro_f1": 0.9247,
+    "time_sec": 93.2
+  },
+  {
+    "epoch": 9,
+    "phase": "fine_tuning",
+    "train_loss": 0.1339,
+    "train_acc": 0.9311,
+    "train_macro_f1": 0.9335,
+    "val_loss": 0.2199,
+    "val_acc": 0.9347,
+    "val_macro_f1": 0.9275,
+    "time_sec": 93.4
+  },
+  {
+    "epoch": 10,
+    "phase": "fine_tuning",
+    "train_loss": 0.1335,
+    "train_acc": 0.932,
+    "train_macro_f1": 0.9348,
+    "val_loss": 0.2173,
+    "val_acc": 0.9334,
+    "val_macro_f1": 0.926,
+    "time_sec": 93.4
+  }
+]

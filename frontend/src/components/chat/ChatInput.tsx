@@ -4,8 +4,9 @@ import { toast } from "sonner";
 import { transcribeAudio } from "@/api";
 
 interface ChatInputProps {
-  onSend: (text: string, imageBase64?: string | null) => void;
+  onSend: (text: string, imageBase64?: string | null, cropHint?: string | null) => void;
   disabled?: boolean | undefined;
+  preferredLanguage?: string | null | undefined;
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -17,9 +18,10 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProps) {
   const [value, setValue] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
+  const [cropHint, setCropHint] = useState<string>("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -51,7 +53,12 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         reader.readAsDataURL(blob);
       });
       const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
-      const result = await transcribeAudio(base64, blob.type || "audio/webm", `recording.${ext}`);
+      const result = await transcribeAudio(
+        base64,
+        blob.type || "audio/webm",
+        `recording.${ext}`,
+        preferredLanguage,
+      );
       setValue(result.text);
       requestAnimationFrame(() => {
         if (textareaRef.current) {
@@ -115,9 +122,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         ? "Please diagnose this leaf image and suggest safe next steps."
         : "");
     if (!text) return;
-    onSend(text, imageBase64);
+    onSend(text, imageBase64, cropHint || undefined);
     setValue("");
     setImageBase64(null);
+    setCropHint("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
   };
 
@@ -150,16 +158,36 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         className="mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-3xl border border-border bg-card p-2 shadow-soft focus-within:border-primary/50"
       >
         {imageBase64 && (
-          <div className="flex items-start gap-3 px-2 pt-2">
+          <div className="flex flex-wrap items-center gap-3 px-2 pt-2">
             <img
               src={imageBase64}
               alt="Attached leaf"
-              className="h-16 w-16 rounded-xl object-cover"
+              className="h-16 w-16 rounded-xl object-cover border border-border"
             />
+            <div className="flex flex-col gap-1">
+              <label htmlFor="crop-hint-select" className="text-xs font-medium text-muted-foreground">
+                Leaf Crop (helps prevent unsupported-crop false alarms):
+              </label>
+              <select
+                id="crop-hint-select"
+                value={cropHint}
+                onChange={(e) => setCropHint(e.target.value)}
+                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+              >
+                <option value="">Auto-detect / Unsure</option>
+                <option value="tomato">Tomato</option>
+                <option value="potato">Potato</option>
+                <option value="maize">Maize (Corn)</option>
+                <option value="other">Other / Unsupported Crop</option>
+              </select>
+            </div>
             <button
               type="button"
               aria-label="Remove attachment"
-              onClick={() => setImageBase64(null)}
+              onClick={() => {
+                setImageBase64(null);
+                setCropHint("");
+              }}
               className="grid size-8 place-items-center rounded-full bg-muted text-muted-foreground hover:text-foreground"
             >
               <X className="size-4" />
