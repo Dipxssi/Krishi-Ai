@@ -1,1 +1,2 @@
-web: uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Used by Render (and similar PaaS). Prefer the start command in render.yaml / docs/DEPLOY.md.
+web: uv run uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

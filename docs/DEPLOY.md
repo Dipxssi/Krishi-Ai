@@ -1,39 +1,54 @@
-# Deploy KrishiAi (Vercel + Railway + Neon)
+# Deploy KrishiAi (Vercel + Render + Neon)
 
 ## Topology
 
 | Piece | Host | Notes |
 |-------|------|--------|
 | Frontend | Vercel | Root directory `frontend/` |
-| Backend | Railway | Root directory `backend/` |
-| Database | Neon Postgres | Set `DATABASE_URL` on Railway |
+| Backend | Render | Root directory `backend/` (see `render.yaml`) |
+| Database | Neon Postgres | Set `DATABASE_URL` on Render |
 
-Do **not** use SQLite in production (Railway disk is ephemeral).
+Do **not** use SQLite in production (Render disk is ephemeral).
 
 ## 1. Neon
 
-1. Create a Neon project and copy the connection string.
-2. Prefer the pooled URL if Neon shows one; `sslmode=require` is fine.
-3. You will paste this into Railway as `DATABASE_URL`.
+1. Use your existing Neon connection string (from local `.env` is fine).
+2. Prefer the **pooled** `DATABASE_URL`; `sslmode=require` is fine.
+3. You will paste this into Render as `DATABASE_URL`.
 
-## 2. Railway (API)
+## 2. Render (API)
 
-1. New project → Deploy from GitHub → select this repo.
-2. Set **Root Directory** to `backend`.
-3. Start command (if not picked up from `railway.toml` / `Procfile`):
+### Option A — Blueprint
+
+1. [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprint**.
+2. Connect the GitHub repo; Render reads `render.yaml`.
+3. Fill in the `sync: false` env vars when prompted (`DATABASE_URL`, `CORS_ORIGINS`, `GROQ_API_KEY`, etc.).
+
+### Option B — Manual Web Service
+
+1. **New** → **Web Service** → select this repo.
+2. **Root Directory**: `backend`
+3. **Runtime**: Python 3.12
+4. **Build command**:
 
    ```bash
-   uvicorn app.main:app --host 0.0.0.0 --port $PORT
+   pip install uv && uv sync --no-dev
    ```
 
-4. Environment variables:
+5. **Start command**:
+
+   ```bash
+   uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+   ```
+
+6. Environment variables:
 
    | Variable | Required | Example / notes |
    |----------|----------|-----------------|
    | `APP_ENV` | yes | `production` |
-   | `DATABASE_URL` | yes | Neon connection string |
-   | `JWT_SECRET` | yes | long random string (≥32 chars) |
-   | `CORS_ORIGINS` | yes | `https://your-app.vercel.app` (comma-separated; add preview URLs if needed) |
+   | `DATABASE_URL` | yes | Neon connection string (pooled) |
+   | `JWT_SECRET` | yes | long random string (≥32 chars); can use Render “Generate” |
+   | `CORS_ORIGINS` | yes | `https://your-app.vercel.app` (comma-separated) |
    | `GROQ_API_KEY` | yes for LLM/voice STT | Groq key |
    | `GROQ_MODEL` | optional | e.g. `llama-3.3-70b-versatile` |
    | `VISION_MODEL` | optional | `mobilenetv3` (default) or `heuristic` |
@@ -43,14 +58,14 @@ Do **not** use SQLite in production (Railway disk is ephemeral).
    | `WEATHER_API_KEY` | optional | else labeled mock weather |
    | `MARKET_API_KEY` / `DATA_GOV_API_KEY` | optional | else labeled mock market |
 
-5. Generate a secret locally:
+7. Generate a secret locally if needed:
 
    ```bash
    python -c "import secrets; print(secrets.token_urlsafe(48))"
    ```
 
-6. Deploy, open the public Railway URL, confirm `GET /` returns JSON.
-7. Prefer a Railway plan with **≥2 GB RAM** for MobileNetV3 + Torch. If the service OOMs, set `VISION_MODEL=heuristic` and redeploy.
+8. Deploy, open the public Render URL (`*.onrender.com`), confirm `GET /` returns JSON.
+9. Prefer a plan with **≥2 GB RAM** for MobileNetV3 + Torch (Starter or higher). Free tier will likely OOM or sleep; if memory is tight, set `VISION_MODEL=heuristic` and redeploy.
 
 ## 3. Vercel (UI)
 
@@ -63,9 +78,9 @@ Do **not** use SQLite in production (Railway disk is ephemeral).
 
    | Variable | Value |
    |----------|--------|
-   | `VITE_API_URL` | `https://<your-railway-service>.up.railway.app` (no trailing slash) |
+   | `VITE_API_URL` | `https://<your-service>.onrender.com` (no trailing slash) |
 
-7. Deploy. Copy the Vercel URL into Railway `CORS_ORIGINS`, then redeploy the API if you added CORS after the first API deploy.
+7. Deploy. Copy the Vercel URL into Render `CORS_ORIGINS`, then **Manual Deploy** the API if CORS was set after the first deploy.
 
 ## 4. Smoke checklist
 

@@ -1,0 +1,38 @@
+# Render Blueprint — https://dashboard.render.com/blueprints
+# Or create a Web Service manually with Root Directory = backend
+services:
+  - type: web
+    name: krishiai-api
+    runtime: python
+    rootDir: backend
+    plan: starter
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: VISION_MODEL
+        value: mobilenetv3
+      - key: HF_TOKEN
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: WEATHER_API_KEY
+        sync: false
+      - key: MARKET_API_KEY
+        sync: false
+      - key: DATA_GOV_API_KEY
+        sync: false
