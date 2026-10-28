@@ -8,6 +8,9 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
+_DEV_JWT_SECRET = "dev-only-change-me-krishiai-jwt-secret-key-32b"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=(str(ROOT_DIR / ".env"), str(BACKEND_DIR / ".env")),
@@ -15,17 +18,23 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
+    app_env: str = "development"  # development | production
+    cors_origins: str = (
+        "http://localhost:5173,http://127.0.0.1:5173,"
+        "http://localhost:3000,http://127.0.0.1:3000"
+    )
+
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
     knowledge_dir: str = str(BACKEND_DIR / "data" / "knowledge")
 
-    jwt_secret: str = "dev-only-change-me-krishiai-jwt-secret-key-32b"
+    jwt_secret: str = _DEV_JWT_SECRET
     jwt_expire_minutes: int = 60 * 24 * 7  # 7 days
 
     @field_validator("jwt_secret", mode="before")
     @classmethod
     def validate_jwt_secret(cls, v: object) -> str:
         if not v or not str(v).strip():
-            return "dev-only-change-me-krishiai-jwt-secret-key-32b"
+            return _DEV_JWT_SECRET
         return str(v).strip()
 
     @field_validator("database_url", mode="before")
@@ -62,6 +71,23 @@ class Settings(BaseSettings):
 
     upag_api_username: str | None = None
     upag_api_password: str | None = None
+
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    def ensure_secure_for_production(self) -> None:
+        if self.app_env.strip().lower() != "production":
+            return
+        secret = (self.jwt_secret or "").strip()
+        if not secret or secret == _DEV_JWT_SECRET or len(secret) < 32:
+            raise RuntimeError(
+                "APP_ENV=production requires JWT_SECRET to be a strong random string "
+                "(at least 32 characters, not the dev default)."
+            )
+        if not (self.database_url or "").strip() or self.database_url.startswith("sqlite"):
+            raise RuntimeError(
+                "APP_ENV=production requires DATABASE_URL pointing at Postgres (e.g. Neon)."
+            )
 
 
 @lru_cache

@@ -53,7 +53,16 @@ class TestLiveProductionVisionEndpoint(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        from tests.auth_helpers import install_auth_override
+
+        install_auth_override(app)
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        from tests.auth_helpers import clear_auth_override
+
+        clear_auth_override(app)
 
     def test_live_endpoint_does_not_invoke_elasticnet_model(self):
         """Confirm that the live endpoint does not load or invoke the offline ElasticNet candidate."""

@@ -60,7 +60,16 @@ class TestCropContextContamination(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        from tests.auth_helpers import install_auth_override
+
+        install_auth_override(app, farmer_id="farmer-onion-001")
         cls.client = TestClient(app)
+
+    @classmethod
+    def tearDownClass(cls):
+        from tests.auth_helpers import clear_auth_override
+
+        clear_auth_override(app)
 
     def setUp(self):
         get_settings.cache_clear()

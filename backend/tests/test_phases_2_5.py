@@ -33,7 +33,13 @@ def _reset():
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    from tests.auth_helpers import clear_auth_override, install_auth_override
+
+    install_auth_override(app, farmer_id="img1")
+    try:
+        yield TestClient(app)
+    finally:
+        clear_auth_override(app)
 
 
 def _tiny_image_b64() -> str:

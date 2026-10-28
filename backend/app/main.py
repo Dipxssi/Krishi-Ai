@@ -22,6 +22,7 @@ from app.api.query import router as query_router
 from app.api.route import router as route_router
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
+from app.core.config import get_settings
 from app.db.session import init_db
 from app.db.users import UserRow  # noqa: F401 — register tables
 from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401 — register tables
@@ -29,6 +30,8 @@ from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401 — regist
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    settings.ensure_secure_for_production()
     init_db()
     yield
 
@@ -39,14 +42,10 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=_settings.cors_origin_list(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

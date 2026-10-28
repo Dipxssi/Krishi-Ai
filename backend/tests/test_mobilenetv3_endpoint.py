@@ -17,7 +17,13 @@ from app.schemas.models import (
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(app)
+    from tests.auth_helpers import clear_auth_override, install_auth_override
+
+    install_auth_override(app)
+    try:
+        yield TestClient(app)
+    finally:
+        clear_auth_override(app)
 
 
 def create_test_image_b64(

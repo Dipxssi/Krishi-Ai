@@ -8,14 +8,16 @@ import logging
 import re
 
 import httpx
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app.core.config import get_settings
+from app.db.users import UserRow
 from app.schemas.models import (
     VoiceSpeechRequest,
     VoiceTranscribeRequest,
     VoiceTranscribeResponse,
 )
+from app.services.auth_service import get_current_user
 from app.services.crop_registry import normalize_crop_name
 
 logger = logging.getLogger(__name__)
@@ -78,7 +80,10 @@ def _decode_audio(payload: str) -> bytes:
 
 
 @router.post("/transcribe", response_model=VoiceTranscribeResponse)
-def transcribe(request: VoiceTranscribeRequest):
+def transcribe(
+    request: VoiceTranscribeRequest,
+    _user: UserRow = Depends(get_current_user),
+):
     settings = get_settings()
     if not settings.groq_api_key or not settings.groq_api_key.strip():
         raise HTTPException(status_code=503, detail="Speech transcription is not configured (GROQ_API_KEY).")
@@ -130,7 +135,10 @@ def transcribe(request: VoiceTranscribeRequest):
     response_class=AudioResponse,
     responses={200: {"content": {"audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
 )
-def synthesize_speech(request: VoiceSpeechRequest) -> AudioResponse:
+def synthesize_speech(
+    request: VoiceSpeechRequest,
+    _user: UserRow = Depends(get_current_user),
+) -> AudioResponse:
     settings = get_settings()
     if not settings.openai_api_key or not settings.openai_api_key.strip():
         raise HTTPException(status_code=503, detail="Speech playback is not configured (OPENAI_API_KEY).")
@@ -159,5 +167,8 @@ def synthesize_speech(request: VoiceSpeechRequest) -> AudioResponse:
 
 
 @router.post("/normalize-crop")
-def normalize_crop_name_endpoint(crop: str):
+def normalize_crop_name_endpoint(
+    crop: str,
+    _user: UserRow = Depends(get_current_user),
+):
     return {"crop_id": normalize_crop_name(crop) or _CROP_WORDS.get(crop.lower())}

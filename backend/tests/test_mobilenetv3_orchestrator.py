@@ -60,7 +60,13 @@ def _create_synthetic_image_b64(
 
 @pytest.fixture
 def test_client() -> TestClient:
-    return TestClient(app)
+    from tests.auth_helpers import clear_auth_override, install_auth_override
+
+    install_auth_override(app, farmer_id="test-mobilenet-user")
+    try:
+        yield TestClient(app)
+    finally:
+        clear_auth_override(app)
 
 
 @pytest.fixture(autouse=True)
@@ -463,18 +469,20 @@ def test_heuristic_fallback_path(tomato_context):
 # 9. API /query endpoint integration with MobileNetV3
 def test_api_query_endpoint_with_mobilenetv3(test_client: TestClient):
     """Test full HTTP POST /query endpoint with MobileNetV3."""
-    # Create farm profile first
-    create_payload = {
-        "farmer_id": "test-mobilenet-user",
-        "location": "Nashik",
-        "farm_area_acres": 2.0,
-        "crop": "tomato",
-        "growth_stage": "vegetative",
-        "budget": 30000.0,
-        "irrigation_available": True,
-    }
-    res_farm = test_client.post("/farmers", json=create_payload)
-    assert res_farm.status_code in (200, 201, 409)
+    from app.db.session import create_farm_context
+    from app.schemas.models import FarmContextCreate
+
+    create_farm_context(
+        FarmContextCreate(
+            farmer_id="test-mobilenet-user",
+            location="Nashik",
+            farm_area_acres=2.0,
+            crop="tomato",
+            growth_stage="vegetative",
+            budget=30000.0,
+            irrigation_available=True,
+        )
+    )
 
     b64 = _create_synthetic_image_b64()
     query_payload = {

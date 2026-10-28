@@ -15,6 +15,7 @@ import {
   type Conversation,
   type ChatMessageData,
 } from "@/data/mockChats";
+// Not mounted by App.tsx — live chat is pages/ChatPage.tsx → POST /query.
 import { SUGGESTED_PROMPTS, getMockResponse } from "@/data/mockResponses";
 
 export const Route = createFileRoute("/chat")({

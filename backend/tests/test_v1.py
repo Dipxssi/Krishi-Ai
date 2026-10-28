@@ -117,22 +117,10 @@ def test_market_price_labeled_mock():
 
 
 def test_farmer_put_updates_context():
-    client = TestClient(app)
-    payload = {
-        "farmer_id": "f-put",
-        "location": "Nashik",
-        "farm_area_acres": 2.0,
-        "crop": "tomato",
-        "growth_stage": "fruiting",
-        "soil_type": "loam",
-        "soil_npk": {"n": 40, "p": 30, "k": 40},
-        "irrigation_available": True,
-        "budget": 20000,
-        "preferred_language": "English",
-        "season": "kharif",
-    }
-    assert client.post("/farmers", json=payload).status_code == 201
+    from tests.auth_helpers import signup_and_headers
 
+    client = TestClient(app)
+    headers, farmer_id, _ = signup_and_headers(client, email="put@example.com")
     updated = {
         "location": "Pune",
         "crop": "wheat",
@@ -145,7 +133,7 @@ def test_farmer_put_updates_context():
         "season": "rabi",
         "farm_area_acres": 3.5,
     }
-    r = client.put("/farmers/f-put", json=updated)
+    r = client.put(f"/farmers/{farmer_id}", headers=headers, json=updated)
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["location"] == "Pune"
@@ -155,39 +143,45 @@ def test_farmer_put_updates_context():
     assert body["irrigation_available"] is False
     assert body["preferred_language"] == "Hindi"
 
-    got = client.get("/farmers/f-put")
+    got = client.get(f"/farmers/{farmer_id}", headers=headers)
     assert got.status_code == 200
     assert got.json() == body
 
 
 def test_api_farmers_and_query():
+    from tests.auth_helpers import signup_and_headers
+
     client = TestClient(app)
-    payload = {
-        "farmer_id": "f1",
-        "location": "Nashik",
-        "farm_area_acres": 2.0,
-        "crop": "tomato",
-        "growth_stage": "fruiting",
-        "soil_type": "loam",
-        "soil_npk": {"n": 40, "p": 30, "k": 40},
-        "irrigation_available": True,
-        "budget": 20000,
-        "preferred_language": "English",
-        "season": "kharif",
-    }
-    r = client.post("/farmers", json=payload)
-    assert r.status_code == 201, r.text
+    headers, farmer_id, _ = signup_and_headers(client, email="query@example.com")
+    r = client.put(
+        f"/farmers/{farmer_id}",
+        headers=headers,
+        json={
+            "location": "Nashik",
+            "farm_area_acres": 2.0,
+            "crop": "tomato",
+            "growth_stage": "fruiting",
+            "soil_type": "loam",
+            "soil_npk": {"n": 40, "p": 30, "k": 40},
+            "irrigation_available": True,
+            "budget": 20000,
+            "preferred_language": "English",
+            "season": "kharif",
+        },
+    )
+    assert r.status_code == 200, r.text
 
     q = client.post(
         "/query",
+        headers=headers,
         json={
-            "farmer_id": "f1",
+            "farmer_id": farmer_id,
             "query": "Tomato market price is falling, limited budget, rain expected next week. Should I treat, continue, or sell early?",
         },
     )
     assert q.status_code == 200, q.text
     body = q.json()
-    assert body["farmer_id"] == "f1"
+    assert body["farmer_id"] == farmer_id
     assert "market" in body["agents_used"]
     assert "finance" in body["agents_used"]
     assert "weather" in body["agents_used"]
@@ -198,7 +192,7 @@ def test_api_farmers_and_query():
     assert body["revision_count"] >= 1
 
 
-def test_query_requires_farmer():
+def test_query_requires_auth():
     client = TestClient(app)
     r = client.post("/query", json={"farmer_id": "missing", "query": "hello"})
-    assert r.status_code == 404
+    assert r.status_code == 401

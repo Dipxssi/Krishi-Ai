@@ -1,5 +1,9 @@
+import { clearAuthSession, getAccessToken, type AuthUser } from "@/lib/authSession";
+
 /** In dev, use Vite proxy (relative URLs). Set VITE_API_URL for production. */
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+export type { AuthUser };
 
 export type FarmContext = {
   farmer_id: string;
@@ -153,12 +157,27 @@ async function parseError(res: Response): Promise<string> {
   }
 }
 
-export type AuthUser = {
-  id: string;
-  email: string;
-  name: string;
-  farmer_id: string;
-};
+function handleUnauthorized(res: Response): void {
+  if (res.status !== 401) return;
+  clearAuthSession();
+  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
+    window.location.assign("/auth");
+  }
+}
+
+async function apiFetch(path: string, init: RequestInit = {}, auth = false): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (init.body != null && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (auth) {
+    const token = getAccessToken();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
+  if (auth) handleUnauthorized(res);
+  return res;
+}
 
 export type AuthResponse = {
   access_token: string;
@@ -172,9 +191,8 @@ export async function signup(
   password: string,
   location?: string,
 ): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/signup`, {
+  const res = await apiFetch("/auth/signup", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       name,
       email,
@@ -187,39 +205,40 @@ export async function signup(
 }
 
 export async function login(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch(`${API_BASE}/auth/login`, {
+  const res = await apiFetch("/auth/login", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
-export async function fetchMe(accessToken: string): Promise<AuthUser> {
+export async function fetchMe(accessToken?: string | null): Promise<AuthUser> {
+  const token = accessToken ?? getAccessToken();
   const res = await fetch(`${API_BASE}/auth/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
+  if (res.status === 401) {
+    clearAuthSession();
+  }
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
 export async function createFarmer(payload: FarmContext): Promise<FarmContext> {
-  const res = await fetch(`${API_BASE}/farmers`, {
+  const res = await apiFetch("/farmers", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
 export async function updateFarmer(farmerId: string, payload: FarmContextUpdate): Promise<FarmContext> {
-  const res = await fetch(`${API_BASE}/farmers/${encodeURIComponent(farmerId)}`, {
+  const res = await apiFetch(`/farmers/${encodeURIComponent(farmerId)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -227,27 +246,25 @@ export async function updateFarmer(farmerId: string, payload: FarmContextUpdate)
 /** Update an existing profile, or create one if missing (PUT then POST on 404). */
 export async function saveFarmer(payload: FarmContext): Promise<"created" | "updated"> {
   const { farmer_id, ...rest } = payload;
-  const putRes = await fetch(`${API_BASE}/farmers/${encodeURIComponent(farmer_id)}`, {
+  const putRes = await apiFetch(`/farmers/${encodeURIComponent(farmer_id)}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(rest),
-  });
+  }, true);
   if (putRes.ok) return "updated";
   if (putRes.status !== 404) {
     throw new Error(await parseError(putRes));
   }
 
-  const postRes = await fetch(`${API_BASE}/farmers`, {
+  const postRes = await apiFetch("/farmers", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
-  });
+  }, true);
   if (postRes.status === 201 || postRes.ok) return "created";
   throw new Error(await parseError(postRes));
 }
 
 export async function getFarmer(farmerId: string): Promise<FarmContext> {
-  const res = await fetch(`${API_BASE}/farmers/${encodeURIComponent(farmerId)}`);
+  const res = await apiFetch(`/farmers/${encodeURIComponent(farmerId)}`, {}, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -260,9 +277,8 @@ export async function askAdvice(
   visionModel?: string | null,
   language?: string | null,
 ): Promise<QueryResponse> {
-  const res = await fetch(`${API_BASE}/query`, {
+  const res = await apiFetch("/query", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       farmer_id: farmerId,
       query,
@@ -271,7 +287,7 @@ export async function askAdvice(
       vision_model: visionModel || undefined,
       language: language || undefined,
     }),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -282,26 +298,24 @@ export async function transcribeAudio(
   filename: string,
   languageHint?: string | null,
 ) {
-  const res = await fetch(`${API_BASE}/voice/transcribe`, {
+  const res = await apiFetch("/voice/transcribe", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       audio_base64: audioBase64,
       content_type: contentType,
       filename,
       language_hint: languageHint || undefined,
     }),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json() as Promise<{ text: string; normalized_crop?: string | null; note?: string | null }>;
 }
 
 export async function synthesizeSpeech(text: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/voice/speech`, {
+  const res = await apiFetch("/voice/speech", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ text }),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.blob();
 }
@@ -373,15 +387,14 @@ export async function diagnoseMobileNetV3(
   cropHint?: string | null,
   confidenceThreshold?: number,
 ): Promise<MobileNetV3DiagnosisResponse> {
-  const res = await fetch(`${API_BASE}/crop/mobilenetv3-diagnosis`, {
+  const res = await apiFetch("/crop/mobilenetv3-diagnosis", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       image_base64: imageBase64,
       crop_hint: cropHint || undefined,
       confidence_threshold: confidenceThreshold ?? 0.60,
     }),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -391,15 +404,14 @@ export async function submitFeedback(
   rating: number,
   comment?: string,
 ): Promise<void> {
-  const res = await fetch(`${API_BASE}/feedback`, {
+  const res = await apiFetch("/feedback", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       request_id: requestId,
       rating,
       comment: comment || undefined,
     }),
-  });
+  }, true);
   if (!res.ok) throw new Error(await parseError(res));
 }
 

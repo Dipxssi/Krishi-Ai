@@ -1,5 +1,11 @@
-import type { AuthUser } from "@/api";
 import { notifyAuthChanged } from "@/lib/authEvents";
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  farmer_id: string;
+};
 
 const TOKEN_KEY = "krishi-ai-access-token";
 const USER_KEY = "krishi-ai-auth-user";

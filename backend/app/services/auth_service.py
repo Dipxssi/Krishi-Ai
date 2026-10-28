@@ -72,3 +72,12 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
     return user
+
+
+def assert_farmer_access(user: UserRow, farmer_id: str) -> None:
+    """Prevent IDOR: token farmer_id must match the resource being accessed."""
+    if not farmer_id or user.farmer_id != farmer_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only access your own farm profile",
+        )

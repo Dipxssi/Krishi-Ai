@@ -121,7 +121,7 @@ Exact-match will not hit 100% on multi-label farming queries; remaining mismatch
 ## Docs
 
 * [backend/README.md](backend/README.md) — API + setup
-* [docs/architecture.md](docs/architecture.md) — system flow
+* [docs/DEPLOY.md](docs/DEPLOY.md) — Vercel + Railway + Neon hosting
 * [backend/docs/ORCHESTRATOR_EVAL.md](backend/docs/ORCHESTRATOR_EVAL.md) — routing eval guide
 * [frontend/README.md](frontend/README.md) — UI run instructions
 

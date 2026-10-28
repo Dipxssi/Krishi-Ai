@@ -66,22 +66,32 @@ def test_soil_npk_advice_differs_by_crop():
 
 
 def test_query_returns_tool_traces():
+    from tests.auth_helpers import signup_and_headers
+
     client = TestClient(app)
-    payload = {
-        "farmer_id": "mc1",
-        "location": "Nashik",
-        "farm_area_acres": 2.0,
-        "crop": "maize",
-        "growth_stage": "vegetative",
-        "soil_type": "loam",
-        "soil_npk": {"n": 40, "p": 30, "k": 40},
-        "irrigation_available": True,
-        "budget": 25000,
-        "preferred_language": "English",
-        "season": "kharif",
-    }
-    assert client.post("/farmers", json=payload).status_code == 201
-    r = client.post("/query", json={"farmer_id": "mc1", "query": "Maize fertilizer plan for low potassium soil?"})
+    headers, farmer_id, _ = signup_and_headers(client, email="maize@example.com")
+    r = client.put(
+        f"/farmers/{farmer_id}",
+        headers=headers,
+        json={
+            "location": "Nashik",
+            "farm_area_acres": 2.0,
+            "crop": "maize",
+            "growth_stage": "vegetative",
+            "soil_type": "loam",
+            "soil_npk": {"n": 40, "p": 30, "k": 40},
+            "irrigation_available": True,
+            "budget": 25000,
+            "preferred_language": "English",
+            "season": "kharif",
+        },
+    )
+    assert r.status_code == 200, r.text
+    r = client.post(
+        "/query",
+        headers=headers,
+        json={"farmer_id": farmer_id, "query": "Maize fertilizer plan for low potassium soil?"},
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["tool_traces"]

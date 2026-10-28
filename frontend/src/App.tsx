@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { AuthSessionBootstrap } from "@/components/AuthSessionBootstrap";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthPage } from "@/pages/AuthPage";
@@ -6,9 +7,11 @@ import { ChatPage } from "@/pages/ChatPage";
 import { HomePage } from "@/pages/HomePage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 
+/** Live product shell. TanStack mock chat under src/routes/ is not mounted here. */
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthSessionBootstrap />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />
