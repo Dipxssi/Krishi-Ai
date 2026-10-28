@@ -1,11 +1,12 @@
 # Render Blueprint — https://dashboard.render.com/blueprints
-# Or create a Web Service manually with Root Directory = backend
+# Slim install (no torch) for Free / low-RAM. Heuristic leaf screening only.
+# For MobileNetV3 later: build with `uv sync --extra vision --no-dev` and VISION_MODEL=mobilenetv3 on ≥2GB RAM.
 services:
   - type: web
     name: krishiai-api
     runtime: python
     rootDir: backend
-    plan: starter
+    plan: free
     buildCommand: pip install uv && uv sync --no-dev
     startCommand: uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /
@@ -25,9 +26,7 @@ services:
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
       - key: VISION_MODEL
-        value: mobilenetv3
-      - key: HF_TOKEN
-        sync: false
+        value: heuristic
       - key: OPENAI_API_KEY
         sync: false
       - key: WEATHER_API_KEY

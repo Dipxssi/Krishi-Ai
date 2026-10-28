@@ -38,6 +38,14 @@ def elasticnet_diagnosis(
         from app.vision.elasticnet_service import run_elasticnet_diagnosis
 
         return run_elasticnet_diagnosis(request)
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "ElasticNet vision stack is not installed. "
+                "Install with: uv sync --extra vision"
+            ),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -59,6 +67,14 @@ def mobilenetv3_diagnosis(
         from app.vision.mobilenetv3_service import run_mobilenetv3_diagnosis
 
         return run_mobilenetv3_diagnosis(request)
+    except ImportError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "MobileNetV3 vision stack is not installed. "
+                "On Free hosts use VISION_MODEL=heuristic, or install: uv sync --extra vision"
+            ),
+        ) from exc
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

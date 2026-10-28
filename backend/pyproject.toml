@@ -16,14 +16,20 @@ dependencies = [
     "scikit-learn>=1.5.0",
     "pillow>=10.0.0",
     "numpy>=1.26.0",
-    "torch>=2.2.0",
-    "torchvision>=0.17.0",
     "sqlmodel>=0.0.39",
     "psycopg[binary]>=3.2.0",
     "bcrypt>=4.2.0",
     "PyJWT>=2.9.0",
     "email-validator>=2.2.0",
     "uvicorn>=0.44.0",
+]
+
+[project.optional-dependencies]
+# Heavy stack for MobileNetV3 / ElasticNet. Skip on Render Free (512MB).
+# Install: uv sync --extra vision
+vision = [
+    "torch>=2.2.0",
+    "torchvision>=0.17.0",
     "huggingface_hub>=0.20.0",
     "matplotlib>=3.11.2",
 ]
@@ -31,4 +37,3 @@ dependencies = [
 [tool.pytest.ini_options]
 pythonpath = [".", ".."]
 testpaths = ["tests"]
-

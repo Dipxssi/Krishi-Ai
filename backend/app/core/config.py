@@ -49,7 +49,9 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_tts_model: str = "gpt-4o-mini-tts"
 
-    vision_model: str = "mobilenetv3"  # mobilenetv3 | heuristic
+    # Default heuristic so slim/Free deploys work without torch.
+    # Set VISION_MODEL=mobilenetv3 only when the vision extra is installed.
+    vision_model: str = "heuristic"  # heuristic | mobilenetv3
     vision_confidence_threshold: float = 0.60
     hf_model_repo: str = "Ishan2702/krishiai-mobilenetv3"
     hf_model_filename: str = "mobilenetv3_plantdisease_best.pth"

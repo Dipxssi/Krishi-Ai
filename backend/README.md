@@ -16,7 +16,11 @@ Text-only multi-agent farmer decision-support API.
 
 ```bash
 cd backend
-uv sync
+# Slim (chat + heuristic images; no Torch) — use this for Render Free
+uv sync --no-dev
+
+# Full vision stack (MobileNetV3 / ElasticNet)
+uv sync --extra vision
 ```
 
 Create a `.env` at the repo root or in `backend/`:
