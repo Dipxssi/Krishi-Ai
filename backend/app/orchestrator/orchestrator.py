@@ -19,6 +19,7 @@ from app.orchestrator.router import infer_risk_level, route_query
 from app.schemas.models import (
     AgentResult,
     DecisionScore,
+    EscalationDetailsSchema,
     EvidenceItem,
     FarmContext,
     ImageDiagnosisResult,
@@ -29,6 +30,14 @@ from app.services import llm
 from app.services.audit import new_request_id, save_query_run
 from app.services.conflict_resolver import resolve_conflicts
 from app.services.crop_registry import build_profit_inputs, extract_crop_from_text, normalize_crop_name
+from app.services.multilingual import (
+    detect_language,
+    get_disclaimer,
+    get_ui_text,
+    normalize_indic_script,
+    normalize_language_code,
+)
+from app.services.safety_escalation import evaluate_escalation
 from app.services.validator import validate_draft
 from app.tools.agriculture import (
     calculate_profit,
@@ -180,6 +189,24 @@ UNSAFE_CHEMICAL_PATTERNS = [
 ]
 
 
+def _clean_internal_metadata(text: str) -> str:
+    """Strip bracketed agent tags, conf scores, raw citation IDs, and internal traces."""
+    if not text:
+        return ""
+    # Strip [agent | conf=0.XX]
+    text = re.sub(r"(?m)^\[[a-z_]+ \| conf=[0-9.]+\]\s*", "", text)
+    text = re.sub(r"\[[a-z_]+ \| conf=[0-9.]+\]", "", text)
+    # Strip raw citation markers e.g. "Citations: crop_registry: crop_registry, ..."
+    text = re.sub(r"(?i)\bcitations?:\s*[^.\n]+(\.|\n|$)", "", text)
+    text = re.sub(r"(?i)\bretrieved guidance:\s*[^.\n]+(\.|\n|$)", "", text)
+    # Strip raw json filenames
+    text = re.sub(r"rag:[a-z0-9_.-]+", "", text)
+    text = re.sub(r"\bconf=[0-9.]+\b", "", text)
+    # Clean up double punctuation or empty lines
+    text = re.sub(r"\n{3,}", "\n\n", text).strip()
+    return text
+
+
 def _scrub_unsafe_chemical_advice(text: str) -> str:
     cleaned_lines = []
     for line in text.splitlines():
@@ -192,32 +219,58 @@ def _scrub_unsafe_chemical_advice(text: str) -> str:
 def _build_unconfirmed_image_response(
     image_diagnosis: ImageDiagnosisResult,
     agent_results: list[AgentResult],
+    language: str = "en",
 ) -> str:
+    lang = normalize_language_code(language)
     reason = (
         image_diagnosis.rejection_reason
         or "Image screening cannot reliably establish crop identity or disease."
     )
-    sections = [
-        "### Image Diagnosis: Unconfirmed",
-        "- **Status**: Unconfirmed",
-        f"- **Reason**: {reason}",
-        "- **Safe Non-Chemical Next Steps**:",
-        "  1. **Clearer photography**: Photograph a single, fully visible leaf centered against a plain neutral background in bright natural daylight.",
-        "  2. **Physical inspection**: Inspect the underside of leaves and stems for visible pests, mites, or wilting.",
-        "  3. **Field sanitation**: Avoid overhead irrigation; isolate visibly affected plants if practical; do not apply chemical fungicides or pesticides without confirmed diagnosis.",
-        "- **Referral**: Consult your nearest Krishi Vigyan Kendra (KVK) or a qualified agricultural extension officer for physical leaf diagnosis.",
-    ]
+    if lang == "hi":
+        sections = [
+            "### Image Diagnosis: Unconfirmed (पत्ती फोटो निदान: व्यक्तिगत पुष्टि आवश्यक)",
+            "- **स्थिति (Status)**: Unconfirmed (अपुष्ट)",
+            f"- **कारण (Reason)**: {reason}",
+            "- **Safe Non-Chemical Next Steps (सुरक्षित गैर-रासायनिक कदम)**:",
+            "  1. **स्पष्ट फोटो**: प्राकृतिक दिन के उजाले में एक साफ पृष्ठभूमि पर पूरी पत्ती की स्पष्ट फोटो लें।",
+            "  2. **निरीक्षण**: पत्ती के नीचे और तने पर कीट या फफूंद के लक्षणों की जांच करें।",
+            "  3. **सावधानी**: ऊपर से पानी देने से बचें; बिना विशेषज्ञ पुष्टि के कोई रासायनिक कीटनाशक या फंगिसाइड न डालें।",
+            "- **Referral (विशेषज्ञ परामर्श)**: सटीक पुष्टि के लिए अपने नजदीकी कृषि विज्ञान केंद्र (KVK) या ब्लॉक कृषि अधिकारी से संपर्क करें।",
+        ]
+    elif lang == "kn":
+        sections = [
+            "### Image Diagnosis: Unconfirmed (ಎಲೆಯ ಫೋಟೋ ಪರಿಶೀಲನೆ: ತಜ್ಞರ ದೃಢೀಕರಣ ಅಗತ್ಯ)",
+            "- **ಸ್ಥಿತಿ (Status)**: Unconfirmed (ದೃಢಪಟ್ಟಿಲ್ಲ)",
+            f"- **ಕಾರಣ (Reason)**: {reason}",
+            "- **Safe Non-Chemical Next Steps (ಸುರಕ್ಷಿತ ಕೃಷಿ ಕ್ರಮಗಳು)**:",
+            "  1. **ಸ್ಪಷ್ಟ ಫೋಟೋ**: ನೈಸರ್ಗಿಕ ಬೆಳಕಿನಲ್ಲಿ ಸ್ಪಷ್ಟ ಹಿನ್ನೆಲೆಯಲ್ಲಿ ಸಂಪೂರ್ಣ ಎಲೆಯ ಫೋಟೋ ತೆಗೆದುಕೊಳ್ಳಿ.",
+            "  2. **ಪರಿಶೀಲನೆ**: ಎಲೆಯ ಕೆಳಭಾಗ ಮತ್ತು ಕಾಂಡದಲ್ಲಿ ಕೀಟ ಅಥವಾ ಶಿಲೀಂಧ್ರ ಲಕ್ಷಣಗಳನ್ನು ಪರೀಕ್ಷಿಸಿ.",
+            "  3. **ಮುನ್ನೆಚ್ಚರಿಕೆ**: ಗಿಡದ ಮೇಲಿನಿಂದ ನೀರುಣಿಸುವುದನ್ನು ತಪ್ಪಿಸಿ; ತಜ್ಞರ ಸಲಹೆಯಿಲ್ಲದೆ ರಾಸಾಯನಿಕ ಔಷಧ ಸಿಂಪಡಿಸಬೇಡಿ.",
+            "- **Referral (ಸಲಹೆ)**: ಖಚಿತ ರೋಗ ನಿರ್ಣಯಕ್ಕಾಗಿ ನಿಮ್ಮ ಹತ್ತಿರದ ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರ (ಕೆ.ವಿ.ಕೆ) ಅಥವಾ ಕೃಷಿ ಅಧಿಕಾರಿಯನ್ನು ಭೇಟಿ ಮಾಡಿ.",
+        ]
+    else:
+        sections = [
+            "### Image Diagnosis: Unconfirmed",
+            "- **Status**: Unconfirmed",
+            f"- **Reason**: {reason}",
+            "- **Safe Non-Chemical Next Steps**:",
+            "  1. **Clearer photography**: Photograph a single, fully visible leaf centered against a plain neutral background in bright natural daylight.",
+            "  2. **Physical inspection**: Inspect the underside of leaves and stems for visible pests, mites, or wilting.",
+            "  3. **Field sanitation**: Avoid overhead irrigation; isolate visibly affected plants if practical; do not apply chemical fungicides or pesticides without confirmed diagnosis.",
+            "- **Referral**: Consult your nearest Krishi Vigyan Kendra (KVK) or a qualified agricultural extension officer for physical leaf diagnosis.",
+        ]
 
     non_crop_advisories = []
     for ar in agent_results:
         if ar.agent != "crop_health" and ar.recommendation:
-            cleaned = _scrub_unsafe_chemical_advice(ar.recommendation)
+            cleaned = _clean_internal_metadata(_scrub_unsafe_chemical_advice(ar.recommendation))
             if cleaned:
                 agent_title = ar.agent.replace("_", " ").capitalize()
                 non_crop_advisories.append(f"**{agent_title} Advisory**:\n{cleaned}")
 
     if non_crop_advisories:
-        sections.append("\n### Farm Management Advisory")
+        advisory_title = "### Farm Management Advisory"
+        sections.append(f"\n{advisory_title}")
         sections.extend(non_crop_advisories)
 
     return "\n".join(sections)
@@ -314,7 +367,9 @@ def _revise(
     query: str,
     image_unconfirmed: bool = False,
     image_diagnosis: ImageDiagnosisResult | None = None,
+    language: str = "en",
 ) -> str:
+    lang = normalize_language_code(language)
     evidence_lines = "\n".join(f"- {e.source}: {e.value} {e.unit or ''}" for e in evidence)
     safety_rule = ""
     if image_unconfirmed:
@@ -335,47 +390,102 @@ def _revise(
         conf_lbl = f"{conf_val:.2f}"
         if image_diagnosis.is_healthy or (image_diagnosis.disease and image_diagnosis.disease.lower() == "healthy"):
             safety_rule = (
-                f"\nVISION PREDICTION CONSTRAINT: MobileNetV3 visual classification evaluated {plant_lbl} and detected NO supported disease symptoms (Healthy leaf scan, uncalibrated confidence={conf_lbl}). "
-                "State clearly that this is an AI preliminary model scan, not a guaranteed disease-free certification. "
+                f"\nVISION PREDICTION CONSTRAINT: Visual classification evaluated {plant_lbl} and detected no supported disease symptoms. "
+                "State warmly that the leaf scan indicates healthy growth, but remind the farmer that this is a preliminary AI scan. "
                 "Provide preventive cultural care only. Under NO circumstances prescribe disease-specific chemical fungicides, bactericides, or treatments for diseases not detected.\n"
             )
         else:
             dis_lbl = image_diagnosis.predicted_disease or (image_diagnosis.disease.replace('_', ' ').title() if image_diagnosis.disease else "condition")
             safety_rule = (
-                f"\nVISION PREDICTION CONSTRAINT: MobileNetV3 visual classification identified {plant_lbl} with {dis_lbl} (uncalibrated confidence={conf_lbl}). "
-                "DO NOT independently invent a different disease label or override the vision model. "
+                f"\nVISION PREDICTION CONSTRAINT: Visual classification identified {plant_lbl} symptoms that may be consistent with {dis_lbl}. "
+                f"Communicate uncertainty naturally (e.g. 'Your {plant_lbl} leaves show signs that may be consistent with {dis_lbl}. A closer in-person inspection can help confirm the cause.'). "
+                "DO NOT independently invent a different disease label. "
                 "Explain potential causes, symptoms, and appropriate next steps using retrieved evidence. "
-                "Clearly state that this is an AI prediction and advise physical agronomist leaf confirmation before chemical applications.\n"
+                "Advise physical agronomist leaf confirmation before any chemical applications.\n"
             )
 
+    lang_name = {
+        "kn": "Kannada (ಕನ್ನಡ script)",
+        "hi": "Hindi (हिंदी Devanagari script)",
+        "en": "English",
+    }.get(lang, "English")
+
+    system_prompt = (
+        f"You are KrishiAI, a compassionate, practical, and highly trusted agricultural advisor for Indian farmers. "
+        f"You MUST write your entire response in natural, fluent {lang_name}. "
+        f"CRITICAL MANDATE: If the target language is {lang_name}, you MUST NOT answer in English. Every heading, explanation, and bullet point must be strictly written in {lang_name}. "
+        "Speak warmly and directly to the farmer. Explain concepts in simple, everyday language without technical jargon. "
+        "NEVER expose internal metadata: no 'conf=0.85', no confidence numbers, no agent names (like crop_health, market), "
+        "no model names (like MobileNetV3 or ElasticNet), and no raw citation strings (like rag:crops.json or crop_registry:). "
+        "Structure your response clearly: "
+        "1. Friendly, direct answer explaining the crop condition or question simply. "
+        "2. What the farmer should do next (practical action steps). "
+        "3. Important precautions or preventive measures. "
+        "4. If and only if the situation involves high risk, uncertainty, or chemical decisions, advise visiting a local KVK or extension officer. "
+        "Keep all advice strictly grounded in the provided evidence. Never invent unverified chemical sprays or pesticide doses."
+    )
+
+    clean_draft = _clean_internal_metadata(draft)
     template = (
-        f"Query: {query}\n"
-        f"Farm: {context.model_dump()}\n"
-        f"Evidence:\n{evidence_lines}\n"
-        f"Draft:\n{draft}\n"
-        f"Critique:\n{critique}\n{safety_rule}\n"
-        "Produce a revised final recommendation for the farmer: treat vs continue vs sell early if relevant. "
-        "Cite only evidence above. Label forecasts as forecasts. Be concise."
+        f"Farmer Query: {query}\n"
+        f"Farm Location & Context: {context.location or 'India'}, Crop: {context.crop or 'Crop'}, Area: {context.farm_area_acres} acres\n"
+        f"Verified Evidence:\n{evidence_lines}\n"
+        f"Specialist Findings Summary:\n{clean_draft}\n"
+        f"Critique / Quality Feedback:\n{critique}\n{safety_rule}\n"
+        f"Produce a revised final recommendation for the farmer strictly in {lang_name}. "
+        f"Cite only evidence above. Label forecasts as forecasts. Be concise, warm, and helpful. "
+        f"REMINDER: The entire response must be written in {lang_name}."
     )
     if llm.is_llm_available():
         text = llm.generate(
             template,
-            system="You are the KrishiAi orchestrator. Revise using evidence only. Max clarity for farmers. Never prescribe unconfirmed chemical sprays.",
+            system=system_prompt,
         )
         if text:
-            return text
+            return _clean_internal_metadata(text)
+
     # Keep the no-LLM fallback farmer-facing: the agent labels and critique are
     # orchestration metadata, not part of the answer. Preserve specialist text
     # without adding unsupported conclusions or figures.
-    recommendation_text = re.sub(r"(?m)^\[[a-z_]+ \| conf=[0-9.]+\] ", "", draft).strip()
+    recommendation_text = _clean_internal_metadata(draft)
     if recommendation_text:
+        if lang in ("kn", "hi"):
+            from app.services.multilingual import format_fallback_in_language
+            return format_fallback_in_language(recommendation_text, lang, context=context)
         return recommendation_text
-    return "I could not prepare a reliable recommendation from the available specialist information."
+    return (
+        "ನನ್ನ ಬಳಿ ಲಭ್ಯವಿರುವ ಮಾಹಿತಿಯಿಂದ ವಿಶ್ವಾಸಾರ್ಹ ಶಿಫಾರಸು ತಯಾರಿಸಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ."
+        if lang == "kn"
+        else "उपलब्ध जानकारी के आधार पर विश्वसनीय सलाह तैयार नहीं की जा सकी।"
+        if lang == "hi"
+        else "I could not prepare a reliable recommendation from the available specialist information."
+    )
 
 
-def _clarifying_preface(missing: list[str]) -> str:
+def _clarifying_preface(missing: list[str], language: str = "en") -> str:
     if not missing:
         return ""
+    lang = normalize_language_code(language)
+    if lang == "hi":
+        labels = {
+            "location": "खेत का स्थान",
+            "crop": "वर्तमान/नियोजित फसल",
+            "budget": "उपलब्ध बजट (रुपये)",
+            "farm_area_acres": "खेत का क्षेत्रफल (एकड़)",
+            "soil_type_or_soil_npk": "मिट्टी का प्रकार या NPK मान",
+        }
+        pretty = [labels.get(m, m) for m in missing]
+        return "सटीक और प्रभावी सलाह के लिए कृपया प्रोफ़ाइल में यह जानकारी जोड़ें: " + ", ".join(pretty) + "।\n\n"
+    elif lang == "kn":
+        labels = {
+            "location": "ಜಮೀನಿನ ಸ್ಥಳ",
+            "crop": "ಬೆಳೆ",
+            "budget": "ಬಜೆಟ್ (ರೂ)",
+            "farm_area_acres": "ಜಮೀನಿನ ವಿಸ್ತೀರ್ಣ (ಎಕರೆ)",
+            "soil_type_or_soil_npk": "ಮಣ್ಣಿನ ವಿವರ ಅಥವಾ NPK",
+        }
+        pretty = [labels.get(m, m) for m in missing]
+        return "ಹೆಚ್ಚು ನಿಖರ ಸಲಹೆಗಾಗಿ ದಯವಿಟ್ಟು ಈ ವಿವರಗಳನ್ನು ನಮೂದಿಸಿ: " + ", ".join(pretty) + ".\n\n"
     labels = {
         "location": "farm location",
         "crop": "current/planned crop",
@@ -395,17 +505,45 @@ def _is_general_tomato_growth_query(query: str, *, has_image: bool) -> bool:
     if has_image:
         return False
     q = query.lower()
-    asks_growth = re.search(r"\b(grow|growth|growing|cultivat(?:e|ing|ion))\b", q)
-    mentions_tomato = re.search(r"\btomato(?:es)?\b", q)
+    asks_growth = re.search(
+        r"\b(grow|growth|growing|cultivat(?:e|ing|ion))\b|विकास|पैदावार|बढ़ोतरी|बढ़ाना|खेती|ಉತ್ತಮ\s+ಬೆಳವಣಿಗೆ|ಬೆಳವಣಿಗೆ|ಇಳುವರಿ|ಕೃಷಿ|ಬೆಳೆಯ|ಬೆಳೆಸು",
+        q,
+    )
+    mentions_tomato = re.search(r"\btomato(?:es)?\b|टमाटर|ಟೊಮ್ಯಾಟೊ|ಟೊಮೆಟೊ", q)
     asks_other_specific_advice = re.search(
         r"\b(disease|diseased|blight|wilt|wilting|yellow(?:ing)?|spots?|pests?|insects?|diagnos\w*|"
-        r"budget|loan|costs?|revenue|profit|subsid(?:y|ies)|market price)\b",
+        r"budget|loan|costs?|revenue|profit|subsid(?:y|ies)|market price)\b|बीमारी|रोग|कीट|ರೋಗ|ಕೀಟ|ಹುಳು|ಔಷಧ|ಬೆಲೆ",
         q,
     )
     return bool(asks_growth and mentions_tomato and not asks_other_specific_advice)
 
 
-def _tomato_growth_answer() -> str:
+def _tomato_growth_answer(language: str = "en") -> str:
+    lang = normalize_language_code(language)
+    if lang == "hi":
+        return (
+            "टमाटर की अच्छी पैदावार और स्वस्थ विकास के लिए ये व्यावहारिक उपाय अपनाएं:\n\n"
+            "1. **धूप (Sunlight):** टमाटर को प्रतिदिन 6-8 घंटे की सीधी धूप की आवश्यकता होती है।\n"
+            "2. **सिंचाई (Watering):** मिट्टी में हल्की नमी बनाए रखें; पौधों की जड़ के पास पानी दें, पत्तियों पर नहीं।\n"
+            "3. **मिट्टी और जल निकासी (Soil and drainage):** भुरभुरी, उपजाऊ और अच्छी जल निकासी वाली दोमट मिट्टी सबसे उपयुक्त है।\n"
+            "4. **उर्वरक (Fertilizer):** मिट्टी की जांच के आधार पर संतुलित पोषण दें; अत्यधिक नाइट्रोजन से बचें ताकि फूल और फल अच्छे आएं।\n"
+            "5. **दूरी (Spacing):** पौधों के बीच उचित दूरी रखें ताकि हवा का आवागमन बना रहे और बीमारियां न फैलें।\n"
+            "6. **सहारा (Support):** पौधों को बढ़ने पर डंडे या तार से सहारा दें ताकि फल जमीन को न छुएं।\n"
+            "7. **कीट निगरानी (Pest monitoring):** पत्तियों के नीचे नियमित रूप से कीटों की जांच करें; बिना आवश्यकता कीटनाशक का प्रयोग न करें।\n\n"
+            "अपनी मिट्टी और क्षेत्र के अनुसार विशिष्ट सलाह के लिए अपनी जानकारी फार्म प्रोफ़ाइल में दर्ज करें।"
+        )
+    elif lang == "kn":
+        return (
+            "ಟೊಮ್ಯಾಟೊ ಗಿಡಗಳ ಉತ್ತಮ ಬೆಳವಣಿಗೆ ಮತ್ತು ಅಧಿಕ ಇಳುವರಿಗಾಗಿ ಈ ಕೆಳಗಿನ ಕ್ರಮಗಳನ್ನು ಅನುಸರಿಸಿ:\n\n"
+            "1. **ಸೂರ್ಯನ ಬೆಳಕು (Sunlight):** ಗಿಡಗಳಿಗೆ ಪ್ರತಿದಿನ ಸಾಕಷ್ಟು ನೇರ ಸೂರ್ಯನ ಬೆಳಕು ಸಿಗುವಂತೆ ನೋಡಿಕೊಳ್ಳಿ.\n"
+            "2. **ನೀರುಣಿಸುವಿಕೆ (Watering):** ಮಣ್ಣಿನಲ್ಲಿ ಹದವಾದ ತೇವಾಂಶವಿರಲಿ; ಗಿಡದ ಬುಡಕ್ಕೆ ನೀರುಣಿಸಿ, ಎಲೆಗಳ ಮೇಲೆ ನೀರು ಚೆಲ್ಲಬೇಡಿ.\n"
+            "3. **ಮಣ್ಣು ಮತ್ತು ಒಳಚರಂಡಿ (Soil and drainage):** ನೀರು ಸರಾಗವಾಗಿ ಹರಿದುಹೋಗುವ ಫಲವತ್ತಾದ ಮಣ್ಣು ಅತ್ಯುತ್ತಮ.\n"
+            "4. **ಪೋಷಕಾಂಶ/ಗೊಬ್ಬರ (Fertilizer):** ಮಣ್ಣು ಪರೀಕ್ಷೆ ಆಧಾರದ ಮೇಲೆ ಸಮತೋಲಿತ ಗೊಬ್ಬರ ನೀಡಿ; ಕೇವಲ ಎಲೆಗಳ ಬೆಳವಣಿಗೆ ತಡೆಯಲು ಅತಿಯಾದ ಸಾರಜನಕ ಬಳಸಬೇಡಿ.\n"
+            "5. **ಅಂತರ (Spacing):** ಗಾಳಿಯಾಡುವಿಕೆ ಮತ್ತು ಬಿಸಿಲಿಗಾಗಿ ಗಿಡಗಳ ನಡುವೆ ಸೂಕ್ತ ಅಂತರ ಕಾಪಾಡಿ.\n"
+            "6. **ಆಸರೆ ನೀಡುವುದು (Support):** ಗಿಡಗಳು ಬೆಳೆಯುತ್ತಿದ್ದಂತೆ ಕೋಲು ಅಥವಾ ತಂತಿಯ ಆಸರೆ ನೀಡಿ.\n"
+            "7. **ಕೀಟಗಳ ನಿಗಾ (Pest monitoring):** ಎಲೆಗಳ ಕೆಳಭಾಗವನ್ನು ನಿಯಮಿತವಾಗಿ ಪರಿಶೀಲಿಸಿ; ದೃಢೀಕರಣವಿಲ್ಲದೆ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಬೇಡಿ.\n\n"
+            "ನಿಮ್ಮ ಜಮೀನಿನ ಮಣ್ಣಿಗೆ ತಕ್ಕಂತೆ ನಿರ್ದಿಷ್ಟ ಗೊಬ್ಬರದ ಸಲಹೆಗಾಗಿ ಪ್ರೊಫೈಲ್ ಮಾಹಿತಿ ನವೀಕರಿಸಿ."
+        )
     return (
         "For tomato plants generally, these practices support healthy growth:\n\n"
         "1. **Sunlight:** Choose a spot with full sun; tomatoes grow best with several hours of direct light each day.\n"
@@ -481,18 +619,21 @@ def handle_query(
     request_id: str | None = None,
     persist: bool = True,
     vision_model: str | None = None,
+    language: str | None = None,
 ) -> QueryResponse:
     _ensure_tools()
     req_id = request_id or new_request_id()
     tool_registry.reset(farmer_id=context.farmer_id)
     settings = get_settings()
 
+    query = normalize_indic_script(query)
     farm_profile_crop = normalize_crop_name(context.crop)
     user_selected_crop = normalize_crop_name(selected_crop)
     if not user_selected_crop:
         user_selected_crop = extract_crop_from_text(query)
 
     effective_crop = user_selected_crop or farm_profile_crop
+    detected_lang = detect_language(query, fallback=language or context.preferred_language or "en")
 
     image_supplied = bool(image_base64 and str(image_base64).strip())
     image_decoded = False
@@ -614,6 +755,7 @@ def handle_query(
             query,
             image_unconfirmed=is_unconfirmed_image,
             image_diagnosis=image_diagnosis,
+            language=detected_lang,
         )
         revision_count += 1
         validation = validate_draft(
@@ -630,23 +772,41 @@ def handle_query(
 
     conflict_notes, _ = resolve_conflicts(agent_results, validation["evidence"])
     if conflict_notes and not is_unconfirmed_image:
-        final = final + "\n\nConflict resolution:\n" + "\n".join(f"- {n}" for n in conflict_notes)
+        title = (
+            "ವಿವಾದ ಇತ್ಯರ್ಥ" if detected_lang == "kn"
+            else "विरोधाभास समाधान" if detected_lang == "hi"
+            else "Conflict resolution"
+        )
+        final = final + f"\n\n{title}:\n" + "\n".join(f"- {n}" for n in conflict_notes)
 
     # Authoritative Final Response Boundary
     if is_unconfirmed_image and image_diagnosis:
-        final = _build_unconfirmed_image_response(image_diagnosis, agent_results)
+        final = _build_unconfirmed_image_response(image_diagnosis, agent_results, language=detected_lang)
         agent_results = [
             ar.model_copy(update={"recommendation": _scrub_unsafe_chemical_advice(ar.recommendation)})
             for ar in agent_results
         ]
     elif mismatch_note:
         # Prepend clear crop confirmation prompt when farm profile conflicts with evaluated crop
-        crop_conflict_header = (
-            f"**Note on Crop Identity**: Your registered farm profile crop is **{farm_profile_crop.capitalize()}**, "
-            f"while leaf analysis evaluated **{effective_crop.capitalize()}**. "
-            f"Please verify your current crop before applying interventions.\n\n"
-        )
-        if not final.startswith("**Note on Crop Identity**"):
+        if detected_lang == "kn":
+            crop_conflict_header = (
+                f"**ಬೆಳೆ ವಿವರದ ಸೂಚನೆ**: ನಿಮ್ಮ ನೋಂದಾಯಿತ ಪ್ರೊಫೈಲ್ ಬೆಳೆ **{farm_profile_crop.capitalize()}**, "
+                f"ಆದರೆ ಈ ಪರಿಶೀಲನೆ **{effective_crop.capitalize()}** ಗೆ ಸಂಬಂಧಿಸಿದೆ. "
+                f"ದಯವಿಟ್ಟು ಯಾವುದೇ ಕ್ರಮ ಕೈಗೊಳ್ಳುವ ಮುನ್ನ ನಿಮ್ಮ ಬೆಳೆ ವಿವರವನ್ನು ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.\n\n"
+            )
+        elif detected_lang == "hi":
+            crop_conflict_header = (
+                f"**फसल पहचान नोट**: आपकी प्रोफ़ाइल में दर्ज फसल **{farm_profile_crop.capitalize()}** है, "
+                f"जबकि विश्लेषण **{effective_crop.capitalize()}** के लिए किया गया है। "
+                f"उपचार लागू करने से पहले अपनी वर्तमान फसल की पुष्टि करें।\n\n"
+            )
+        else:
+            crop_conflict_header = (
+                f"**Note on Crop Identity**: Your registered farm profile crop is **{farm_profile_crop.capitalize()}**, "
+                f"while leaf analysis evaluated **{effective_crop.capitalize()}**. "
+                f"Please verify your current crop before applying interventions.\n\n"
+            )
+        if not (final.startswith("**Note on Crop Identity**") or final.startswith("**ಬೆಳೆ ವಿವರದ ಸೂಚನೆ**") or final.startswith("**फसल पहचान नोट**")):
             final = crop_conflict_header + final
 
     decision = _compute_decision_score(effective_context, validation["evidence"], query, image_diagnosis)
@@ -655,14 +815,38 @@ def handle_query(
 
     if validation["missing_context"] and not is_unconfirmed_image:
         confidence = min(confidence, 0.4)
-        final = _clarifying_preface(validation["missing_context"]) + final
+        final = _clarifying_preface(validation["missing_context"], language=detected_lang) + final
 
     # Give a direct, safe answer for common tomato-care questions even when
     # retrieved passages or specialist drafts are off-topic. The specialists
     # still provide evidence and diagnostics; their internal draft is not the
     # user-facing answer for this general intent.
     if _is_general_tomato_growth_query(query, has_image=image_supplied):
-        final = _tomato_growth_answer()
+        final = _tomato_growth_answer(language=detected_lang)
+
+    # Ensure all internal metadata, trace labels, confidence tags, and raw citation markers are stripped
+    final = _clean_internal_metadata(final)
+
+    # Deterministic risk and escalation evaluation
+    escalation_result = evaluate_escalation(
+        query=query,
+        context=effective_context,
+        image_diagnosis=image_diagnosis,
+        agent_results=agent_results,
+        warnings=validation.get("warnings", []),
+        missing_context=validation.get("missing_context", []),
+        language=detected_lang,
+    )
+    escalation_schema = EscalationDetailsSchema(
+        requires_escalation=escalation_result.requires_escalation,
+        urgency=escalation_result.urgency,
+        reason=escalation_result.reason,
+        safe_next_step=escalation_result.safe_next_step,
+        sample_instructions=escalation_result.sample_instructions,
+        action_label=escalation_result.action_label,
+    )
+
+    disclaimer_text = get_disclaimer(detected_lang)
 
     structured = _build_structured(
         final, agent_results, validation, conflict_notes, decision, image_diagnosis, query
@@ -686,7 +870,11 @@ def handle_query(
         missing_context=validation["missing_context"],
         revision_count=revision_count,
         agent_results=agent_results,
+        response_language=detected_lang,
+        disclaimer=disclaimer_text,
+        escalation=escalation_schema,
     )
     if persist:
         save_query_run(req_id, context.farmer_id, query, response)
     return response
+

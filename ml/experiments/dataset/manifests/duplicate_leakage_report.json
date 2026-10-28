@@ -1,0 +1,125 @@
+{
+  "intra_train_duplicates": [
+    {
+      "file": "train/Potato leaf late blight/24064_1.jpg",
+      "first_seen": "train/Potato leaf early blight/18028_1.jpg",
+      "md5": "33eb423bdbbc3a6ce8941be10a278a72"
+    }
+  ],
+  "test_leakage_duplicates": [
+    {
+      "train_file": "train/Corn Gray leaf spot/2015070295153021.jpg",
+      "train_class": "Corn Gray leaf spot",
+      "test_file": "test/Corn leaf blight/2015070295153021.jpg",
+      "test_class": "Corn leaf blight",
+      "md5": "8edd2518767e8b140ffe3c6f3d37609d"
+    },
+    {
+      "train_file": "train/Corn Gray leaf spot/corn-gray-leaf-spot-f4.jpg",
+      "train_class": "Corn Gray leaf spot",
+      "test_file": "test/Corn leaf blight/corn-gray-leaf-spot-f4.jpg",
+      "test_class": "Corn leaf blight",
+      "md5": "a5c506de47aa579eb224f2c2c398fb7f"
+    },
+    {
+      "train_file": "train/Potato leaf early blight/1421_0.jpeg?itok=FMtmgePj.jpg",
+      "train_class": "Potato leaf early blight",
+      "test_file": "test/Potato leaf late blight/1421_0.jpeg?itok=FMtmgePj.jpg",
+      "test_class": "Potato leaf late blight",
+      "md5": "f163947415e9d4e42bdc23720bec8a49"
+    },
+    {
+      "train_file": "train/Potato leaf early blight/5816740026_d42ef24413_Phytophthora-Infestans.jpg",
+      "train_class": "Potato leaf early blight",
+      "test_file": "test/Potato leaf late blight/5816740026_d42ef24413_Phytophthora-Infestans.jpg",
+      "test_class": "Potato leaf late blight",
+      "md5": "e4aff68ead58ba22a411c93db3a630af"
+    },
+    {
+      "train_file": "train/Potato leaf early blight/irish-blight-symptoms-on-potato-leaves-atmf8b.jpg",
+      "train_class": "Potato leaf early blight",
+      "test_file": "test/Potato leaf late blight/irish-blight-symptoms-on-potato-leaves-atmf8b.jpg",
+      "test_class": "Potato leaf late blight",
+      "md5": "bd890a743a88bd8a8a3046bc74a3eda3"
+    },
+    {
+      "train_file": "train/Potato leaf late blight/backus-056-potato-blight.jpg",
+      "train_class": "Potato leaf late blight",
+      "test_file": "test/Potato leaf early blight/backus-056-potato-blight.jpg",
+      "test_class": "Potato leaf early blight",
+      "md5": "ce0ad99cdbbf5dedccd96061c88a6d99"
+    },
+    {
+      "train_file": "train/Tomato Septoria leaf spot/early-blight-septoria-ls-fig-3.jpg",
+      "train_class": "Tomato Septoria leaf spot",
+      "test_file": "test/Tomato Septoria leaf spot/early-blight-septoria-ls-fig-3.jpg",
+      "test_class": "Tomato Septoria leaf spot",
+      "md5": "3311a7162f523ef7dc4f5b02033d6ecf"
+    },
+    {
+      "train_file": "train/Tomato Septoria leaf spot/tomato_V8.jpg",
+      "train_class": "Tomato Septoria leaf spot",
+      "test_file": "test/Tomato leaf bacterial spot/tomato_V8.jpg",
+      "test_class": "Tomato leaf bacterial spot",
+      "md5": "1fc7b6d3ecba2fe90bbf8f6078fd7e45"
+    },
+    {
+      "train_file": "train/Tomato leaf yellow virus/tylcv-seminar-1-638.jpg",
+      "train_class": "Tomato leaf yellow virus",
+      "test_file": "test/Tomato leaf yellow virus/tylcv-seminar-1-638.jpg",
+      "test_class": "Tomato leaf yellow virus",
+      "md5": "5b4163adb2bd89b453328e8063b16f37"
+    }
+  ],
+  "near_test_duplicates": [
+    {
+      "train_file": "train/Tomato Early blight leaf/earlyblightpotato.jpg",
+      "train_class": "Tomato Early blight leaf",
+      "test_file": "test/Potato leaf early blight/earlyblightpotato.jpg",
+      "test_class": "Potato leaf early blight",
+      "distance": 0
+    },
+    {
+      "train_file": "train/Tomato leaf bacterial spot/bacterial-canker3x2400-2ia1kgd.jpg",
+      "train_class": "Tomato leaf bacterial spot",
+      "test_file": "test/Tomato leaf bacterial spot/07.17.18-Common_Tomato_Diseases_Canker-258x300.jpg",
+      "test_class": "Tomato leaf bacterial spot",
+      "distance": 0
+    },
+    {
+      "train_file": "train/Tomato leaf late blight/late_blight1.jpg",
+      "train_class": "Tomato leaf late blight",
+      "test_file": "test/Tomato leaf late blight/18c.jpg",
+      "test_class": "Tomato leaf late blight",
+      "distance": 0
+    },
+    {
+      "train_file": "train/Tomato leaf late blight/tomato-late-blight-foliar-lesions_Scot-Nelson_CC-BY-SA-2.0.jpg",
+      "train_class": "Tomato leaf late blight",
+      "test_file": "test/Potato leaf late blight/5816740026_d42ef24413_Phytophthora-Infestans.jpg",
+      "test_class": "Potato leaf late blight",
+      "distance": 0
+    }
+  ],
+  "pv_cross_duplicates": [],
+  "excluded_counts": {
+    "out_of_scope (Apple Scab Leaf)": 83,
+    "out_of_scope (Apple leaf)": 82,
+    "out_of_scope (Apple rust leaf)": 78,
+    "out_of_scope (Bell_pepper leaf)": 53,
+    "out_of_scope (Bell_pepper leaf spot)": 62,
+    "out_of_scope (Blueberry leaf)": 104,
+    "out_of_scope (Cherry leaf)": 47,
+    "exact_duplicate_of_test_sample": 9,
+    "ambiguous_label (Corn leaf blight)": 179,
+    "out_of_scope (Peach leaf)": 102,
+    "intra_dataset_exact_duplicate": 1,
+    "out_of_scope (Raspberry leaf)": 112,
+    "out_of_scope (Soyabean leaf)": 57,
+    "out_of_scope (Squash Powdery mildew leaf)": 124,
+    "out_of_scope (Strawberry leaf)": 88,
+    "near_duplicate_of_test_sample": 4,
+    "out_of_scope (grape leaf)": 57,
+    "out_of_scope (grape leaf black rot)": 56
+  }
+}

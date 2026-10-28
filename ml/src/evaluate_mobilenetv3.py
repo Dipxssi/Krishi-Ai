@@ -547,8 +547,13 @@ def predict_single_image(
     # Crop hint gating
     if crop_hint:
         norm_hint = crop_hint.strip().lower()
-        if norm_hint == "corn":
+        if norm_hint in ("corn", "maize", "sweet corn", "corn (maize)"):
             norm_hint = "maize"
+        elif norm_hint in ("tomatoes", "tomato"):
+            norm_hint = "tomato"
+        elif norm_hint in ("potatoes", "potato"):
+            norm_hint = "potato"
+
         if norm_hint not in ("tomato", "potato", "maize"):
             return {
                 "status": "rejected",
@@ -566,7 +571,7 @@ def predict_single_image(
                 "requires_expert": True,
                 "latency_ms": round(latency_ms, 2),
                 "treatment_hints": [
-                    f"Automated diagnosis is unavailable for {crop_hint}. Avoid unverified chemical spraying.",
+                    f"Automated leaf diagnosis is unavailable for {crop_hint}. Avoid unverified chemical spraying.",
                     "Consult local Krishi Vigyan Kendra (KVK) or agricultural extension specialist.",
                 ],
             }
@@ -633,6 +638,18 @@ def predict_single_image(
                 break
         predicted_disease = disp
 
+    if not crop_hint:
+        hints = [
+            f"Provisional prediction: {plant_name} — {predicted_disease} (uncalibrated confidence: {top_1_conf:.2f}).",
+            "Crop identity was not explicitly confirmed. This closed-set classifier only recognizes Tomato, Potato, and Maize (Corn). If this leaf is from another crop, this diagnosis is invalid.",
+            "Confirm host crop and symptoms with local extension personnel before applying treatments. Do not spray chemical pesticides or fungicides on unconfirmed diagnoses.",
+        ]
+    else:
+        hints = [
+            f"Experimental MobileNetV3 prediction: {plant_name} — {predicted_disease} (uncalibrated confidence: {top_1_conf:.2f}).",
+            "This model is under active testing and not yet verified for field deployment. Confirm with local extension personnel before applying treatments.",
+        ]
+
     return {
         "status": "accepted",
         "rejection_reason": None,
@@ -648,10 +665,7 @@ def predict_single_image(
         "top_3": top_3,
         "requires_expert": False,
         "latency_ms": round(latency_ms, 2),
-        "treatment_hints": [
-            f"Experimental MobileNetV3 prediction: {plant_name} — {predicted_disease} (uncalibrated confidence: {top_1_conf:.2f}).",
-            "This model is under active testing and not yet verified for field deployment. Confirm with local extension personnel before applying treatments.",
-        ],
+        "treatment_hints": hints,
     }
 
 

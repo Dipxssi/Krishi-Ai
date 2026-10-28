@@ -16,11 +16,19 @@ _AGRONOMY_INTENT_MARKERS = (
     "irrigation", "irrigate", "fertilizer", "fertilizers", "fertiliser", "fertilisers",
     "nutrient", "nutrients", "soil", "disease", "diseases", "pest", "pests",
     "harvest", "harvesting", "blight", "leaf", "leaves",
+    # Kannada
+    "ಬೆಳವಣಿಗೆ", "ಬೆಳೆಯ", "ಕೃಷಿ", "ತೋಟಗಾರಿಕೆ", "ರೋಗ", "ಕೀಟ", "ಗೊಬ್ಬರ", "ಮಣ್ಣು", "ವಿಸ್ತರಣೆ", "ವಿಸ್ತರಿಸ",
+    # Hindi
+    "खेती", "फसल", "पैदावार", "रोग", "कीट", "उर्वरक", "विस्तार",
 )
 _FINANCE_INTENT_MARKERS = (
     "budget", "loan", "loans", "cost", "costs", "expense", "expenses", "revenue",
     "profit", "break-even", "break even", "subsidy", "subsidies", "financial",
     "income", "cash flow", "credit", "afford", "payback",
+    # Kannada
+    "ಸಾಲ", "ಬಜೆಟ್", "ಲಾಭ", "ವೆಚ್ಚ", "ಖರ್ಚು", "ಸಬ್ಸಿಡಿ", "ಬಡ್ಡಿ", "ಹಣ",
+    # Hindi
+    "कर्ज", "ऋण", "लोन", "बजट", "मुनाफा", "लागत", "खर्च", "सब्सिडी", "ब्याज", "पैसा",
 )
 
 
@@ -46,7 +54,7 @@ def _cosine(a: Counter, b: Counter) -> float:
 def _keyword_hit(keyword: str, query: str) -> bool:
     """Match phrases by substring; match single tokens on word boundaries."""
     kw = keyword.lower()
-    if " " in kw or "-" in kw:
+    if " " in kw or "-" in kw or any(ord(c) > 127 for c in kw):
         return kw in query
     return re.search(rf"(?<![a-z0-9]){re.escape(kw)}(?![a-z0-9])", query) is not None
 
@@ -70,30 +78,33 @@ def apply_cooccurrence_boosts(query: str, scores: dict[str, float]) -> dict[str,
         out[agent] = max(out.get(agent, 0.0), amount)
 
     planting = any(
-        p in q for p in ("plant now", "should i plant", "planting", "plant tomatoes", "plant rice")
+        p in q for p in (
+            "plant now", "should i plant", "planting", "plant tomatoes", "plant rice",
+            "ಬಿತ್ತನೆ", "ನಾಟಿ", "ಬೆಳೆಯಲು", "ಬುवाई", "रोपाई",
+        )
     )
     if planting:
         bump("weather")
         bump("market")
         bump("finance")
         # soil only if fertility/soil cues present
-        if any(p in q for p in ("soil", "npk", "fertilizer", "fertility")):
+        if any(p in q for p in ("soil", "npk", "fertilizer", "fertility", "ಗೊಬ್ಬರ", "ಮಣ್ಣು", "खाद", "मिट्टी")):
             bump("soil", 0.50)
 
     # Profit / cost math → finance; market only when price/sell context
-    if any(p in q for p in ("profit", "break-even", "break even", "estimate total", "input cost")):
+    if any(p in q for p in ("profit", "break-even", "break even", "estimate total", "input cost", "ಲಾಭ", "ವೆಚ್ಚ", "मुनाफा", "लागत")):
         bump("finance")
-        if any(p in q for p in ("price", "mandi", "market", "sell", "acres")):
+        if any(p in q for p in ("price", "mandi", "market", "sell", "acres", "ಬೆಲೆ", "ಮಾರುಕಟ್ಟೆ", "ಭಾವ", "भाव", "मंडी")):
             bump("market")
 
     # Market decision (not pure price lookup)
-    if any(p in q for p in ("sell early", "hold or sell", "falling", "sell or", "decide selling")):
+    if any(p in q for p in ("sell early", "hold or sell", "falling", "sell or", "decide selling", "ಮಾರಾಟ", "ಮಾರಬೇಕಾ", "बेचना")):
         bump("market")
         bump("finance")
-    elif any(p in q for p in ("mandi", "market price", "demand", "storage")):
+    elif any(p in q for p in ("mandi", "market price", "demand", "storage", "ಮಾರುಕಟ್ಟೆ", "ಬೆಲೆ", "ಧಾರಣೆ", "ಮಂಡಿ", "मंडी", "भाव", "दाम")):
         bump("market")
         # finance only if money decision words also present
-        if any(p in q for p in ("budget", "profit", "cost", "afford", "loan", "worth")):
+        if any(p in q for p in ("budget", "profit", "cost", "afford", "loan", "worth", "ಸಾಲ", "ಬಜೆಟ್", "ಲಾಭ", "कर्ज", "ऋण", "बजट")):
             bump("finance")
 
     # Crop stress / disease → crop_health (boost high enough to survive cost tier 3)
@@ -114,12 +125,30 @@ def apply_cooccurrence_boosts(query: str, scores: dict[str, float]) -> dict[str,
             "flowers",
             "scout",
             "stems",
+            "ರೋಗ",
+            "ಕೀಟ",
+            "ಹುಳು",
+            "ಕಲೆ",
+            "ಕೊಳೆ",
+            "ಬೂದಿ",
+            "ಔಷಧ",
+            "ಸಿಂಪಡಿಸ",
+            "ಬಾಧೆ",
+            "रोग",
+            "कीड़ा",
+            "कीड़े",
+            "कीट",
+            "बीमारी",
+            "फंगस",
+            "धब्बा",
+            "धब्बे",
+            "झुलसा",
         )
     ):
         bump("crop_health", 0.70)
 
     # Fertilizer / nutrient management → soil (+ knowledge if asking what/how)
-    if any(p in q for p in ("fertilizer", "fertiliser", "nutrient", "npk", "potassium", "phosphorus", "nitrogen")):
+    if any(p in q for p in ("fertilizer", "fertiliser", "nutrient", "npk", "potassium", "phosphorus", "nitrogen", "ಗೊಬ್ಬರ", "ಮಣ್ಣು", "ಯೂರಿಯಾ", "खाद", "उर्वरक", "यूरिया")):
         bump("soil")
         if any(
             p in q
@@ -136,34 +165,47 @@ def apply_cooccurrence_boosts(query: str, scores: dict[str, float]) -> dict[str,
                 "infection",
                 "blight",
                 "fungus",
+                "ಹಾಕಬೇಕು",
+                "ವಿಧಾನ",
+                "ಸಲಹೆ",
+                "डालें",
+                "विधि",
             )
         ):
             bump("knowledge_retriever", 0.60)
 
-    if any(p in q for p in ("soil", "ph ", " ph", "tuber")):
+    if any(p in q for p in ("soil", "ph ", " ph", "tuber", "ಮಣ್ಣು", "मिट्टी")):
         bump("soil")
-        if any(p in q for p in ("suitable", "levels", "quality", "apply")):
+        if any(p in q for p in ("suitable", "levels", "quality", "apply", "ಗೊಬ್ಬರ", "ಪರೀಕ್ಷೆ", "जांच")):
             bump("knowledge_retriever", 0.60)
 
     # Irrigation under drought/crop → weather + crop/soil
-    if "irrigate" in q or ("irrigation" in q and "loan" not in q and "drip" not in q):
+    if "irrigate" in q or ("irrigation" in q and "loan" not in q and "drip" not in q) or "ನೀರುಣಿಸ" in q or "सिंचाई" in q:
         bump("weather")
-        if any(p in q for p in ("maize", "tomato", "potato", "crop", "leaves", "deficiency")):
+        if any(p in q for p in ("maize", "tomato", "potato", "crop", "leaves", "deficiency", "ಟೊಮೆಟೊ", "ಟೊಮ್ಯಾಟೊ", "ಬೆಳೆ", "टमाटर", "फसल")):
             bump("crop_health", 0.70)
             bump("soil", 0.55)
 
-    # Equipment rent/buy
+    # Equipment rent/buy / tools
     if any(
         _keyword_hit(p, q)
-        for p in ("tractor", "harvester", "sprayer", "rental", "tiller", "equipment", "tilling")
+        for p in (
+            "tractor", "harvester", "sprayer", "rental", "tiller", "equipment", "tilling",
+            "ಟ್ರಾಕ್ಟರ್", "ಟ್ರ್ಯಾಕ್ಟರ್", "ಯಂತ್ರ", "ಬಾಡಿಗೆ", "ಉಪಕರಣ", "ಸಾಧನ", "ಸಲಕರಣೆ", "ಔಜಾರು", "ವಿಸ್ತರಿಸ",
+            "ಸ್ಪ್ರೇಯರ್", "ಸಿಂಪಡಕ", "ಡ್ರಿಪ್", "ಹನಿ ನೀರಾವರಿ", "ಸಾಧನಗಳು", "ಸಾಧನಗಳ", "ಉಪಕರಣಗಳು", "ಸಾಧನಗಳನ್ನು",
+            "సాధన",
+            "ट्रैक्टर", "मशीन", "किराया", "उपकरण", "साधन", "औजार", "विस्तार"
+        )
     ):
         bump("equipment")
-        if any(_keyword_hit(p, q) for p in ("cost", "buy", "hire", "worth", "payback", "afford", "rent")):
+        if any(_keyword_hit(p, q) for p in ("cost", "buy", "hire", "worth", "payback", "afford", "rent", "ಬಾಡಿಗೆ", "ಖರ್ಚು", "ಖರೀದಿ", "किराया", "लागत", "खरीद")):
             bump("finance")
+        if any(_keyword_hit(p, q) for p in ("ಎಲ್ಲಿ", "ಪಡೆಯ", "ಸಿಗುತ್ತದೆ", "ಕೇಂದ್ರ", "where to get", "where can", "kaha se", "kahan se")):
+            bump("knowledge_retriever", 0.65)
 
     # Weather stress (avoid loan+drip-only)
-    if "loan" not in q and any(
-        p in q for p in ("rain", "drought", "flood", "monsoon", "humidity", "temperature stress")
+    if "loan" not in q and "ಸಾಲ" not in q and "कर्ज" not in q and any(
+        p in q for p in ("rain", "drought", "flood", "monsoon", "humidity", "temperature stress", "ಮಳೆ", "ಹವಾಮಾನ", "ಬಿಸಿಲು", "ಚಳಿ", "मौसम", "बारिश", "बरसात")
     ):
         bump("weather")
 

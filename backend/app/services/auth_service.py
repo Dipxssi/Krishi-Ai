@@ -25,6 +25,12 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def _get_jwt_secret() -> str:
+    settings = get_settings()
+    secret = (settings.jwt_secret or "").strip()
+    return secret if secret else "dev-only-change-me-krishiai-jwt-secret-key-32b"
+
+
 def create_access_token(*, user_id: str, email: str, farmer_id: str) -> str:
     settings = get_settings()
     now = datetime.now(timezone.utc)
@@ -35,13 +41,12 @@ def create_access_token(*, user_id: str, email: str, farmer_id: str) -> str:
         "iat": now,
         "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
     }
-    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
+    return jwt.encode(payload, _get_jwt_secret(), algorithm="HS256")
 
 
 def decode_access_token(token: str) -> dict[str, Any]:
-    settings = get_settings()
     try:
-        return jwt.decode(token, settings.jwt_secret, algorithms=["HS256"])
+        return jwt.decode(token, _get_jwt_secret(), algorithms=["HS256"])
     except jwt.PyJWTError as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

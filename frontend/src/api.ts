@@ -40,6 +40,15 @@ export type DecisionScore = {
   economic_weight: number;
 };
 
+export type EscalationDetails = {
+  requires_escalation: boolean;
+  urgency: string;
+  reason: string;
+  safe_next_step: string;
+  sample_instructions: string;
+  action_label: string;
+};
+
 export type QueryResponse = {
   request_id: string;
   query: string;
@@ -47,6 +56,9 @@ export type QueryResponse = {
   selected_crop?: string | null;
   farm_profile_crop?: string | null;
   final_recommendation: string;
+  response_language?: string;
+  disclaimer?: string;
+  escalation?: EscalationDetails | null;
   structured_recommendation?: {
     action_summary: string;
     reasons: string[];
@@ -246,6 +258,7 @@ export async function askAdvice(
   imageBase64?: string | null,
   selectedCrop?: string | null,
   visionModel?: string | null,
+  language?: string | null,
 ): Promise<QueryResponse> {
   const res = await fetch(`${API_BASE}/query`, {
     method: "POST",
@@ -256,17 +269,28 @@ export async function askAdvice(
       image_base64: imageBase64 || undefined,
       selected_crop: selectedCrop || undefined,
       vision_model: visionModel || undefined,
+      language: language || undefined,
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
-export async function transcribeAudio(audioBase64: string, contentType: string, filename: string) {
+export async function transcribeAudio(
+  audioBase64: string,
+  contentType: string,
+  filename: string,
+  languageHint?: string | null,
+) {
   const res = await fetch(`${API_BASE}/voice/transcribe`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ audio_base64: audioBase64, content_type: contentType, filename }),
+    body: JSON.stringify({
+      audio_base64: audioBase64,
+      content_type: contentType,
+      filename,
+      language_hint: languageHint || undefined,
+    }),
   });
   if (!res.ok) throw new Error(await parseError(res));
   return res.json() as Promise<{ text: string; normalized_crop?: string | null; note?: string | null }>;
@@ -377,5 +401,64 @@ export async function submitFeedback(
     }),
   });
   if (!res.ok) throw new Error(await parseError(res));
+}
+
+export type NearbyHelpItem = {
+  id: string;
+  name: string;
+  state: string;
+  district: string;
+  pincode: string;
+  address: string;
+  host_institution: string;
+  phone: string;
+  helpline: string;
+  email: string;
+  website: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  distance_km?: number | null;
+  verified?: boolean;
+};
+
+export type NearbyHelpResponse = {
+  status: "ok" | "fallback";
+  centers: NearbyHelpItem[];
+  results: NearbyHelpItem[];
+  total: number;
+  total_found: number;
+  has_verified_results: boolean;
+  kisan_call_centre: string;
+  official_portal: string;
+  fallback_info?: {
+    notice: string;
+    kisan_call_centre_helpline: string;
+    official_portal_url: string;
+    prompt_for_district: string;
+  } | null;
+  fallback_notice?: string | null;
+};
+
+export async function fetchNearbyAgriculturalHelp(params: {
+  lat?: number | null;
+  lon?: number | null;
+  district?: string | null;
+  pincode?: string | null;
+  query?: string | null;
+  limit?: number;
+}): Promise<NearbyHelpResponse> {
+  const searchParams = new URLSearchParams();
+  if (params.lat != null && params.lon != null) {
+    searchParams.set("lat", String(params.lat));
+    searchParams.set("lon", String(params.lon));
+  }
+  if (params.district) searchParams.set("district", params.district);
+  if (params.pincode) searchParams.set("pincode", params.pincode);
+  if (params.query) searchParams.set("query", params.query);
+  if (params.limit) searchParams.set("limit", String(params.limit));
+
+  const res = await fetch(`${API_BASE}/help/nearby?${searchParams.toString()}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
 }
 

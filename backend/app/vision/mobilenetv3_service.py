@@ -38,19 +38,29 @@ MIN_DIMENSION = 32                  # 32 px
 MAX_DIMENSION = 8192                # 8192 px
 SUPPORTED_FORMATS = {"JPEG", "JPG", "PNG", "WEBP", "BMP"}
 
-# Module-level model cache
+import threading
+
+# Module-level model cache with thread-safe invalidation and path tracking
+_CACHE_LOCK = threading.Lock()
 _CACHED_MODEL: torch.nn.Module | None = None
 _CACHED_CKPT: dict[str, Any] | None = None
+_CACHED_PATH: Path | None = None
 _DEVICE: torch.device | None = None
+
+
+def clear_mobilenetv3_cache() -> None:
+    """Safely reset the cached MobileNetV3 model, metadata, and path tracking."""
+    global _CACHED_MODEL, _CACHED_CKPT, _CACHED_PATH
+    with _CACHE_LOCK:
+        _CACHED_MODEL = None
+        _CACHED_CKPT = None
+        _CACHED_PATH = None
 
 
 def get_cached_mobilenetv3(
     checkpoint_path: Path | None = None,
 ) -> tuple[torch.nn.Module, dict[str, Any], torch.device]:
-    global _CACHED_MODEL, _CACHED_CKPT, _DEVICE
-    if _CACHED_MODEL is not None and _CACHED_CKPT is not None and _DEVICE is not None:
-        return _CACHED_MODEL, _CACHED_CKPT, _DEVICE
-
+    global _CACHED_MODEL, _CACHED_CKPT, _CACHED_PATH, _DEVICE
     if _DEVICE is None:
         _DEVICE = get_device("auto")
 
@@ -59,18 +69,32 @@ def get_cached_mobilenetv3(
 
     if checkpoint_path is None:
         repo_root = Path(__file__).resolve().parent.parent.parent.parent
-        checkpoint_path = repo_root / "ml" / "models" / settings.hf_model_filename
+        target_path = repo_root / "ml" / "models" / settings.hf_model_filename
+    else:
+        target_path = Path(checkpoint_path)
 
-    model, ckpt = load_trained_mobilenetv3(
-        checkpoint_path=checkpoint_path,
-        device=_DEVICE,
-        repo_id=settings.hf_model_repo,
-        filename=settings.hf_model_filename,
-        token=settings.hf_token,
-    )
-    _CACHED_MODEL = model
-    _CACHED_CKPT = ckpt
-    return _CACHED_MODEL, _CACHED_CKPT, _DEVICE
+    resolved_path = target_path.resolve()
+
+    with _CACHE_LOCK:
+        if (
+            _CACHED_MODEL is not None
+            and _CACHED_CKPT is not None
+            and _CACHED_PATH is not None
+            and _CACHED_PATH == resolved_path
+        ):
+            return _CACHED_MODEL, _CACHED_CKPT, _DEVICE
+
+        model, ckpt = load_trained_mobilenetv3(
+            checkpoint_path=resolved_path,
+            device=_DEVICE,
+            repo_id=settings.hf_model_repo,
+            filename=resolved_path.name,
+            token=settings.hf_token,
+        )
+        _CACHED_MODEL = model
+        _CACHED_CKPT = ckpt
+        _CACHED_PATH = resolved_path
+        return _CACHED_MODEL, _CACHED_CKPT, _DEVICE
 
 
 from app.vision.elasticnet_service import validate_and_decode_image

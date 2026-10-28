@@ -93,7 +93,12 @@ def transcribe(request: VoiceTranscribeRequest):
     files = {"file": (safe_name or "recording.webm", audio, request.content_type)}
     data = {"model": "whisper-large-v3-turbo", "response_format": "json"}
     if request.language_hint:
-        data["language"] = request.language_hint
+        from app.services.multilingual import normalize_language_code
+        lang_code = normalize_language_code(request.language_hint)
+        if lang_code in ("kn", "hi"):
+            data["language"] = lang_code
+        else:
+            data["language"] = request.language_hint
     try:
         result = httpx.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
@@ -103,7 +108,8 @@ def transcribe(request: VoiceTranscribeRequest):
         payload = result.json()
         if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
             raise ValueError("Unexpected transcription response")
-        text = payload["text"].strip()
+        from app.services.multilingual import normalize_indic_script
+        text = normalize_indic_script(payload["text"].strip())
     except httpx.HTTPStatusError as exc:
         logger.warning("Groq transcription rejected request (HTTP %s)", exc.response.status_code)
         raise HTTPException(status_code=502, detail="Speech transcription provider rejected the audio.") from exc

@@ -1,14 +1,17 @@
+import { useState } from "react";
 import {
-  AlertTriangle,
   BadgeIndianRupee,
   ChevronRight,
   Droplets,
   Gauge,
+  Info,
+  MapPin,
   ShieldAlert,
   Sparkles,
 } from "lucide-react";
 import type { DecisionScore, QueryResponse } from "@/api";
 import SafeRecommendationRenderer from "@/SafeRecommendationRenderer";
+import { NearbyHelpDialog } from "@/components/chat/NearbyHelpDialog";
 import { cn } from "@/lib/utils";
 
 function formatInr(value: number): string {
@@ -31,42 +34,85 @@ export function AdviceResult({
   onOpenScores?: () => void;
   className?: string;
 }) {
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const score = result.decision_score;
   const confidencePct = pct(result.confidence ?? 0);
+  const escalation = result.escalation;
+
+  const disclaimerText =
+    result.disclaimer ||
+    "KrishiAI provides AI-generated guidance that may not always be accurate. Verify important crop diagnoses and treatment decisions with a qualified agricultural expert.";
 
   if (compact) {
     return (
-      <div className={cn("grid gap-4", className)}>
-        <div className="advice-markdown overflow-x-auto">
+      <div className={cn("grid gap-3.5", className)}>
+        <div className="advice-markdown overflow-x-auto leading-relaxed">
           <SafeRecommendationRenderer text={result.final_recommendation} />
         </div>
 
-        {result.agents_used?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {result.agents_used.map((a) => (
-              <span
-                key={a}
-                className="rounded-full border border-border/80 bg-muted/40 px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
-              >
-                {a.replace(/_/g, " ")}
+        {/* Safety & Expert Referral Banner when warranted */}
+        {escalation?.requires_escalation && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-50/70 p-3.5 dark:border-amber-500/20 dark:bg-amber-950/25 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+              <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+              <span>
+                {escalation.urgency === "high"
+                  ? "Expert Verification Recommended"
+                  : "Agronomic Referral Advised"}
               </span>
-            ))}
+            </div>
+
+            {escalation.reason && (
+              <p className="text-xs text-amber-950/90 dark:text-amber-100/90 leading-normal">
+                {escalation.reason}
+              </p>
+            )}
+
+            {escalation.safe_next_step && (
+              <div className="text-xs text-foreground/80 bg-background/60 dark:bg-background/40 rounded-xl p-2.5 border border-amber-200/50 dark:border-amber-900/40">
+                <strong className="text-foreground">Safe Immediate Step: </strong>
+                {escalation.safe_next_step}
+              </div>
+            )}
+
+            <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setHelpDialogOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              >
+                <MapPin className="size-3.5" />
+                <span>{escalation.action_label || "Find an agricultural expert near me"}</span>
+              </button>
+            </div>
           </div>
         )}
 
-        {onOpenScores && (
+        {onOpenScores && score && (
           <button
             type="button"
             onClick={onOpenScores}
-            className="group inline-flex w-fit items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="group inline-flex w-fit items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            See the complete decision score
+            See crop economics & viability score
             <ChevronRight
-              className="size-4 transition-transform group-hover:translate-x-0.5"
+              className="size-3.5 transition-transform group-hover:translate-x-0.5"
               aria-hidden="true"
             />
           </button>
         )}
+
+        {/* Subtle AI Disclaimer at Bottom */}
+        <div className="mt-1 flex items-start gap-1.5 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground/80">
+          <Info className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+          <span>{disclaimerText}</span>
+        </div>
+
+        <NearbyHelpDialog
+          open={helpDialogOpen}
+          onOpenChange={setHelpDialogOpen}
+          language={result.response_language || "en"}
+        />
       </div>
     );
   }
@@ -100,14 +146,58 @@ export function AdviceResult({
         )}
       </div>
 
-      <div className="advice-markdown overflow-x-auto rounded-2xl border border-border/70 bg-muted/30 p-4">
+      <div className="advice-markdown overflow-x-auto rounded-2xl border border-border/70 bg-muted/30 p-4 leading-relaxed">
         <SafeRecommendationRenderer text={result.final_recommendation} />
       </div>
+
+      {/* Safety & Expert Referral Banner when warranted */}
+      {escalation?.requires_escalation && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-950/25 space-y-3">
+          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
+            <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span>
+              {escalation.urgency === "high"
+                ? "Expert Physical Verification Recommended"
+                : "Agricultural Extension Referral Advised"}
+            </span>
+          </div>
+
+          {escalation.reason && (
+            <p className="text-xs sm:text-sm text-amber-950/90 dark:text-amber-100/90 leading-normal">
+              {escalation.reason}
+            </p>
+          )}
+
+          {escalation.safe_next_step && (
+            <div className="text-xs sm:text-sm text-foreground/90 bg-background/60 dark:bg-background/40 rounded-xl p-3 border border-amber-200/50 dark:border-amber-900/40">
+              <strong className="text-foreground">Safe Immediate Step: </strong>
+              {escalation.safe_next_step}
+            </div>
+          )}
+
+          {escalation.sample_instructions && (
+            <div className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span>What to take: {escalation.sample_instructions}</span>
+            </div>
+          )}
+
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setHelpDialogOpen(true)}
+              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <MapPin className="size-4" />
+              <span>{escalation.action_label || "Find an agricultural expert near me"}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {score ? (
         <section className="grid gap-3" aria-label="Decision scores">
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Decision scores
+            Crop Economics & Viability
           </h3>
           <div className="grid gap-2.5">
             <ScoreBar label="Agronomic suitability" value={score.agronomic_score} tone="leaf" />
@@ -123,44 +213,17 @@ export function AdviceResult({
         </p>
       )}
 
-      {result.warnings?.length > 0 && (
-        <section className="rounded-2xl border border-amber-200/80 bg-amber-50/80 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-          <div className="mb-1.5 flex items-center gap-2 text-sm font-semibold text-amber-900 dark:text-amber-100">
-            <AlertTriangle className="size-4" aria-hidden="true" />
-            Warnings
-          </div>
-          <ul className="grid gap-1 text-sm text-amber-950/90 dark:text-amber-50/90">
-            {result.warnings.map((w) => (
-              <li key={w} className="flex gap-2">
-                <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-amber-600" />
-                <span>{w}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {/* Subtle AI Disclaimer at Bottom */}
+      <div className="mt-2 flex items-start gap-1.5 border-t border-border/40 pt-3 text-[11px] leading-relaxed text-muted-foreground/80">
+        <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+        <span>{disclaimerText}</span>
+      </div>
 
-      {result.missing_context?.length > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Add to improve advice:{" "}
-          <span className="font-medium text-foreground">
-            {result.missing_context.map((f) => f.replace(/_/g, " ")).join(", ")}
-          </span>
-        </p>
-      )}
-
-      {result.agents_used?.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {result.agents_used.map((a) => (
-            <span
-              key={a}
-              className="rounded-full border border-border/80 bg-card px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground"
-            >
-              {a.replace(/_/g, " ")}
-            </span>
-          ))}
-        </div>
-      )}
+      <NearbyHelpDialog
+        open={helpDialogOpen}
+        onOpenChange={setHelpDialogOpen}
+        language={result.response_language || "en"}
+      />
     </div>
   );
 }

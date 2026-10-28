@@ -1,0 +1,282 @@
+{
+  "Corn Gray leaf spot": {
+    "status": "mapped",
+    "target_idx": 0,
+    "target_class": "Corn_(maize)___Cercospora_leaf_spot Gray_leaf_spot",
+    "crop": "maize",
+    "disease": "gray_leaf_spot",
+    "display_name": "Corn Gray Leaf Spot",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Cercospora zeae-maydis on maize"
+  },
+  "Corn rust leaf": {
+    "status": "mapped",
+    "target_idx": 1,
+    "target_class": "Corn_(maize)___Common_rust_",
+    "crop": "maize",
+    "disease": "rust",
+    "display_name": "Corn Common Rust",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Puccinia sorghi on maize"
+  },
+  "Potato leaf early blight": {
+    "status": "mapped",
+    "target_idx": 4,
+    "target_class": "Potato___Early_blight",
+    "crop": "potato",
+    "disease": "early_blight",
+    "display_name": "Potato Early Blight",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Alternaria solani on potato"
+  },
+  "Potato leaf late blight": {
+    "status": "mapped",
+    "target_idx": 5,
+    "target_class": "Potato___Late_blight",
+    "crop": "potato",
+    "disease": "late_blight",
+    "display_name": "Potato Late Blight",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Phytophthora infestans on potato"
+  },
+  "Tomato leaf bacterial spot": {
+    "status": "mapped",
+    "target_idx": 7,
+    "target_class": "Tomato___Bacterial_spot",
+    "crop": "tomato",
+    "disease": "bacterial_spot",
+    "display_name": "Tomato Bacterial Spot",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Xanthomonas campestris on tomato"
+  },
+  "Tomato Early blight leaf": {
+    "status": "mapped",
+    "target_idx": 8,
+    "target_class": "Tomato___Early_blight",
+    "crop": "tomato",
+    "disease": "early_blight",
+    "display_name": "Tomato Early Blight",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Alternaria solani on tomato"
+  },
+  "Tomato leaf late blight": {
+    "status": "mapped",
+    "target_idx": 9,
+    "target_class": "Tomato___Late_blight",
+    "crop": "tomato",
+    "disease": "late_blight",
+    "display_name": "Tomato Late Blight",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Phytophthora infestans on tomato"
+  },
+  "Tomato mold leaf": {
+    "status": "mapped",
+    "target_idx": 10,
+    "target_class": "Tomato___Leaf_Mold",
+    "crop": "tomato",
+    "disease": "leaf_mold",
+    "display_name": "Tomato Leaf Mold",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Passalora fulva (Cladosporium) on tomato"
+  },
+  "Tomato Septoria leaf spot": {
+    "status": "mapped",
+    "target_idx": 11,
+    "target_class": "Tomato___Septoria_leaf_spot",
+    "crop": "tomato",
+    "disease": "septoria_leaf_spot",
+    "display_name": "Tomato Septoria Leaf Spot",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Septoria lycopersici on tomato"
+  },
+  "Tomato two spotted spider mites leaf": {
+    "status": "mapped",
+    "target_idx": 12,
+    "target_class": "Tomato___Spider_mites Two-spotted_spider_mite",
+    "crop": "tomato",
+    "disease": "spider_mites",
+    "display_name": "Tomato Two-spotted Spider Mite",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to Tetranychus urticae on tomato"
+  },
+  "Tomato leaf yellow virus": {
+    "status": "mapped",
+    "target_idx": 14,
+    "target_class": "Tomato___Tomato_Yellow_Leaf_Curl_Virus",
+    "crop": "tomato",
+    "disease": "yellow_leaf_curl_virus",
+    "display_name": "Tomato Yellow Leaf Curl Virus",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to TYLCV on tomato"
+  },
+  "Tomato leaf mosaic virus": {
+    "status": "mapped",
+    "target_idx": 15,
+    "target_class": "Tomato___Tomato_mosaic_virus",
+    "crop": "tomato",
+    "disease": "mosaic_virus",
+    "display_name": "Tomato Mosaic Virus",
+    "is_healthy": false,
+    "notes": "Direct semantic equivalence to ToMV on tomato"
+  },
+  "Tomato leaf": {
+    "status": "mapped",
+    "target_idx": 16,
+    "target_class": "Tomato___healthy",
+    "crop": "tomato",
+    "disease": "healthy",
+    "display_name": "Tomato Healthy",
+    "is_healthy": true,
+    "notes": "Denotes healthy/asymptomatic tomato foliage in PlantDoc taxonomy"
+  },
+  "Corn leaf blight": {
+    "status": "excluded_ambiguous",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "maize",
+    "disease": "blight_mixed",
+    "display_name": "Corn Leaf Blight (Ambiguous)",
+    "is_healthy": false,
+    "notes": "Ambiguous scrape in PlantDoc: combines Northern Leaf Blight (Exserohilum turcicum), Southern Leaf Blight, and Bacterial Leaf Streak. Excluded from training."
+  },
+  "Apple Scab Leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "apple",
+    "disease": "apple_scab",
+    "display_name": "Apple - Apple scab",
+    "is_healthy": false,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Apple leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "apple",
+    "disease": "healthy",
+    "display_name": "Apple - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Apple rust leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "apple",
+    "disease": "cedar_rust",
+    "display_name": "Apple - Cedar rust",
+    "is_healthy": false,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Bell_pepper leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "bell_pepper",
+    "disease": "healthy",
+    "display_name": "Bell pepper - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Bell_pepper leaf spot": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "bell_pepper",
+    "disease": "bacterial_spot",
+    "display_name": "Bell pepper - Bacterial spot",
+    "is_healthy": false,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Blueberry leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "blueberry",
+    "disease": "healthy",
+    "display_name": "Blueberry - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Cherry leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "cherry",
+    "disease": "healthy",
+    "display_name": "Cherry - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Peach leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "peach",
+    "disease": "healthy",
+    "display_name": "Peach - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Raspberry leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "raspberry",
+    "disease": "healthy",
+    "display_name": "Raspberry - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Soyabean leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "soyabean",
+    "disease": "healthy",
+    "display_name": "Soyabean - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Squash Powdery mildew leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "squash",
+    "disease": "powdery_mildew",
+    "display_name": "Squash - Powdery mildew",
+    "is_healthy": false,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "Strawberry leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "strawberry",
+    "disease": "healthy",
+    "display_name": "Strawberry - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "grape leaf": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "grape",
+    "disease": "healthy",
+    "display_name": "Grape - Healthy",
+    "is_healthy": true,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  },
+  "grape leaf black rot": {
+    "status": "excluded_out_of_scope",
+    "target_idx": -1,
+    "target_class": null,
+    "crop": "grape",
+    "disease": "black_rot",
+    "display_name": "Grape - Black rot",
+    "is_healthy": false,
+    "notes": "Out of scope non-target crop for KrishiAI 17-class model"
+  }
+}
