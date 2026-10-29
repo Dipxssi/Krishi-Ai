@@ -121,6 +121,45 @@ export async function downloadOfflinePack(url = "/offline-pack/v1.json"): Promis
   return pack;
 }
 
+let syncInFlight: Promise<OfflinePack | null> | null = null;
+
+/**
+ * Background sync: download if missing, or refresh when remote version differs.
+ * Never throws to callers — failures are silent so unlock/chat stay unblocked.
+ */
+export async function ensureOfflinePackSynced(
+  url = "/offline-pack/v1.json",
+): Promise<OfflinePack | null> {
+  if (syncInFlight) return syncInFlight;
+  syncInFlight = (async () => {
+    try {
+      if (typeof navigator !== "undefined" && navigator.onLine === false) {
+        return loadOfflinePack();
+      }
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) return loadOfflinePack();
+      const pack = (await res.json()) as OfflinePack;
+      if (!pack?.version || !Array.isArray(pack.entries)) return loadOfflinePack();
+      const meta = getOfflinePackMeta();
+      if (
+        meta &&
+        meta.version === pack.version &&
+        meta.entryCount === pack.entries.length
+      ) {
+        const local = await loadOfflinePack();
+        if (local) return local;
+      }
+      await saveOfflinePack(pack);
+      return pack;
+    } catch {
+      return loadOfflinePack().catch(() => null);
+    } finally {
+      syncInFlight = null;
+    }
+  })();
+  return syncInFlight;
+}
+
 export function rankPackEntries(
   question: string,
   pack: OfflinePack,

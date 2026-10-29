@@ -324,11 +324,20 @@ export function ChatPage() {
       deliveryStatus: offlineAdvice ? "offline_draft" : status,
       outboxId,
     };
-    updateConversation(conversationId, (c) => ({
-      ...c,
-      updatedAt: Date.now(),
-      messages: [...c.messages, reply],
-    }));
+    updateConversation(conversationId, (c) => {
+      const summary = offlineAdvice
+        ? appendConversationSummary(c.summary, question, offlineAdvice)
+        : c.summary;
+      if (profileFarmerId && summary) {
+        saveProfileMemory(summary, profileFarmerId);
+      }
+      return {
+        ...c,
+        summary,
+        updatedAt: Date.now(),
+        messages: [...c.messages, reply],
+      };
+    });
     await refreshCount();
     toast.message(
       offlineAdvice

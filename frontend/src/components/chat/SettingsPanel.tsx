@@ -13,17 +13,12 @@ import { FarmProfileForm } from "@/components/FarmProfileForm";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/hooks/useI18n";
 import { getAuthUser } from "@/lib/authSession";
-import {
-  clearProfileMemory,
-  loadProfileMemory,
-  saveProfileMemory,
-} from "@/lib/conversationMemory";
+import { clearProfileMemory, loadProfileMemory } from "@/lib/conversationMemory";
 import {
   clearOfflinePack,
-  downloadOfflinePack,
+  ensureOfflinePackSynced,
   getOfflinePackMeta,
 } from "@/lib/offlinePack";
-import { probeApiReachable } from "@/lib/apiReachability";
 
 interface SettingsPanelProps {
   open: boolean;
@@ -42,12 +37,11 @@ export function SettingsPanel({ open, onOpenChange, onClearAll }: SettingsPanelP
     if (!open) return;
     setMemory(loadProfileMemory(user?.farmer_id));
     setPackMeta(getOfflinePackMeta());
+    setPackBusy(true);
+    void ensureOfflinePackSynced()
+      .then(() => setPackMeta(getOfflinePackMeta()))
+      .finally(() => setPackBusy(false));
   }, [open, user?.farmer_id]);
-
-  const saveMemory = () => {
-    saveProfileMemory(memory, user?.farmer_id);
-    toast.success(t("settings.memorySaved"));
-  };
 
   const clearMemory = () => {
     clearProfileMemory(user?.farmer_id);
@@ -96,7 +90,9 @@ export function SettingsPanel({ open, onOpenChange, onClearAll }: SettingsPanelP
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   {t("settings.packBody")}
                 </p>
-                {packMeta ? (
+                {packBusy ? (
+                  <p className="mt-2 text-xs text-muted-foreground">{t("settings.packSyncing")}</p>
+                ) : packMeta ? (
                   <p className="mt-2 text-xs text-muted-foreground">
                     {t("settings.packStatus", {
                       version: packMeta.version,
@@ -104,35 +100,39 @@ export function SettingsPanel({ open, onOpenChange, onClearAll }: SettingsPanelP
                     })}
                   </p>
                 ) : (
-                  <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">{t("settings.packMissing")}</p>
+                  <p className="mt-2 text-xs text-amber-800 dark:text-amber-200">
+                    {t("settings.packMissing")}
+                  </p>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  className="rounded-xl"
-                  disabled={packBusy}
-                  onClick={() => {
-                    void (async () => {
-                      setPackBusy(true);
-                      try {
-                        const online = await probeApiReachable();
-                        if (!online && !(await fetch("/offline-pack/v1.json", { method: "HEAD" }).then((r) => r.ok).catch(() => false))) {
-                          // Still try app-origin static file (works on Vercel even if API is down).
+                {!packMeta && (
+                  <Button
+                    type="button"
+                    className="rounded-xl"
+                    disabled={packBusy}
+                    onClick={() => {
+                      void (async () => {
+                        setPackBusy(true);
+                        try {
+                          await ensureOfflinePackSynced();
+                          setPackMeta(getOfflinePackMeta());
+                          if (getOfflinePackMeta()) {
+                            toast.success(t("settings.packDownloaded"));
+                          } else {
+                            toast.error(t("settings.packFail"));
+                          }
+                        } catch (error) {
+                          toast.error(error instanceof Error ? error.message : t("settings.packFail"));
+                        } finally {
+                          setPackBusy(false);
                         }
-                        await downloadOfflinePack();
-                        setPackMeta(getOfflinePackMeta());
-                        toast.success(t("settings.packDownloaded"));
-                      } catch (error) {
-                        toast.error(error instanceof Error ? error.message : t("settings.packFail"));
-                      } finally {
-                        setPackBusy(false);
-                      }
-                    })();
-                  }}
-                >
-                  {packBusy ? t("settings.packDownloading") : t("settings.packDownload")}
-                </Button>
+                      })();
+                    }}
+                  >
+                    {packBusy ? t("settings.packDownloading") : t("settings.packRetry")}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="ghost"
@@ -158,17 +158,15 @@ export function SettingsPanel({ open, onOpenChange, onClearAll }: SettingsPanelP
                   {t("settings.memoryBody")}
                 </p>
               </div>
-              <textarea
-                value={memory}
-                onChange={(e) => setMemory(e.target.value)}
-                rows={5}
-                placeholder={t("settings.memoryPh")}
-                className="min-h-24 w-full resize-y rounded-xl border border-border/80 bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
-              />
+              <div
+                className="min-h-24 w-full rounded-xl border border-border/80 bg-muted/20 px-3 py-2.5 text-sm text-foreground whitespace-pre-wrap"
+                aria-live="polite"
+              >
+                {memory.trim() ? memory : (
+                  <span className="text-muted-foreground">{t("settings.memoryEmpty")}</span>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" className="rounded-xl" onClick={saveMemory}>
-                  {t("settings.memorySave")}
-                </Button>
                 <Button
                   type="button"
                   variant="ghost"
