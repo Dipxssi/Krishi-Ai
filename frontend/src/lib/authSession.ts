@@ -1,4 +1,5 @@
 import { notifyAuthChanged } from "@/lib/authEvents";
+import { clearLegacyConversationStorage } from "@/lib/conversationStorage";
 
 export type AuthUser = {
   id: string;
@@ -9,7 +10,37 @@ export type AuthUser = {
 
 const TOKEN_KEY = "krishi-ai-access-token";
 const USER_KEY = "krishi-ai-auth-user";
-const FARMER_STORAGE_KEY = "krishi-ai-farmer-profile";
+const LEGACY_FARMER_STORAGE_KEY = "krishi-ai-farmer-profile";
+
+function clearLegacyFarmProfileStorage(): void {
+  try {
+    localStorage.removeItem(LEGACY_FARMER_STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function ensureEmptyScopedFarmProfile(farmerId: string): void {
+  if (!farmerId) return;
+  const key = `${LEGACY_FARMER_STORAGE_KEY}:${farmerId}`;
+  try {
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        farmer_id: farmerId,
+        location: "",
+        farm_area_acres: 0,
+        crop: "",
+        soil_type: "",
+        budget: null,
+        preferred_language: "en",
+      }),
+    );
+  } catch {
+    /* ignore */
+  }
+}
 
 export function getAccessToken(): string | null {
   try {
@@ -29,63 +60,28 @@ export function getAuthUser(): AuthUser | null {
   }
 }
 
+/**
+ * Persist auth for the signed-in account.
+ * Never copies another account's farm fields onto this farmer_id.
+ */
 export function persistAuthSession(accessToken: string, user: AuthUser): void {
   localStorage.setItem(TOKEN_KEY, accessToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
-  // Bust useSyncExternalStore cache in this tab.
-  notifyAuthChanged();
 
-  try {
-    const raw = localStorage.getItem(FARMER_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(
-        FARMER_STORAGE_KEY,
-        JSON.stringify({
-          farmer_id: user.farmer_id,
-          location: "",
-          farm_area_acres: 0,
-          crop: "",
-          preferred_language: "en",
-        }),
-      );
-      return;
-    }
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    if (parsed.farmer_id && parsed.farmer_id !== user.farmer_id) {
-      localStorage.setItem(
-        FARMER_STORAGE_KEY,
-        JSON.stringify({
-          farmer_id: user.farmer_id,
-          location: "",
-          farm_area_acres: 0,
-          crop: "",
-          preferred_language: "en",
-        }),
-      );
-      return;
-    }
-    localStorage.setItem(
-      FARMER_STORAGE_KEY,
-      JSON.stringify({ ...parsed, farmer_id: user.farmer_id }),
-    );
-  } catch {
-    localStorage.setItem(
-      FARMER_STORAGE_KEY,
-      JSON.stringify({
-        farmer_id: user.farmer_id,
-        location: "",
-        farm_area_acres: 0,
-        crop: "",
-        preferred_language: "en",
-      }),
-    );
-  }
+  // Shared (unscoped) keys are unsafe on multi-account browsers / Vercel demos.
+  clearLegacyFarmProfileStorage();
+  clearLegacyConversationStorage();
+  ensureEmptyScopedFarmProfile(user.farmer_id);
+
+  notifyAuthChanged();
 }
 
 export function clearAuthSession(): void {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem("krishi-ai-demo-user");
+  clearLegacyFarmProfileStorage();
+  clearLegacyConversationStorage();
   notifyAuthChanged();
 }
 

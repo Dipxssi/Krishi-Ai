@@ -50,7 +50,10 @@ def reset_engine() -> None:
 
 def normalize_database_url(url: str | None) -> str:
     """Accept Neon/postgres URLs and prefer the psycopg3 SQLAlchemy driver. Falls back to default SQLite if unset or empty."""
-    cleaned = (url or "").strip()
+    cleaned = (url or "").strip().strip('"').strip("'")
+    # Common paste mistakes from dashboards / .env copies
+    if cleaned.lower().startswith("database_url="):
+        cleaned = cleaned.split("=", 1)[1].strip().strip('"').strip("'")
     if not cleaned:
         from app.core.config import BACKEND_DIR
         return f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
@@ -66,6 +69,16 @@ def get_engine():
     if _engine is None:
         settings = get_settings()
         url = normalize_database_url(settings.database_url)
+        if not (
+            url.startswith("sqlite:")
+            or url.startswith("postgresql+")
+            or url.startswith("postgresql:")
+        ):
+            raise RuntimeError(
+                "DATABASE_URL is invalid. Expected a Neon/Postgres URL starting with "
+                "postgresql:// (or postgres://). Check Render env: no quotes, no spaces, "
+                "and do not include the DATABASE_URL= prefix."
+            )
         if url.startswith("sqlite") and ":memory:" in url:
             _engine = create_engine(
                 url,

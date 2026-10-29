@@ -97,13 +97,13 @@ def transcribe(
     safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", request.filename.replace("\\", "/").rsplit("/", 1)[-1])[:100]
     files = {"file": (safe_name or "recording.webm", audio, request.content_type)}
     data = {"model": "whisper-large-v3-turbo", "response_format": "json"}
+    # Only pin Whisper for Indic languages. Forcing "en" (the farm-profile default)
+    # makes Kannada/Hindi speech transcribe as English.
     if request.language_hint:
         from app.services.multilingual import normalize_language_code
         lang_code = normalize_language_code(request.language_hint)
         if lang_code in ("kn", "hi"):
             data["language"] = lang_code
-        else:
-            data["language"] = request.language_hint
     try:
         result = httpx.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",

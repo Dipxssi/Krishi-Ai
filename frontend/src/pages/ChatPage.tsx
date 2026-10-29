@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
-import { askAdvice, saveFarmer, submitFeedback, type QueryResponse } from "@/api";
+import { askAdvice, getFarmer, saveFarmer, submitFeedback, type QueryResponse } from "@/api";
 import { AdviceDetailsPanel } from "@/components/chat/AdviceDetailsPanel";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -12,10 +12,13 @@ import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { newId, type Conversation, type ChatMessageData } from "@/data/mockChats";
 import { SUGGESTED_PROMPTS } from "@/data/mockResponses";
-import { loadFarmProfile } from "@/lib/farmProfile";
+import { useAuthUser } from "@/hooks/useAuthUser";
+import {
+  loadConversations,
+  saveConversations,
+} from "@/lib/conversationStorage";
+import { isFarmProfileComplete, loadFarmProfile, saveFarmProfileLocal } from "@/lib/farmProfile";
 import { formatAdviceMessage, mapAgentsToUi } from "@/lib/formatAdvice";
-
-const STORAGE_KEY = "krishi-ai-conversations";
 
 function titleFrom(text: string) {
   const clean = text.trim().replace(/\s+/g, " ");
@@ -23,7 +26,10 @@ function titleFrom(text: string) {
 }
 
 export function ChatPage() {
+  const user = useAuthUser();
+  const farmerId = user?.farmer_id ?? "";
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [storageReady, setStorageReady] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -98,25 +104,22 @@ export function ChatPage() {
     synthesis.speak(utterance);
   };
 
+  // Load only this signed-in farmer's chats — never a shared browser key.
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Conversation[];
-        if (Array.isArray(parsed) && parsed.length > 0) setConversations(parsed);
-      }
-    } catch {
-      /* ignore malformed data */
+    setStorageReady(false);
+    setActiveId(null);
+    if (!farmerId) {
+      setConversations([]);
+      return;
     }
-  }, []);
+    setConversations(loadConversations(farmerId));
+    setStorageReady(true);
+  }, [farmerId]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [conversations]);
+    if (!storageReady || !farmerId) return;
+    saveConversations(farmerId, conversations);
+  }, [conversations, farmerId, storageReady]);
 
   const active = useMemo(
     () => conversations.find((c) => c.id === activeId) ?? null,
@@ -132,8 +135,19 @@ export function ChatPage() {
     setConversations((prev) => prev.map((c) => (c.id === id ? update(c) : c)));
 
   const ensureFarmer = async () => {
-    const profile = loadFarmProfile();
-    await saveFarmer(profile);
+    let profile = loadFarmProfile();
+    // Prefer this account's Neon row over any leftover local cache.
+    if (!isFarmProfileComplete(profile) && farmerId) {
+      try {
+        profile = await getFarmer(farmerId);
+        saveFarmProfileLocal(profile);
+      } catch {
+        /* keep local */
+      }
+    }
+    if (profile.farmer_id && profile.farmer_id === farmerId) {
+      await saveFarmer(profile);
+    }
     return profile;
   };
 

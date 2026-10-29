@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { persistAuthSession } from "@/lib/authSession";
-import { isFarmProfileComplete } from "@/lib/farmProfile";
+import { hydrateFarmProfileFromServer, isFarmProfileComplete } from "@/lib/farmProfile";
 import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
@@ -61,6 +61,7 @@ export function AuthForm() {
           ? await signup(values.name.trim(), email, values.password)
           : await login(email, values.password);
       persistAuthSession(auth.access_token, auth.user);
+      await hydrateFarmProfileFromServer();
       toast.success(mode === "signin" ? "Welcome back to Krishi AI." : "Account created.");
       navigate(isFarmProfileComplete() ? "/chat" : "/onboarding");
     } catch (error) {

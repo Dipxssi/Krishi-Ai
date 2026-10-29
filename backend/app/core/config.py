@@ -42,7 +42,10 @@ class Settings(BaseSettings):
     def validate_database_url(cls, v: object) -> str:
         if not v or not str(v).strip():
             return f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"
-        return str(v).strip()
+        cleaned = str(v).strip().strip('"').strip("'")
+        if cleaned.lower().startswith("database_url="):
+            cleaned = cleaned.split("=", 1)[1].strip().strip('"').strip("'")
+        return cleaned
 
     groq_api_key: str | None = None
     groq_model: str = "qwen/qwen3.8-27b"
@@ -75,7 +78,17 @@ class Settings(BaseSettings):
     upag_api_password: str | None = None
 
     def cors_origin_list(self) -> list[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins: list[str] = []
+        for raw in self.cors_origins.split(","):
+            origin = raw.strip().strip('"').strip("'").rstrip("/")
+            if origin:
+                origins.append(origin)
+        return origins
+
+    def cors_origin_regex(self) -> str | None:
+        """Allow Vercel production + preview URLs without listing every deploy."""
+        # Exact origins still come from CORS_ORIGINS; this covers *.vercel.app.
+        return r"https://.*\.vercel\.app"
 
     def ensure_secure_for_production(self) -> None:
         if self.app_env.strip().lower() != "production":

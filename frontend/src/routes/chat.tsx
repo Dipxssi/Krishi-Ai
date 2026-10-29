@@ -39,41 +39,19 @@ export const Route = createFileRoute("/chat")({
   component: ChatPage,
 });
 
-const STORAGE_KEY = "krishi-ai-conversations";
-
 function titleFrom(text: string) {
   const clean = text.trim().replace(/\s+/g, " ");
   return clean.length > 42 ? `${clean.slice(0, 42)}…` : clean;
 }
 
 function ChatPage() {
+  // Demo/mock route — do not persist shared browser history (tenant isolation).
   const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-
-  // Load frontend-only history (no backend).
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as Conversation[];
-        if (Array.isArray(parsed) && parsed.length > 0) setConversations(parsed);
-      }
-    } catch {
-      /* ignore malformed demo data */
-    }
-  }, []);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [conversations]);
 
   const active = useMemo(
     () => conversations.find((c) => c.id === activeId) ?? null,

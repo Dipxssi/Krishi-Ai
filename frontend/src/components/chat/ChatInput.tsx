@@ -9,6 +9,15 @@ interface ChatInputProps {
   preferredLanguage?: string | null | undefined;
 }
 
+/** Only pin Whisper for Indic languages; English/default lets Groq auto-detect. */
+function whisperLanguageHint(preferred?: string | null): string | undefined {
+  if (!preferred) return undefined;
+  const clean = preferred.trim().toLowerCase();
+  if (clean.startsWith("kn") || clean.includes("kannada")) return "kn";
+  if (clean.startsWith("hi") || clean.includes("hindi")) return "hi";
+  return undefined;
+}
+
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -57,7 +66,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         base64,
         blob.type || "audio/webm",
         `recording.${ext}`,
-        preferredLanguage,
+        whisperLanguageHint(preferredLanguage),
       );
       setValue(result.text);
       requestAnimationFrame(() => {

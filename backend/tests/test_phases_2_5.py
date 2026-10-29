@@ -127,6 +127,63 @@ def test_voice_transcribe_calls_groq(client, monkeypatch):
     assert r.json()["normalized_crop"] == "tomato"
 
 
+def test_voice_transcribe_omits_language_for_english_hint(client, monkeypatch):
+    """Default preferred_language=en must not pin Whisper to English (breaks Indic STT)."""
+    captured: dict = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"text": "tomato leaves have spots"}
+
+    def fake_post(*args, **kwargs):
+        captured["data"] = kwargs.get("data")
+        return FakeResponse()
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
+    r = client.post(
+        "/voice/transcribe",
+        json={
+            "audio_base64": base64.b64encode(b"x" * 32).decode(),
+            "language_hint": "en",
+        },
+    )
+    assert r.status_code == 200
+    assert "language" not in (captured.get("data") or {})
+
+
+def test_voice_transcribe_sets_language_for_kannada_hint(client, monkeypatch):
+    captured: dict = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"text": "ಟೊಮೆಟೊ ಬೆಳೆ"}
+
+    def fake_post(*args, **kwargs):
+        captured["data"] = kwargs.get("data")
+        return FakeResponse()
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
+    r = client.post(
+        "/voice/transcribe",
+        json={
+            "audio_base64": base64.b64encode(b"x" * 32).decode(),
+            "language_hint": "Kannada",
+        },
+    )
+    assert r.status_code == 200
+    assert (captured.get("data") or {}).get("language") == "kn"
+
+
 def test_voice_transcribe_rejects_invalid_audio(client, monkeypatch):
     monkeypatch.setenv("GROQ_API_KEY", "test-key")
     get_settings.cache_clear()
