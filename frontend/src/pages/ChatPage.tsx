@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
 import { askAdvice, getFarmer, saveFarmer, submitFeedback, type QueryResponse } from "@/api";
+import { probeApiReachable } from "@/lib/apiReachability";
+import { getAccessToken, isOfflineSession, setOfflineSession } from "@/lib/authSession";
+import { buildOfflineAdvice } from "@/lib/offlineAdvisor";
 import { AdviceDetailsPanel } from "@/components/chat/AdviceDetailsPanel";
 import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -21,7 +24,14 @@ import {
   saveConversations,
 } from "@/lib/conversationStorage";
 import {
+  appendConversationSummary,
+  loadProfileMemory,
+  saveProfileMemory,
+  withMemoryContext,
+} from "@/lib/conversationMemory";
+import {
   clearRemoteConversations,
+  mergeConversations,
   pushConversationsToServer,
   removeRemoteConversation,
   syncConversationsFromServer,
@@ -42,6 +52,7 @@ export function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [storageReady, setStorageReady] = useState(false);
   const skipNextConversationSave = useRef(false);
+  const syncGeneration = useRef(0);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -127,12 +138,14 @@ export function ChatPage() {
     }
 
     const runSync = async (quiet: boolean) => {
+      const generation = ++syncGeneration.current;
       const result = await syncConversationsFromServer(farmerId);
-      if (cancelled) return;
+      if (cancelled || generation !== syncGeneration.current) return;
       skipNextConversationSave.current = true;
-      setConversations(result.conversations);
-      if (!quiet && result.conversations.length > 0 && !result.pushed) {
-        toast.error(t("chat.syncFail"));
+      // Prefer in-memory chats so a slow sync cannot wipe messages typed during the fetch.
+      setConversations((current) => mergeConversations(current, result.conversations));
+      if (!quiet && !result.pushed && (result.conversations.length > 0 || result.wrongApi)) {
+        toast.error(result.wrongApi ? t("chat.syncWrongApi") : t("chat.syncFail"));
       }
     };
 
@@ -152,10 +165,11 @@ export function ChatPage() {
 
     return () => {
       cancelled = true;
+      syncGeneration.current += 1;
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [farmerId]);
+  }, [farmerId, t]);
 
   useEffect(() => {
     if (!storageReady || !farmerId) return;
@@ -190,27 +204,47 @@ export function ChatPage() {
       conversationId: string,
       response: QueryResponse,
       placeholderMessageId?: string,
+      askedQuestion?: string,
     ) => {
-      const reply: ChatMessageData = {
-        id: placeholderMessageId ?? newId(),
-        role: "assistant",
-        content: formatAdviceMessage(response),
-        agent: mapAgentsToUi(response.agents_used ?? []),
-        requestId: response.request_id,
-        queryResult: response,
-      };
       updateConversation(conversationId, (c) => {
+        const prior = placeholderMessageId
+          ? c.messages.find((m) => m.id === placeholderMessageId)
+          : undefined;
+        const replacedOfflineDraft = prior?.deliveryStatus === "offline_draft";
         const withoutPlaceholder = placeholderMessageId
           ? c.messages.filter((m) => m.id !== placeholderMessageId)
           : c.messages;
+        const reply: ChatMessageData = {
+          id: placeholderMessageId ?? newId(),
+          role: "assistant",
+          content: formatAdviceMessage(response),
+          agent: mapAgentsToUi(response.agents_used ?? []),
+          requestId: response.request_id,
+          queryResult: response,
+          verifiedOnline: replacedOfflineDraft || undefined,
+        };
+        const lastUser =
+          askedQuestion ||
+          [...withoutPlaceholder].reverse().find((m) => m.role === "user")?.content ||
+          response.query ||
+          "";
+        const summary = appendConversationSummary(
+          c.summary,
+          lastUser,
+          response.final_recommendation || reply.content,
+        );
+        if (farmerId && summary) {
+          saveProfileMemory(summary, farmerId);
+        }
         return {
           ...c,
+          summary,
           updatedAt: Date.now(),
           messages: [...withoutPlaceholder, reply],
         };
       });
     },
-    [],
+    [farmerId],
   );
 
   const handleOutboxDelivered = useCallback(
@@ -258,15 +292,23 @@ export function ChatPage() {
     cropHint?: string | null,
     language?: string | null,
     status: "waiting" | "auth_required" = "waiting",
+    offlineAdvice?: string | null,
   ) => {
     const placeholderId = newId();
     const outboxId = newId();
+    const conversation =
+      conversations.find((c) => c.id === conversationId) ||
+      loadConversations(profileFarmerId).find((c) => c.id === conversationId);
+    const queryForApi = withMemoryContext(question, {
+      chatSummary: conversation?.summary,
+      profileNotes: conversation?.summary ? null : loadProfileMemory(profileFarmerId),
+    });
     await enqueueOutboxItem({
       id: outboxId,
       farmerId: profileFarmerId,
       conversationId,
       placeholderMessageId: placeholderId,
-      query: question,
+      query: queryForApi,
       imageBase64: imageBase64 || null,
       selectedCrop: cropHint || null,
       language: language || null,
@@ -276,9 +318,10 @@ export function ChatPage() {
       id: placeholderId,
       role: "assistant",
       content:
-        status === "auth_required" ? t("chat.offlineAuthBody") : t("chat.offlineWaitBody"),
+        offlineAdvice ||
+        (status === "auth_required" ? t("chat.offlineAuthBody") : t("chat.offlineWaitBody")),
       agent: "general",
-      deliveryStatus: status,
+      deliveryStatus: offlineAdvice ? "offline_draft" : status,
       outboxId,
     };
     updateConversation(conversationId, (c) => ({
@@ -288,7 +331,11 @@ export function ChatPage() {
     }));
     await refreshCount();
     toast.message(
-      status === "auth_required" ? t("chat.offlineAuthToast") : t("chat.offlineWaitToast"),
+      offlineAdvice
+        ? t("chat.offlineDraftToast")
+        : status === "auth_required"
+          ? t("chat.offlineAuthToast")
+          : t("chat.offlineWaitToast"),
     );
   };
 
@@ -296,21 +343,55 @@ export function ChatPage() {
     setThinking(true);
     try {
       const profile = await ensureFarmer();
+      const conversation =
+        conversations.find((c) => c.id === conversationId) ||
+        loadConversations(profile.farmer_id || farmerId).find((c) => c.id === conversationId);
+      const profileNotes = loadProfileMemory(profile.farmer_id);
+      const queryForApi = withMemoryContext(question, {
+        chatSummary: conversation?.summary,
+        profileNotes: conversation?.summary ? null : profileNotes,
+      });
+
+      const reachable = await probeApiReachable();
+      const token = getAccessToken();
+      if (reachable && token) {
+        setOfflineSession(false);
+      }
+      const canCallApi = Boolean(reachable && token);
+
+      if (!canCallApi) {
+        const fid = profile.farmer_id || farmerId;
+        if (!fid) throw new Error(t("chat.requestFailed"));
+        const advice = await buildOfflineAdvice(question);
+        await queueOffline(
+          conversationId,
+          question,
+          fid,
+          imageBase64,
+          cropHint || null,
+          profile.preferred_language,
+          getAccessToken() ? "waiting" : "auth_required",
+          advice.content,
+        );
+        void refreshConnection();
+        return;
+      }
+
       const response = await askAdvice(
         profile.farmer_id,
-        question,
+        queryForApi,
         imageBase64,
-        // Empty leaf crop = Auto-detect; server falls back to farm-profile crop for vision.
         cropHint || undefined,
         imageBase64 ? "mobilenetv3" : undefined,
         profile.preferred_language,
       );
-      applyAdviceReply(conversationId, response);
+      applyAdviceReply(conversationId, response, undefined, question);
       void refreshConnection();
     } catch (error) {
       const profile = loadFarmProfile();
       const fid = profile.farmer_id || farmerId;
       if (fid && isUnauthorizedError(error)) {
+        const advice = await buildOfflineAdvice(question);
         await queueOffline(
           conversationId,
           question,
@@ -319,10 +400,12 @@ export function ChatPage() {
           cropHint || null,
           profile.preferred_language,
           "auth_required",
+          advice.content,
         );
         return;
       }
       if (fid && isNetworkFailure(error)) {
+        const advice = await buildOfflineAdvice(question);
         await queueOffline(
           conversationId,
           question,
@@ -331,6 +414,7 @@ export function ChatPage() {
           cropHint || null,
           profile.preferred_language,
           "waiting",
+          advice.content,
         );
         void refreshConnection();
         return;
@@ -461,12 +545,12 @@ export function ChatPage() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="hidden w-[280px] shrink-0 lg:block">{sidebar}</aside>
+      <aside className="hidden w-[280px] shrink-0 overflow-hidden lg:block">{sidebar}</aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetContent
           side="left"
-          className="w-[min(100vw,20rem)] max-w-full border-none bg-sidebar p-0"
+          className="w-[min(100vw,20rem)] max-w-full overflow-hidden border-none bg-sidebar p-0"
         >
           <SheetTitle className="sr-only">{t("chat.conversations")}</SheetTitle>
           {sidebar}
@@ -480,6 +564,7 @@ export function ChatPage() {
           onOpenSettings={() => setSettingsOpen(true)}
           connectionStatus={connectionStatus}
           pendingCount={pendingCount}
+          offlineSession={isOfflineSession() || !getAccessToken()}
         />
 
         <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth px-4 py-6 sm:px-6">

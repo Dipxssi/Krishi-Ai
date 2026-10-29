@@ -36,7 +36,13 @@ export const AGENTS: Record<AgentId, Agent> = {
   },
 };
 
-export type MessageDeliveryStatus = "waiting" | "sending" | "auth_required" | "failed";
+export type MessageDeliveryStatus =
+  | "waiting"
+  | "sending"
+  | "auth_required"
+  | "failed"
+  /** Local offline suggestion; replaced when the queued API answer arrives. */
+  | "offline_draft";
 
 export interface ChatMessageData {
   id: string;
@@ -51,6 +57,8 @@ export interface ChatMessageData {
   /** Offline outbox placeholder until the real API answer arrives. */
   deliveryStatus?: MessageDeliveryStatus | undefined;
   outboxId?: string | undefined;
+  /** True when this API answer replaced an offline draft after reconnect. */
+  verifiedOnline?: boolean | undefined;
 }
 
 export interface Conversation {
@@ -58,6 +66,8 @@ export interface Conversation {
   title: string;
   updatedAt: number;
   messages: ChatMessageData[];
+  /** Short rolling summary of this thread for later turns / profile memory. */
+  summary?: string | undefined;
 }
 
 const now = Date.now();

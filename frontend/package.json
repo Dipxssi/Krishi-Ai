@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:offline-pack": "node scripts/build-offline-pack.mjs"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

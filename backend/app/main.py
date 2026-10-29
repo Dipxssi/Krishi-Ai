@@ -94,4 +94,13 @@ def root():
 @app.get("/health")
 def health():
     """Lightweight probe for offline clients and field-relay status scripts."""
-    return {"status": "ok", "service": "krishiai"}
+    return {
+        "status": "ok",
+        "service": "krishiai",
+        "app": "farmer-decision-support",
+        "features": {
+            "conversations": True,
+            "query": True,
+            "auth": True,
+        },
+    }

@@ -22,14 +22,22 @@ function slimQueryResult(result: QueryResponse): QueryResponse {
 
 /** Drop bulky / transient fields before uploading. */
 export function sanitizeConversationForSync(conversation: Conversation): Conversation {
-  return {
+  const next: Conversation = {
     id: conversation.id,
     title: conversation.title,
     updatedAt: conversation.updatedAt,
     messages: conversation.messages
-      .filter((m) => m.deliveryStatus !== "waiting" && m.deliveryStatus !== "sending")
+      .filter(
+        (m) =>
+          m.deliveryStatus !== "waiting" &&
+          m.deliveryStatus !== "sending" &&
+          m.deliveryStatus !== "offline_draft" &&
+          m.deliveryStatus !== "auth_required",
+      )
       .map(sanitizeMessage),
   };
+  if (conversation.summary?.trim()) next.summary = conversation.summary.trim();
+  return next;
 }
 
 function sanitizeMessage(message: ChatMessageData): ChatMessageData {
@@ -49,12 +57,16 @@ function sanitizeMessage(message: ChatMessageData): ChatMessageData {
   return next;
 }
 
-export function mergeConversations(local: Conversation[], remote: Conversation[]): Conversation[] {
+/**
+ * Merge by id. The first list wins on equal/newer `updatedAt`
+ * (pass in-memory / latest local first so a slow sync cannot wipe new chats).
+ */
+export function mergeConversations(preferred: Conversation[], other: Conversation[]): Conversation[] {
   const byId = new Map<string, Conversation>();
-  for (const item of remote) {
+  for (const item of other) {
     if (item?.id) byId.set(item.id, item);
   }
-  for (const item of local) {
+  for (const item of preferred) {
     if (!item?.id) continue;
     const existing = byId.get(item.id);
     if (!existing || (item.updatedAt ?? 0) >= (existing.updatedAt ?? 0)) {
@@ -96,22 +108,32 @@ export type ConversationSyncResult = {
   pulled: boolean;
   /** False when local history could not be uploaded. */
   pushed: boolean;
+  /** Set when the API looks like the wrong service (no /conversations). */
+  wrongApi?: boolean;
 };
+
+function isMissingConversationsRoute(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /\b404\b/.test(message) || /not found/i.test(message) || /non-JSON/i.test(message);
+}
 
 /** Pull server history, merge with this device, write both sides. */
 export async function syncConversationsFromServer(farmerId: string): Promise<ConversationSyncResult> {
-  const local = loadConversations(farmerId);
   let remote: Conversation[] = [];
   let pulled = false;
+  let wrongApi = false;
 
   try {
     remote = await fetchRemoteConversations();
     pulled = true;
   } catch (error) {
     console.warn("[krishi] could not fetch remote conversations", error);
+    wrongApi = isMissingConversationsRoute(error);
   }
 
-  const merged = pulled ? mergeConversations(local, remote) : local;
+  // Re-read AFTER the network round-trip so chats typed while syncing are not lost.
+  const localLatest = loadConversations(farmerId);
+  const merged = pulled ? mergeConversations(localLatest, remote) : localLatest;
   saveConversations(farmerId, merged);
 
   let pushed = merged.length === 0;
@@ -120,13 +142,15 @@ export async function syncConversationsFromServer(farmerId: string): Promise<Con
     try {
       await pushAllResilient(merged);
       pushed = true;
+      wrongApi = false;
     } catch (error) {
       console.warn("[krishi] could not push conversations after sync", error);
       pushed = false;
+      if (isMissingConversationsRoute(error)) wrongApi = true;
     }
   }
 
-  return { conversations: merged, pulled, pushed };
+  return { conversations: merged, pulled, pushed, wrongApi };
 }
 
 export async function pushConversationsToServer(conversations: Conversation[]): Promise<void> {

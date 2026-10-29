@@ -42,7 +42,13 @@ function invalidateAndNotify(onStoreChange: () => void) {
 function subscribe(onStoreChange: () => void) {
   const unsubscribe = subscribeAuth(() => invalidateAndNotify(onStoreChange));
   const onStorage = (event: StorageEvent) => {
-    if (event.key === USER_KEY || event.key === "krishi-ai-access-token" || event.key === null) {
+    if (
+      event.key === USER_KEY ||
+      event.key === "krishi-ai-access-token" ||
+      event.key === "krishi-ai-offline-session" ||
+      event.key === "krishi-ai-last-user" ||
+      event.key === null
+    ) {
       invalidateAndNotify(onStoreChange);
     }
   };

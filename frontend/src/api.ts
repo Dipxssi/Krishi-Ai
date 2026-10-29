@@ -283,6 +283,11 @@ export async function getFarmer(farmerId: string): Promise<FarmContext> {
 export async function fetchRemoteConversations(): Promise<Conversation[]> {
   const res = await apiFetch("/conversations", {}, true);
   await ensureApiJson(res, "GET /conversations");
+  if (res.status === 404) {
+    throw new Error(
+      "404 /conversations — this API host is not the KrishiAi FastAPI backend. Redeploy backend/ from this repo on Render and set Vercel VITE_API_URL to that service URL.",
+    );
+  }
   if (!res.ok) throw new Error(await parseError(res));
   const body = (await res.json()) as { conversations?: Conversation[] };
   return Array.isArray(body.conversations) ? body.conversations : [];

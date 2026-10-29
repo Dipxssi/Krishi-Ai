@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2, WifiOff } from "lucide-react";
 import { toast } from "sonner";
 import { login, signup } from "@/api";
 import { Button } from "@/components/ui/button";
@@ -8,8 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/hooks/useI18n";
-import { persistAuthSession } from "@/lib/authSession";
-import { hydrateFarmProfileFromServer } from "@/lib/farmProfile";
+import { probeApiReachable } from "@/lib/apiReachability";
+import {
+  continueOfflineAs,
+  getLastCachedUser,
+  persistAuthSession,
+} from "@/lib/authSession";
+import { hydrateFarmProfileFromServer, isFarmProfileComplete } from "@/lib/farmProfile";
 import { cn } from "@/lib/utils";
 
 type Mode = "signin" | "signup";
@@ -25,6 +30,25 @@ export function AuthForm() {
   const [submitting, setSubmitting] = useState(false);
   const [values, setValues] = useState({ name: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Errors>({});
+  const [apiOnline, setApiOnline] = useState(true);
+  const cachedUser = getLastCachedUser();
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      void probeApiReachable().then((ok) => {
+        if (!cancelled) setApiOnline(ok);
+      });
+    };
+    refresh();
+    window.addEventListener("online", refresh);
+    window.addEventListener("offline", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("offline", refresh);
+    };
+  }, []);
 
   const set = (key: keyof typeof values) => (e: React.ChangeEvent<HTMLInputElement>) => {
     setValues((v) => ({ ...v, [key]: e.target.value }));
@@ -113,6 +137,33 @@ export function AuthForm() {
         <p className="mt-2 text-sm text-muted-foreground">
           {mode === "signin" ? t("auth.signInHint") : t("auth.signUpHint")}
         </p>
+
+        {mode === "signin" && cachedUser && !apiOnline && (
+          <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+              <WifiOff className="size-4 text-amber-700" aria-hidden="true" />
+              {t("auth.offlineContinueTitle")}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t("auth.offlineContinueBody", { name: cachedUser.name || cachedUser.email })}
+            </p>
+            <Button
+              type="button"
+              className="mt-3 h-11 w-full rounded-xl bg-gradient-leaf font-semibold"
+              onClick={() => {
+                const user = continueOfflineAs(cachedUser);
+                if (!user) {
+                  toast.error(t("auth.offlineContinueFail"));
+                  return;
+                }
+                toast.message(t("auth.offlineContinueToast"));
+                navigate(isFarmProfileComplete() ? "/chat" : "/onboarding");
+              }}
+            >
+              {t("auth.offlineContinueCta", { name: cachedUser.name.split(" ")[0] || cachedUser.name })}
+            </Button>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate className="mt-7 grid gap-4">
           {mode === "signup" && (

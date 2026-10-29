@@ -112,6 +112,12 @@ export const en = {
   "auth.failed": "Authentication failed",
   "auth.resetSoon": "Password reset is not available yet.",
   "auth.farmerAlt": "Farmer holding rice seedlings in a green paddy field",
+  "auth.offlineContinueTitle": "Continue offline",
+  "auth.offlineContinueBody":
+    "Network is unavailable. Continue as {name} with cached farm data. Answers stay queued until you reconnect.",
+  "auth.offlineContinueCta": "Continue as {name}",
+  "auth.offlineContinueToast": "Opened offline mode. Questions will sync when you are online.",
+  "auth.offlineContinueFail": "Could not open offline session. Sign in when you have a connection.",
 
   // Onboarding
   "onboard.stepOf": "Step {n} of {total}",
@@ -214,6 +220,8 @@ export const en = {
   "chat.conn.onlineN": "Connected · {count} queued",
   "chat.syncFail":
     "Could not upload chat history. On Vercel set VITE_API_URL to your Render API URL, then redeploy.",
+  "chat.syncWrongApi":
+    "Chat history API missing on this server (/conversations 404). Redeploy the backend/ folder from this repo on Render, then set Vercel VITE_API_URL to that URL.",
   "chat.analyzedBy": "Analyzed by",
   "chat.copy": "Copy response",
   "chat.speak": "Read response aloud",
@@ -227,9 +235,14 @@ export const en = {
   "chat.prompt4": "Which crop is best for my land?",
   "chat.delivery.waiting":
     "Saved on this phone. Join shop WiFi or any internet to send to Krishi AI.",
+  "chat.delivery.offlineDraft":
+    "You’re offline — this is a quick suggestion. A verified detailed answer will replace this when you reconnect.",
   "chat.delivery.sending": "Sending your question to Krishi AI…",
   "chat.delivery.auth": "Sign in again when you have a connection. Your question is still saved.",
   "chat.delivery.failed": "Could not send this question. Try again later.",
+  "chat.offlineDraftToast": "Offline suggestion ready — detailed answer queued for when you’re online",
+  "chat.verifiedOnline": "Verified online answer",
+  "chat.conn.offlineBadge": "Offline",
   "chat.scoresAria": "Decision scores",
   "chat.offlineAuthBody":
     "Your question is saved on this phone. Sign in again when you have a connection, then it will send automatically.",
@@ -283,6 +296,25 @@ export const en = {
   "settings.deleteAll": "Delete all conversations",
   "settings.deletedAll": "All conversations deleted",
   "settings.language": "App language",
+  "settings.memoryTitle": "Conversation memory",
+  "settings.memoryBody":
+    "Short notes from recent chats. New chats use this so advice stays consistent. Edit or clear anytime.",
+  "settings.memoryPh": "e.g. Growing tomato on red loam in Karnataka; asked about yellow leaves…",
+  "settings.memorySave": "Save memory",
+  "settings.memoryClear": "Clear memory",
+  "settings.memorySaved": "Conversation memory saved",
+  "settings.memoryCleared": "Conversation memory cleared",
+  "settings.packTitle": "Offline knowledge pack",
+  "settings.packBody":
+    "Download once while online. Used for quick offline suggestions (not a full AI model). Never blocks unlock.",
+  "settings.packMissing": "No pack on this device yet.",
+  "settings.packStatus": "Installed v{version} · {count} tips",
+  "settings.packDownload": "Download pack",
+  "settings.packDownloading": "Downloading…",
+  "settings.packDownloaded": "Offline pack ready",
+  "settings.packFail": "Could not download the offline pack",
+  "settings.packClear": "Remove pack",
+  "settings.packCleared": "Offline pack removed",
 
   // Advice / details
   "advice.details": "Advice details",
@@ -478,6 +510,12 @@ export const hi: Record<MessageKey, string> = {
   "auth.failed": "प्रमाणीकरण विफल",
   "auth.resetSoon": "पासवर्ड रीसेट अभी उपलब्ध नहीं है।",
   "auth.farmerAlt": "हरे धान के खेत में पौधे पकड़े किसान",
+  "auth.offlineContinueTitle": "ऑफ़लाइन जारी रखें",
+  "auth.offlineContinueBody":
+    "नेटवर्क उपलब्ध नहीं। {name} के रूप में सहेजे डेटा से जारी रखें। कनेक्ट होने तक जवाब कतार में रहेंगे।",
+  "auth.offlineContinueCta": "{name} के रूप में जारी रखें",
+  "auth.offlineContinueToast": "ऑफ़लाइन मोड खुला। ऑनलाइन होने पर सवाल सिंक होंगे।",
+  "auth.offlineContinueFail": "ऑफ़लाइन सत्र नहीं खुल सका। कनेक्शन मिलने पर साइन इन करें।",
 
   "onboard.stepOf": "कदम {n} / {total}",
   "onboard.title": "अपने खेत के बारे में बताएँ",
@@ -577,6 +615,8 @@ export const hi: Record<MessageKey, string> = {
   "chat.conn.onlineN": "कनेक्टेड · {count} कतार में",
   "chat.syncFail":
     "चैट इतिहास अपलोड नहीं हुआ। Vercel पर VITE_API_URL को अपने Render API URL पर सेट करें।",
+  "chat.syncWrongApi":
+    "इस सर्वर पर चैट इतिहास API नहीं है (/conversations 404)। इस रेपो का backend/ Render पर फिर डिप्लॉय करें, फिर Vercel पर VITE_API_URL उसी URL पर सेट करें।",
   "chat.analyzedBy": "विश्लेषण द्वारा",
   "chat.copy": "जवाब कॉपी करें",
   "chat.speak": "जवाब ज़ोर से पढ़ें",
@@ -590,9 +630,14 @@ export const hi: Record<MessageKey, string> = {
   "chat.prompt4": "मेरी ज़मीन के लिए कौन सी फसल बेहतर है?",
   "chat.delivery.waiting":
     "इस फ़ोन पर सहेजा गया। दुकान वाई‑फाई या कोई भी इंटरनेट जोड़कर कृषि AI को भेजें।",
+  "chat.delivery.offlineDraft":
+    "आप ऑफ़लाइन हैं — यह त्वरित सुझाव है। कनेक्ट होने पर विस्तृत जाँच शुदा जवाब इसे बदलेगा।",
   "chat.delivery.sending": "आपका सवाल कृषि AI को भेजा जा रहा है…",
   "chat.delivery.auth": "कनेक्शन मिलने पर फिर साइन इन करें। आपका सवाल सुरक्षित है।",
   "chat.delivery.failed": "यह सवाल नहीं भेजा जा सका। बाद में फिर कोशिश करें।",
+  "chat.offlineDraftToast": "ऑफ़लाइन सुझाव तैयार — विस्तृत जवाब ऑनलाइन होने पर कतार में है",
+  "chat.verifiedOnline": "ऑनलाइन जाँच शुदा जवाब",
+  "chat.conn.offlineBadge": "ऑफ़लाइन",
   "chat.scoresAria": "निर्णय स्कोर",
   "chat.offlineAuthBody":
     "आपका सवाल इस फ़ोन पर सहेजा गया है। कनेक्शन मिलने पर फिर साइन इन करें — तब यह अपने आप भेजा जाएगा।",
@@ -644,6 +689,25 @@ export const hi: Record<MessageKey, string> = {
   "settings.deleteAll": "सभी बातचीत हटाएँ",
   "settings.deletedAll": "सभी बातचीत हटा दी गईं",
   "settings.language": "ऐप भाषा",
+  "settings.memoryTitle": "बातचीत मेमोरी",
+  "settings.memoryBody":
+    "हाल की चैट से छोटे नोट। नई चैट इन्हें उपयोग करती हैं ताकि सलाह सुसंगत रहे। कभी भी बदलें या साफ़ करें।",
+  "settings.memoryPh": "जैसे कर्नाटक में दोमट मिट्टी पर टमाटर; पीली पत्तियों के बारे में पूछा…",
+  "settings.memorySave": "मेमोरी सहेजें",
+  "settings.memoryClear": "मेमोरी साफ़ करें",
+  "settings.memorySaved": "बातचीत मेमोरी सहेज ली गई",
+  "settings.memoryCleared": "बातचीत मेमोरी साफ़ कर दी गई",
+  "settings.packTitle": "ऑफ़लाइन ज्ञान पैक",
+  "settings.packBody":
+    "एक बार ऑनलाइन डाउनलोड करें। त्वरित ऑफ़लाइन सुझावों के लिए (पूरा AI मॉडल नहीं)। अनलॉक नहीं रोकता।",
+  "settings.packMissing": "इस डिवाइस पर अभी पैक नहीं है।",
+  "settings.packStatus": "इंस्टॉल v{version} · {count} सुझाव",
+  "settings.packDownload": "पैक डाउनलोड करें",
+  "settings.packDownloading": "डाउनलोड हो रहा है…",
+  "settings.packDownloaded": "ऑफ़लाइन पैक तैयार",
+  "settings.packFail": "ऑफ़लाइन पैक डाउनलोड नहीं हो सका",
+  "settings.packClear": "पैक हटाएँ",
+  "settings.packCleared": "ऑफ़लाइन पैक हटा दिया गया",
 
   "advice.details": "सलाह विवरण",
   "advice.detailsBody": "इस जवाब का विश्वास, स्कोर और पूरी सिफारिश।",
@@ -834,6 +898,12 @@ export const kn: Record<MessageKey, string> = {
   "auth.failed": "ಪ್ರಮಾಣೀಕರಣ ವಿಫಲವಾಯಿತು",
   "auth.resetSoon": "ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಕೆ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ.",
   "auth.farmerAlt": "ಹಸಿರು ಭತ್ತದ ಹೊಲದಲ್ಲಿ ಸಸಿ ಹಿಡಿದ ರೈತ",
+  "auth.offlineContinueTitle": "ಆಫ್‌ಲೈನ್ ಮುಂದುವರಿಸಿ",
+  "auth.offlineContinueBody":
+    "ನೆಟ್‌ವರ್ಕ್ ಲಭ್ಯವಿಲ್ಲ. ಉಳಿಸಿದ ಡೇಟಾದೊಂದಿಗೆ {name} ಆಗಿ ಮುಂದುವರಿಯಿರಿ. ಸಂಪರ್ಕ ಬರುವವರೆಗೆ ಉತ್ತರಗಳು ಸರದಿಯಲ್ಲಿ ಉಳಿಯುತ್ತವೆ.",
+  "auth.offlineContinueCta": "{name} ಆಗಿ ಮುಂದುವರಿಸಿ",
+  "auth.offlineContinueToast": "ಆಫ್‌ಲೈನ್ ಮೋಡ್ ತೆರೆಯಲಾಗಿದೆ. ಆನ್‌ಲೈನ್ ಆದಾಗ ಪ್ರಶ್ನೆಗಳು ಸಿಂಕ್ ಆಗುತ್ತವೆ.",
+  "auth.offlineContinueFail": "ಆಫ್‌ಲೈನ್ ಸೆಷನ್ ತೆರೆಯಲಾಗಲಿಲ್ಲ. ಸಂಪರ್ಕ ಬಂದಾಗ ಸೈನ್ ಇನ್ ಮಾಡಿ.",
 
   "onboard.stepOf": "ಹಂತ {n} / {total}",
   "onboard.title": "ನಿಮ್ಮ ಜಮೀನಿನ ಬಗ್ಗೆ ಹೇಳಿ",
@@ -933,6 +1003,8 @@ export const kn: Record<MessageKey, string> = {
   "chat.conn.onlineN": "ಸಂಪರ್ಕಿತ · {count} ಸರದಿಯಲ್ಲಿ",
   "chat.syncFail":
     "ಚಾಟ್ ಇತಿಹಾಸ ಅಪ್‌ಲೋಡ್ ಆಗಲಿಲ್ಲ. Vercel ನಲ್ಲಿ VITE_API_URL ಅನ್ನು ನಿಮ್ಮ Render API URL ಗೆ ಹೊಂದಿಸಿ.",
+  "chat.syncWrongApi":
+    "ಈ ಸರ್ವರ್‌ನಲ್ಲಿ ಚಾಟ್ ಇತಿಹಾಸ API ಇಲ್ಲ (/conversations 404). ಈ ರೆಪೊದ backend/ ಅನ್ನು Render ನಲ್ಲಿ ಮರು-ಡಿಪ್ಲಾಯ್ ಮಾಡಿ, ನಂತರ Vercel VITE_API_URL ಅನ್ನು ಆ URL ಗೆ ಹೊಂದಿಸಿ.",
   "chat.analyzedBy": "ವಿಶ್ಲೇಷಣೆ",
   "chat.copy": "ಉತ್ತರ ನಕಲಿಸಿ",
   "chat.speak": "ಉತ್ತರವನ್ನು ಗಟ್ಟಿಯಾಗಿ ಓದಿ",
@@ -946,9 +1018,14 @@ export const kn: Record<MessageKey, string> = {
   "chat.prompt4": "ನನ್ನ ಜಮೀನಿಗೆ ಯಾವ ಬೆಳೆ ಉತ್ತಮ?",
   "chat.delivery.waiting":
     "ಈ ಫೋನ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ. ಅಂಗಡಿ WiFi ಅಥವಾ ಯಾವುದೇ ಇಂಟರ್ನೆಟ್ ಸೇರಿ ಕೃಷಿ AI ಗೆ ಕಳುಹಿಸಿ.",
+  "chat.delivery.offlineDraft":
+    "ನೀವು ಆಫ್‌ಲೈನ್ ಇದ್ದೀರಿ — ಇದು ತ್ವರಿತ ಸಲಹೆ. ಸಂಪರ್ಕ ಬಂದಾಗ ವಿವರವಾದ ಪರಿಶೀಲಿತ ಉತ್ತರ ಇದನ್ನು ಬದಲಾಯಿಸುತ್ತದೆ.",
   "chat.delivery.sending": "ನಿಮ್ಮ ಪ್ರಶ್ನೆಯನ್ನು ಕೃಷಿ AI ಗೆ ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ…",
   "chat.delivery.auth": "ಸಂಪರ್ಕ ಬಂದಾಗ ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ. ನಿಮ್ಮ ಪ್ರಶ್ನೆ ಉಳಿದಿದೆ.",
   "chat.delivery.failed": "ಈ ಪ್ರಶ್ನೆ ಕಳುಹಿಸಲಾಗಲಿಲ್ಲ. ನಂತರ ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
+  "chat.offlineDraftToast": "ಆಫ್‌ಲೈನ್ ಸಲಹೆ ಸಿದ್ಧ — ವಿವರವಾದ ಉತ್ತರ ಆನ್‌ಲೈನ್ ಆದಾಗ ಸರದಿಯಲ್ಲಿದೆ",
+  "chat.verifiedOnline": "ಆನ್‌ಲೈನ್ ಪರಿಶೀಲಿತ ಉತ್ತರ",
+  "chat.conn.offlineBadge": "ಆಫ್‌ಲೈನ್",
   "chat.scoresAria": "ನಿರ್ಧಾರ ಸ್ಕೋರ್‌ಗಳು",
   "chat.offlineAuthBody":
     "ನಿಮ್ಮ ಪ್ರಶ್ನೆ ಈ ಫೋನ್‌ನಲ್ಲಿ ಉಳಿಸಲಾಗಿದೆ. ಸಂಪರ್ಕ ಬಂದಾಗ ಮತ್ತೆ ಸೈನ್ ಇನ್ ಮಾಡಿ — ನಂತರ ಅದು ಸ್ವಯಂ ಕಳುಹಿಸಲಾಗುತ್ತದೆ.",
@@ -1000,6 +1077,25 @@ export const kn: Record<MessageKey, string> = {
   "settings.deleteAll": "ಎಲ್ಲಾ ಸಂಭಾಷಣೆಗಳನ್ನು ಅಳಿಸಿ",
   "settings.deletedAll": "ಎಲ್ಲಾ ಸಂಭಾಷಣೆಗಳನ್ನು ಅಳಿಸಲಾಗಿದೆ",
   "settings.language": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷೆ",
+  "settings.memoryTitle": "ಸಂಭಾಷಣೆ ಮೆಮೊರಿ",
+  "settings.memoryBody":
+    "ಇತ್ತೀಚಿನ ಚಾಟ್‌ಗಳಿಂದ ಸಣ್ಣ ಟಿಪ್ಪಣಿಗಳು. ಹೊಸ ಚಾಟ್‌ಗಳು ಸಲಹೆಯನ್ನು ಸುಸಂಗತವಾಗಿರಿಸಲು ಇವುಗಳನ್ನು ಬಳಸುತ್ತವೆ. ಯಾವಾಗ ಬೇಕಾದರೂ ಸಂಪಾದಿಸಿ ಅಥವಾ ತೆರವುಗೊಳಿಸಿ.",
+  "settings.memoryPh": "ಉದಾ. ಕರ್ನಾಟಕದಲ್ಲಿ ಕೆಂಪು ಮಣ್ಣಿನಲ್ಲಿ ಟೊಮೇಟೊ; ಹಳದಿ ಎಲೆಗಳ ಬಗ್ಗೆ ಕೇಳಲಾಗಿದೆ…",
+  "settings.memorySave": "ಮೆಮೊರಿ ಉಳಿಸಿ",
+  "settings.memoryClear": "ಮೆಮೊರಿ ತೆರವುಗೊಳಿಸಿ",
+  "settings.memorySaved": "ಸಂಭಾಷಣೆ ಮೆಮೊರಿ ಉಳಿಸಲಾಗಿದೆ",
+  "settings.memoryCleared": "ಸಂಭಾಷಣೆ ಮೆಮೊರಿ ತೆರವುಗೊಳಿಸಲಾಗಿದೆ",
+  "settings.packTitle": "ಆಫ್‌ಲೈನ್ ಜ್ಞಾನ ಪ್ಯಾಕ್",
+  "settings.packBody":
+    "ಒಮ್ಮೆ ಆನ್‌ಲೈನ್‌ನಲ್ಲಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ. ತ್ವರಿತ ಆಫ್‌ಲೈನ್ ಸಲಹೆಗಾಗಿ (ಪೂರ್ಣ AI ಮಾದರಿ ಅಲ್ಲ). ಅನ್‌ಲಾಕ್ ನಿಲ್ಲಿಸುವುದಿಲ್ಲ.",
+  "settings.packDownload": "ಪ್ಯಾಕ್ ಡೌನ್‌ಲೋಡ್",
+  "settings.packDownloading": "ಡೌನ್‌ಲೋಡ್ ಆಗುತ್ತಿದೆ…",
+  "settings.packDownloaded": "ಆಫ್‌ಲೈನ್ ಪ್ಯಾಕ್ ಸಿದ್ಧ",
+  "settings.packFail": "ಆಫ್‌ಲೈನ್ ಪ್ಯಾಕ್ ಡೌನ್‌ಲೋಡ್ ಆಗಲಿಲ್ಲ",
+  "settings.packClear": "ಪ್ಯಾಕ್ ತೆಗೆದುಹಾಕಿ",
+  "settings.packCleared": "ಆಫ್‌ಲೈನ್ ಪ್ಯಾಕ್ ತೆಗೆದುಹಾಕಲಾಗಿದೆ",
+  "settings.packMissing": "ಈ ಸಾಧನದಲ್ಲಿ ಇನ್ನೂ ಪ್ಯಾಕ್ ಇಲ್ಲ.",
+  "settings.packStatus": "ಸ್ಥಾಪಿತ v{version} · {count} ಸಲಹೆಗಳು",
 
   "advice.details": "ಸಲಹೆ ವಿವರಗಳು",
   "advice.detailsBody": "ಈ ಉತ್ತರದ ವಿಶ್ವಾಸ, ಸ್ಕೋರ್‌ಗಳು ಮತ್ತು ಪೂರ್ಣ ಶಿಫಾರಸು.",

@@ -67,17 +67,24 @@ export function ChatMessage({
         {message.agent && <AgentIndicator agent={message.agent} />}
         <p className="text-sm font-semibold text-foreground">Krishi AI</p>
         <div className="mt-2 min-w-0 rounded-3xl rounded-tl-lg border border-border bg-card px-3.5 py-3.5 shadow-soft sm:px-5 sm:py-4">
+          {message.verifiedOnline && message.queryResult && (
+            <p className="mb-3 rounded-2xl bg-primary/10 px-3 py-2 text-xs font-medium text-primary">
+              {t("chat.verifiedOnline")}
+            </p>
+          )}
           {message.deliveryStatus && !message.queryResult && (
             <p
               className={cn(
                 "mb-3 rounded-2xl px-3 py-2 text-xs font-medium",
                 message.deliveryStatus === "waiting" && "bg-amber-500/10 text-amber-800 dark:text-amber-200",
+                message.deliveryStatus === "offline_draft" && "bg-amber-500/10 text-amber-800 dark:text-amber-200",
                 message.deliveryStatus === "sending" && "bg-primary/10 text-primary",
                 message.deliveryStatus === "auth_required" && "bg-destructive/10 text-destructive",
                 message.deliveryStatus === "failed" && "bg-destructive/10 text-destructive",
               )}
             >
               {message.deliveryStatus === "waiting" && t("chat.delivery.waiting")}
+              {message.deliveryStatus === "offline_draft" && t("chat.delivery.offlineDraft")}
               {message.deliveryStatus === "sending" && t("chat.delivery.sending")}
               {message.deliveryStatus === "auth_required" && t("chat.delivery.auth")}
               {message.deliveryStatus === "failed" && t("chat.delivery.failed")}
