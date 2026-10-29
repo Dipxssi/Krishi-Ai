@@ -87,7 +87,7 @@ export function HomePage() {
             AI-Powered Agriculture
           </span>
 
-          <h1 className="mt-6 max-w-3xl text-4xl leading-[1.05] font-semibold text-forest-foreground sm:text-6xl lg:text-7xl">
+          <h1 className="mt-6 max-w-3xl text-3xl leading-[1.05] font-semibold text-forest-foreground sm:text-6xl lg:text-7xl">
             Smarter Farming.
             <br />
             Better Decisions.

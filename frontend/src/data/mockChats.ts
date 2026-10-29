@@ -36,6 +36,8 @@ export const AGENTS: Record<AgentId, Agent> = {
   },
 };
 
+export type MessageDeliveryStatus = "waiting" | "sending" | "auth_required" | "failed";
+
 export interface ChatMessageData {
   id: string;
   role: "user" | "assistant";
@@ -46,6 +48,9 @@ export interface ChatMessageData {
   imagePreview?: string | undefined;
   /** Full backend payload — used for scores, confidence, and rich UI. */
   queryResult?: QueryResponse | undefined;
+  /** Offline outbox placeholder until the real API answer arrives. */
+  deliveryStatus?: MessageDeliveryStatus | undefined;
+  outboxId?: string | undefined;
 }
 
 export interface Conversation {

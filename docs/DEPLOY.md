@@ -91,13 +91,31 @@ Set `VISION_MODEL=mobilenetv3` and `HF_TOKEN` if the Hugging Face repo needs it.
 4. Env: `VITE_API_URL=https://<service>.onrender.com` (no trailing slash)
 5. Deploy. Put the Vercel URL into Render `CORS_ORIGINS`, then redeploy the API if needed.
 
-## 4. Smoke checklist
+## 4. Offline / field relay
+
+Farmers can ask with no mobile data. Questions wait on the phone (IndexedDB) and send when the phone reaches the API — including through a shop/KVK Wi‑Fi hotspot that shares internet.
+
+1. Deploy frontend (HTTPS) so the PWA can install after one online visit.
+2. On the relay device (with internet): turn on Mobile Hotspot, then run:
+
+   ```bash
+   cd backend
+   uv run python scripts/field_relay_status.py --api-url https://<service>.onrender.com --app-url https://<app>.vercel.app --ssid KrishiRelay --password <hotspot-password>
+   ```
+
+3. Farmer joins that Wi‑Fi, opens the app URL / installed PWA, stays on Chat. Queued questions call `POST /query` through the relay’s internet.
+4. In-app guide: `/field-relay`. Health probe: `GET /health`.
+
+Bluetooth mesh cannot reach the API; a normal hotspot can because the phone still uses HTTPS to your Render URL.
+
+## 5. Smoke checklist
 
 1. Open Vercel URL → Sign up.
 2. Complete onboarding.
 3. Ask a text question → recommendation appears.
 4. Upload a leaf image → heuristic screening (or safe rejection), not MobileNet.
 5. Expired/missing token → redirected to `/auth`.
+6. Airplane mode → ask a question → sees “waiting”; leave airplane / join hotspot → answer fills in.
 
 ## Local vs production
 

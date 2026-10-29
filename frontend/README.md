@@ -5,8 +5,13 @@ Lovable-designed React UI wired to the FastAPI multi-agent backend (query, farme
 ## Routes
 
 - `/` — marketing landing
-- `/auth` — demo sign-in / sign-up (local only)
+- `/auth` — sign-in / sign-up
 - `/chat` — live assistant (calls `POST /query`)
+- `/field-relay` — how to reach the API via a shop/KVK Wi‑Fi hotspot
+
+## Offline / field relay
+
+Production builds register a PWA service worker (app shell only). If the API is unreachable, chat saves the question in IndexedDB and shows a waiting state. When the phone can reach `GET /health` (own data or a nearby hotspot), queued items flush through `POST /query`. See `docs/DEPLOY.md` and `backend/scripts/field_relay_status.py`.
 
 ## Run
 

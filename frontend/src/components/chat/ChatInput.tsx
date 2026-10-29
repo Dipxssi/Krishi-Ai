@@ -158,7 +158,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
   };
 
   return (
-    <div className="border-t border-border bg-background/85 px-4 py-4 backdrop-blur sm:px-6">
+    <div className="border-t border-border bg-background/85 px-3 py-3 backdrop-blur sm:px-6 sm:py-4">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -167,21 +167,21 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         className="mx-auto flex w-full max-w-3xl flex-col gap-2 rounded-3xl border border-border bg-card p-2 shadow-soft focus-within:border-primary/50"
       >
         {imageBase64 && (
-          <div className="flex flex-wrap items-center gap-3 px-2 pt-2">
+          <div className="flex flex-wrap items-start gap-3 px-2 pt-2">
             <img
               src={imageBase64}
               alt="Attached leaf"
-              className="h-16 w-16 rounded-xl object-cover border border-border"
+              className="h-16 w-16 shrink-0 rounded-xl object-cover border border-border"
             />
-            <div className="flex flex-col gap-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
               <label htmlFor="crop-hint-select" className="text-xs font-medium text-muted-foreground">
-                Leaf Crop (helps prevent unsupported-crop false alarms):
+                Leaf crop (optional)
               </label>
               <select
                 id="crop-hint-select"
                 value={cropHint}
                 onChange={(e) => setCropHint(e.target.value)}
-                className="h-8 rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+                className="h-8 w-full max-w-xs rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
               >
                 <option value="">Auto-detect / Unsure</option>
                 <option value="tomato">Tomato</option>
@@ -204,7 +204,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           </div>
         )}
 
-        <div className="flex items-end gap-2">
+        <div className="flex items-end gap-1.5 sm:gap-2">
           <input
             ref={fileRef}
             type="file"
@@ -220,7 +220,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
             aria-label="Attach a leaf photo"
             onClick={() => fileRef.current?.click()}
             disabled={disabled}
-            className="grid size-10 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+            className="grid size-9 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 sm:size-10"
           >
             <Paperclip className="size-5" />
           </button>
@@ -245,8 +245,8 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
                 submit();
               }
             }}
-            placeholder="Ask Krishi AI about farming, crops, pests, finance..."
-            className="max-h-44 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none"
+            placeholder="Ask about crops, pests, finance…"
+            className="max-h-44 min-h-9 min-w-0 flex-1 resize-none bg-transparent py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none sm:min-h-10 sm:py-2.5"
           />
 
           <button
@@ -255,7 +255,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
             title={recording ? "Stop recording" : "Record a voice question"}
             onClick={() => void toggleRecording()}
             disabled={disabled || transcribing}
-            className="grid size-10 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
+            className="grid size-9 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 sm:size-10"
           >
             {recording ? <Square className="size-4 fill-current" /> : <Mic className="size-5" />}
           </button>
@@ -264,14 +264,18 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
             type="submit"
             disabled={!canSend}
             aria-label="Send message"
-            className="grid size-10 shrink-0 place-items-center rounded-2xl bg-gradient-leaf text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:bg-none disabled:bg-muted disabled:text-muted-foreground"
+            className="grid size-9 shrink-0 place-items-center rounded-2xl bg-gradient-leaf text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:bg-none disabled:bg-muted disabled:text-muted-foreground sm:size-10"
           >
             <SendHorizontal className="size-5" />
           </button>
         </div>
       </form>
-      <p className="mx-auto mt-2 max-w-3xl text-center text-xs text-muted-foreground">
-        {transcribing ? "Transcribing your recording…" : recording ? "Recording… select stop when finished." : "Live backend advice — verify critical spray/dose decisions with a local expert or KVK."}
+      <p className="mx-auto mt-2 max-w-3xl px-1 text-center text-[11px] leading-snug text-muted-foreground sm:text-xs">
+        {transcribing
+          ? "Transcribing your recording…"
+          : recording
+            ? "Recording… select stop when finished."
+            : "Live advice — verify spray/dose decisions with a local expert or KVK."}
       </p>
     </div>
   );

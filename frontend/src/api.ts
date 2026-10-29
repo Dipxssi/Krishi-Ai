@@ -160,9 +160,7 @@ async function parseError(res: Response): Promise<string> {
 function handleUnauthorized(res: Response): void {
   if (res.status !== 401) return;
   clearAuthSession();
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth")) {
-    window.location.assign("/auth");
-  }
+  // Let RequireAuth / AuthSessionBootstrap navigate — keep outbox enqueue able to finish first.
 }
 
 async function apiFetch(path: string, init: RequestInit = {}, auth = false): Promise<Response> {
@@ -288,7 +286,10 @@ export async function askAdvice(
       language: language || undefined,
     }),
   }, true);
-  if (!res.ok) throw new Error(await parseError(res));
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("401 Unauthorized — sign in again when you have a connection.");
+    throw new Error(await parseError(res));
+  }
   return res.json();
 }
 

@@ -130,7 +130,7 @@ export function NearbyHelpDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto p-5 sm:p-6 rounded-2xl">
+      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl p-4 sm:w-full sm:p-6">
         <DialogHeader className="space-y-1 text-left">
           <div className="flex items-center gap-2">
             <div className="rounded-xl bg-emerald-600/10 p-2 text-emerald-600 dark:text-emerald-400">

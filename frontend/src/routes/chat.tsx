@@ -170,7 +170,10 @@ function ChatPage() {
       <aside className="hidden w-[280px] shrink-0 lg:block">{sidebar}</aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-[300px] border-none bg-sidebar p-0">
+        <SheetContent
+          side="left"
+          className="w-[min(100vw,20rem)] max-w-full border-none bg-sidebar p-0"
+        >
           <SheetTitle className="sr-only">Conversations</SheetTitle>
           {sidebar}
         </SheetContent>

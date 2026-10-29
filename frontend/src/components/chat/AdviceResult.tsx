@@ -46,7 +46,7 @@ export function AdviceResult({
   if (compact) {
     return (
       <div className={cn("grid gap-3.5", className)}>
-        <div className="advice-markdown overflow-x-auto leading-relaxed">
+        <div className="advice-markdown min-w-0 leading-relaxed">
           <SafeRecommendationRenderer text={result.final_recommendation} />
         </div>
 
@@ -79,10 +79,12 @@ export function AdviceResult({
               <button
                 type="button"
                 onClick={() => setHelpDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+                className="inline-flex max-w-full items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-3 py-1.5 text-left text-xs font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
               >
-                <MapPin className="size-3.5" />
-                <span>{escalation.action_label || "Find an agricultural expert near me"}</span>
+                <MapPin className="size-3.5 shrink-0" />
+                <span className="min-w-0 break-words">
+                  {escalation.action_label || "Find an agricultural expert near me"}
+                </span>
               </button>
             </div>
           </div>
@@ -146,7 +148,7 @@ export function AdviceResult({
         )}
       </div>
 
-      <div className="advice-markdown overflow-x-auto rounded-2xl border border-border/70 bg-muted/30 p-4 leading-relaxed">
+      <div className="advice-markdown min-w-0 rounded-2xl border border-border/70 bg-muted/30 p-3 leading-relaxed sm:p-4">
         <SafeRecommendationRenderer text={result.final_recommendation} />
       </div>
 
@@ -185,10 +187,12 @@ export function AdviceResult({
             <button
               type="button"
               onClick={() => setHelpDialogOpen(true)}
-              className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-xs sm:text-sm font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+              className="inline-flex max-w-full items-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 px-4 py-2 text-left text-xs sm:text-sm font-semibold text-white shadow-soft transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
-              <MapPin className="size-4" />
-              <span>{escalation.action_label || "Find an agricultural expert near me"}</span>
+              <MapPin className="size-4 shrink-0" />
+              <span className="min-w-0 break-words">
+                {escalation.action_label || "Find an agricultural expert near me"}
+              </span>
             </button>
           </div>
         </div>
@@ -230,7 +234,7 @@ export function AdviceResult({
 
 function ScoreMetrics({ score }: { score: DecisionScore }) {
   return (
-    <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <MiniStat
         icon={BadgeIndianRupee}
         label="Expected profit"

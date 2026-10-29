@@ -2,9 +2,44 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    VitePWA({
+      registerType: "autoUpdate",
+      includeAssets: ["favicon.svg", "favicon.ico", "icons.svg"],
+      manifest: {
+        name: "Krishi AI",
+        short_name: "KrishiAI",
+        description: "Multi-agent agricultural advice for farmers — works offline with a field relay.",
+        theme_color: "#1B5E3B",
+        background_color: "#F7F4EC",
+        display: "standalone",
+        start_url: "/",
+        icons: [
+          {
+            src: "favicon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+            purpose: "any maskable",
+          },
+        ],
+      },
+      workbox: {
+        // App shell only — never cache API responses.
+        navigateFallback: "/index.html",
+        globPatterns: ["**/*.{js,css,html,ico,svg,png,jpg,jpeg,webp,woff2}"],
+        runtimeCaching: [],
+        navigateFallbackDenylist: [/^\/api/, /^\/auth\/(signup|login|me)/],
+      },
+      devOptions: {
+        enabled: false,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -27,6 +62,7 @@ export default defineConfig({
       "/feedback": "http://127.0.0.1:8000",
       "/knowledge": "http://127.0.0.1:8000",
       "/help": "http://127.0.0.1:8000",
+      "/health": "http://127.0.0.1:8000",
     },
   },
 });

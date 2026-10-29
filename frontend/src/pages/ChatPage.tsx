@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
 import { askAdvice, getFarmer, saveFarmer, submitFeedback, type QueryResponse } from "@/api";
@@ -12,13 +12,17 @@ import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { newId, type Conversation, type ChatMessageData } from "@/data/mockChats";
 import { SUGGESTED_PROMPTS } from "@/data/mockResponses";
+import { useApiConnection } from "@/hooks/useApiConnection";
 import { useAuthUser } from "@/hooks/useAuthUser";
+import { useOutboxFlush } from "@/hooks/useOutboxFlush";
+import { isNetworkFailure, isUnauthorizedError } from "@/lib/apiReachability";
 import {
   loadConversations,
   saveConversations,
 } from "@/lib/conversationStorage";
 import { isFarmProfileComplete, loadFarmProfile, saveFarmProfileLocal } from "@/lib/farmProfile";
 import { formatAdviceMessage, mapAgentsToUi } from "@/lib/formatAdvice";
+import { enqueueOutboxItem } from "@/lib/queryOutbox";
 
 function titleFrom(text: string) {
   const clean = text.trim().replace(/\s+/g, " ");
@@ -134,6 +138,50 @@ export function ChatPage() {
   const updateConversation = (id: string, update: (c: Conversation) => Conversation) =>
     setConversations((prev) => prev.map((c) => (c.id === id ? update(c) : c)));
 
+  const applyAdviceReply = useCallback(
+    (
+      conversationId: string,
+      response: QueryResponse,
+      placeholderMessageId?: string,
+    ) => {
+      const reply: ChatMessageData = {
+        id: placeholderMessageId ?? newId(),
+        role: "assistant",
+        content: formatAdviceMessage(response),
+        agent: mapAgentsToUi(response.agents_used ?? []),
+        requestId: response.request_id,
+        queryResult: response,
+      };
+      updateConversation(conversationId, (c) => {
+        const withoutPlaceholder = placeholderMessageId
+          ? c.messages.filter((m) => m.id !== placeholderMessageId)
+          : c.messages;
+        return {
+          ...c,
+          updatedAt: Date.now(),
+          messages: [...withoutPlaceholder, reply],
+        };
+      });
+    },
+    [],
+  );
+
+  const handleOutboxDelivered = useCallback(
+    ({ item, response }: { item: { conversationId: string; placeholderMessageId: string }; response: QueryResponse }) => {
+      applyAdviceReply(item.conversationId, response, item.placeholderMessageId);
+      toast.success("Queued question answered");
+    },
+    [applyAdviceReply],
+  );
+
+  const { flushing, pendingCount, flush, refreshCount } = useOutboxFlush(
+    farmerId,
+    handleOutboxDelivered,
+  );
+  const { status: connectionStatus, refresh: refreshConnection } = useApiConnection({
+    sending: flushing,
+  });
+
   const ensureFarmer = async () => {
     let profile = loadFarmProfile();
     // Prefer this account's Neon row over any leftover local cache.
@@ -146,9 +194,59 @@ export function ChatPage() {
       }
     }
     if (profile.farmer_id && profile.farmer_id === farmerId) {
-      await saveFarmer(profile);
+      try {
+        await saveFarmer(profile);
+      } catch {
+        /* Offline or API down — local profile is enough to queue the question. */
+      }
     }
     return profile;
+  };
+
+  const queueOffline = async (
+    conversationId: string,
+    question: string,
+    profileFarmerId: string,
+    imageBase64?: string | null,
+    cropHint?: string | null,
+    language?: string | null,
+    status: "waiting" | "auth_required" = "waiting",
+  ) => {
+    const placeholderId = newId();
+    const outboxId = newId();
+    await enqueueOutboxItem({
+      id: outboxId,
+      farmerId: profileFarmerId,
+      conversationId,
+      placeholderMessageId: placeholderId,
+      query: question,
+      imageBase64: imageBase64 || null,
+      selectedCrop: cropHint || null,
+      language: language || null,
+      status,
+    });
+    const reply: ChatMessageData = {
+      id: placeholderId,
+      role: "assistant",
+      content:
+        status === "auth_required"
+          ? "Your question is saved on this phone. Sign in again when you have a connection, then it will send automatically."
+          : "Your question is saved on this phone. When you join the shop WiFi (or any internet), Krishi AI will answer automatically.",
+      agent: "general",
+      deliveryStatus: status,
+      outboxId,
+    };
+    updateConversation(conversationId, (c) => ({
+      ...c,
+      updatedAt: Date.now(),
+      messages: [...c.messages, reply],
+    }));
+    await refreshCount();
+    toast.message(
+      status === "auth_required"
+        ? "Saved — sign in when online"
+        : "Saved offline — will send when connected",
+    );
   };
 
   const respond = async (conversationId: string, question: string, imageBase64?: string | null, cropHint?: string | null) => {
@@ -163,26 +261,42 @@ export function ChatPage() {
         imageBase64 ? "mobilenetv3" : undefined,
         profile.preferred_language,
       );
-      const reply: ChatMessageData = {
-        id: newId(),
-        role: "assistant",
-        content: formatAdviceMessage(response),
-        agent: mapAgentsToUi(response.agents_used ?? []),
-        requestId: response.request_id,
-        queryResult: response,
-      };
-      updateConversation(conversationId, (c) => ({
-        ...c,
-        updatedAt: Date.now(),
-        messages: [...c.messages, reply],
-      }));
+      applyAdviceReply(conversationId, response);
+      void refreshConnection();
     } catch (error) {
+      const profile = loadFarmProfile();
+      const fid = profile.farmer_id || farmerId;
+      if (fid && isUnauthorizedError(error)) {
+        await queueOffline(
+          conversationId,
+          question,
+          fid,
+          imageBase64,
+          cropHint || profile.crop,
+          profile.preferred_language,
+          "auth_required",
+        );
+        return;
+      }
+      if (fid && isNetworkFailure(error)) {
+        await queueOffline(
+          conversationId,
+          question,
+          fid,
+          imageBase64,
+          cropHint || profile.crop,
+          profile.preferred_language,
+          "waiting",
+        );
+        void refreshConnection();
+        return;
+      }
       const message = error instanceof Error ? error.message : "Request failed";
       toast.error(message);
       const reply: ChatMessageData = {
         id: newId(),
         role: "assistant",
-        content: `Sorry — I could not reach the Krishi AI backend.\n\n${message}\n\nCheck that the API is running and your farm profile is set in Settings.`,
+        content: `Sorry — I could not get advice right now.\n\n${message}\n\nCheck Settings for your farm profile, or open Field relay if you need shop WiFi.`,
         agent: "general",
       };
       updateConversation(conversationId, (c) => ({
@@ -192,6 +306,7 @@ export function ChatPage() {
       }));
     } finally {
       setThinking(false);
+      void flush();
     }
   };
 
@@ -298,7 +413,10 @@ export function ChatPage() {
       <aside className="hidden w-[280px] shrink-0 lg:block">{sidebar}</aside>
 
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <SheetContent side="left" className="w-[300px] border-none bg-sidebar p-0">
+        <SheetContent
+          side="left"
+          className="w-[min(100vw,20rem)] max-w-full border-none bg-sidebar p-0"
+        >
           <SheetTitle className="sr-only">Conversations</SheetTitle>
           {sidebar}
         </SheetContent>
@@ -309,6 +427,8 @@ export function ChatPage() {
           onOpenSidebar={() => setSidebarOpen(true)}
           onNewChat={handleNewChat}
           onOpenSettings={() => setSettingsOpen(true)}
+          connectionStatus={connectionStatus}
+          pendingCount={pendingCount}
         />
 
         <div className="min-h-0 flex-1 overflow-y-auto scroll-smooth px-4 py-6 sm:px-6">

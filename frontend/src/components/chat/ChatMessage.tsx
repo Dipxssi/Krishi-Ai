@@ -36,8 +36,8 @@ export function ChatMessage({
 
   if (isUser) {
     return (
-      <div className="flex animate-in fade-in slide-in-from-bottom-2 justify-end gap-3 duration-300">
-        <div className="max-w-[85%] rounded-3xl rounded-br-lg bg-primary px-5 py-3.5 text-primary-foreground shadow-soft sm:max-w-[70%]">
+      <div className="flex animate-in fade-in slide-in-from-bottom-2 justify-end gap-2 duration-300 sm:gap-3">
+        <div className="max-w-[min(100%,24rem)] min-w-0 rounded-3xl rounded-br-lg bg-primary px-3.5 py-3 text-primary-foreground shadow-soft sm:max-w-[70%] sm:px-5 sm:py-3.5">
           {message.imagePreview && (
             <img
               src={message.imagePreview}
@@ -45,9 +45,11 @@ export function ChatMessage({
               className="mb-3 max-h-40 w-full rounded-2xl object-cover"
             />
           )}
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+            {message.content}
+          </p>
         </div>
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-earth text-xs font-semibold text-earth-foreground">
+        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-earth text-xs font-semibold text-earth-foreground sm:size-9">
           FU
         </span>
       </div>
@@ -55,14 +57,32 @@ export function ChatMessage({
   }
 
   return (
-    <div className="flex animate-in fade-in slide-in-from-bottom-2 gap-3 duration-300">
-      <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-gradient-leaf shadow-soft">
+    <div className="flex animate-in fade-in slide-in-from-bottom-2 gap-2 duration-300 sm:gap-3">
+      <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-gradient-leaf shadow-soft sm:size-9">
         <Sprout className="size-4 text-primary-foreground" aria-hidden="true" />
       </span>
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 overflow-hidden">
         {message.agent && <AgentIndicator agent={message.agent} />}
         <p className="text-sm font-semibold text-foreground">Krishi AI</p>
-        <div className="mt-2 rounded-3xl rounded-tl-lg border border-border bg-card px-5 py-4 shadow-soft">
+        <div className="mt-2 min-w-0 rounded-3xl rounded-tl-lg border border-border bg-card px-3.5 py-3.5 shadow-soft sm:px-5 sm:py-4">
+          {message.deliveryStatus && !message.queryResult && (
+            <p
+              className={cn(
+                "mb-3 rounded-2xl px-3 py-2 text-xs font-medium",
+                message.deliveryStatus === "waiting" && "bg-amber-500/10 text-amber-800 dark:text-amber-200",
+                message.deliveryStatus === "sending" && "bg-primary/10 text-primary",
+                message.deliveryStatus === "auth_required" && "bg-destructive/10 text-destructive",
+                message.deliveryStatus === "failed" && "bg-destructive/10 text-destructive",
+              )}
+            >
+              {message.deliveryStatus === "waiting" &&
+                "Saved on this phone. Join shop WiFi or any internet to send to Krishi AI."}
+              {message.deliveryStatus === "sending" && "Sending your question to Krishi AI…"}
+              {message.deliveryStatus === "auth_required" &&
+                "Sign in again when you have a connection. Your question is still saved."}
+              {message.deliveryStatus === "failed" && "Could not send this question. Try again later."}
+            </p>
+          )}
           {message.queryResult ? (
             <AdviceResult
               result={message.queryResult}
@@ -73,19 +93,21 @@ export function ChatMessage({
             <FormattedContent content={message.content} />
           )}
         </div>
-        <div className="mt-2 flex items-center gap-1">
-          <IconAction label="Copy response" onClick={copy} icon={Copy} />
-          {onSpeak && (
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {!message.deliveryStatus && (
+            <IconAction label="Copy response" onClick={copy} icon={Copy} />
+          )}
+          {onSpeak && !message.deliveryStatus && (
             <IconAction
               label={isSpeaking ? "Stop speaking" : "Read response aloud"}
               onClick={onSpeak}
               icon={isSpeaking ? VolumeX : Volume2}
             />
           )}
-          {onRegenerate && (
+          {onRegenerate && !message.deliveryStatus && (
             <IconAction label="Regenerate response" onClick={onRegenerate} icon={RefreshCw} />
           )}
-          {onFeedback && (
+          {onFeedback && !message.deliveryStatus && (
             <>
               <IconAction
                 label="Good response"
@@ -139,7 +161,7 @@ function FormattedContent({ content }: { content: string }) {
   const blocks = content.split(/\n{2,}/);
 
   return (
-    <div className="grid gap-3 text-sm leading-relaxed text-foreground">
+    <div className="grid min-w-0 gap-3 text-sm leading-relaxed break-words text-foreground">
       {blocks.map((block, i) => {
         const lines = block.split("\n");
         const isBullet = lines.every((l) => /^\s*[•\-*]\s+/.test(l));
@@ -151,7 +173,7 @@ function FormattedContent({ content }: { content: string }) {
               {lines.map((l, j) => (
                 <li key={j} className="flex gap-2.5">
                   <span aria-hidden="true" className="mt-2 size-1.5 shrink-0 rounded-full bg-primary" />
-                  <span>{inline(l.replace(/^\s*[•\-*]\s+/, ""))}</span>
+                  <span className="min-w-0">{inline(l.replace(/^\s*[•\-*]\s+/, ""))}</span>
                 </li>
               ))}
             </ul>
@@ -164,14 +186,14 @@ function FormattedContent({ content }: { content: string }) {
               {lines.map((l, j) => (
                 <li key={j} className="flex gap-2.5">
                   <span className="min-w-5 shrink-0 font-semibold text-primary">{j + 1}.</span>
-                  <span>{inline(l.replace(/^\s*\d+\.\s+/, ""))}</span>
+                  <span className="min-w-0">{inline(l.replace(/^\s*\d+\.\s+/, ""))}</span>
                 </li>
               ))}
             </ol>
           );
         }
 
-        return <p key={i}>{inline(block)}</p>;
+        return <p key={i} className="min-w-0">{inline(block)}</p>;
       })}
     </div>
   );

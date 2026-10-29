@@ -4,6 +4,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthPage } from "@/pages/AuthPage";
 import { ChatPage } from "@/pages/ChatPage";
+import { FieldRelayPage } from "@/pages/FieldRelayPage";
 import { HomePage } from "@/pages/HomePage";
 import { OnboardingPage } from "@/pages/OnboardingPage";
 
@@ -28,6 +29,14 @@ export default function App() {
           element={
             <RequireAuth requireFarmProfile>
               <ChatPage />
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/field-relay"
+          element={
+            <RequireAuth>
+              <FieldRelayPage />
             </RequireAuth>
           }
         />

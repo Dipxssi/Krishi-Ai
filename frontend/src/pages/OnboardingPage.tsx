@@ -53,7 +53,7 @@ export function OnboardingPage() {
               <Leaf className="size-3.5" aria-hidden="true" />
               Step 2 of 3
             </p>
-            <h1 className="mt-5 max-w-md font-display text-4xl leading-tight font-semibold text-foreground sm:text-5xl">
+            <h1 className="mt-5 max-w-md font-display text-3xl leading-tight font-semibold text-foreground sm:text-5xl">
               Tell us about your farm
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">

@@ -104,26 +104,21 @@ export default function SafeRecommendationRenderer({ text }: Props) {
         const headers = parseTableRow(tableLines[0]);
         const bodyRows = tableLines.slice(2).map(parseTableRow);
 
+        // Stacked field cards — wraps on narrow screens instead of horizontal scroll.
         elements.push(
-          <div key={`table-${i}`} className="recommendation-table-wrap">
-            <table className="recommendation-table">
-              <thead>
-                <tr>
-                  {headers.map((h, colIdx) => (
-                    <th key={colIdx}>{renderInline(h)}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {bodyRows.map((row, rowIdx) => (
-                  <tr key={rowIdx}>
-                    {row.map((cell, colIdx) => (
-                      <td key={colIdx}>{renderInline(cell)}</td>
-                    ))}
-                  </tr>
+          <div key={`table-${i}`} className="recommendation-table-stack" role="table">
+            {bodyRows.map((row, rowIdx) => (
+              <div key={rowIdx} className="recommendation-table-card" role="row">
+                {headers.map((header, colIdx) => (
+                  <div key={colIdx} className="recommendation-table-field" role="cell">
+                    <span className="recommendation-table-label">{renderInline(header)}</span>
+                    <span className="recommendation-table-value">
+                      {renderInline(row[colIdx] ?? "")}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            ))}
           </div>
         );
         continue;

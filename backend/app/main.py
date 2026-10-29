@@ -71,6 +71,7 @@ def root():
         "message": "KrishiAi V1 backend is running",
         "docs": "/docs",
         "endpoints": [
+            "/health",
             "/auth/signup",
             "/auth/login",
             "/auth/me",
@@ -84,3 +85,9 @@ def root():
             "/voice",
         ],
     }
+
+
+@app.get("/health")
+def health():
+    """Lightweight probe for offline clients and field-relay status scripts."""
+    return {"status": "ok", "service": "krishiai"}
