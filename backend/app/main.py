@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
+from app.api.conversations import router as conversations_router
 from app.api.farmers import router as farmers_router
 from app.api.help import router as help_router
 from app.api.knowledge import router as knowledge_router
@@ -23,6 +24,7 @@ from app.api.route import router as route_router
 from app.api.vision import router as vision_router
 from app.api.voice import router as voice_router
 from app.core.config import get_settings
+from app.db.conversations import ConversationRow  # noqa: F401 — register tables
 from app.db.session import init_db
 from app.db.users import UserRow  # noqa: F401 — register tables
 from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401 — register tables
@@ -55,6 +57,7 @@ if _cors_regex:
 app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 app.include_router(auth_router)
+app.include_router(conversations_router)
 app.include_router(query_router)
 app.include_router(route_router)
 app.include_router(farmers_router)
@@ -75,6 +78,7 @@ def root():
             "/auth/signup",
             "/auth/login",
             "/auth/me",
+            "/conversations",
             "/query",
             "/route",
             "/farmers",

@@ -20,6 +20,12 @@ import {
   loadConversations,
   saveConversations,
 } from "@/lib/conversationStorage";
+import {
+  clearRemoteConversations,
+  pushConversationsToServer,
+  removeRemoteConversation,
+  syncConversationsFromServer,
+} from "@/lib/conversationSync";
 import { isFarmProfileComplete, loadFarmProfile, saveFarmProfileLocal } from "@/lib/farmProfile";
 import { formatAdviceMessage, mapAgentsToUi } from "@/lib/formatAdvice";
 import { enqueueOutboxItem } from "@/lib/queryOutbox";
@@ -34,6 +40,7 @@ export function ChatPage() {
   const farmerId = user?.farmer_id ?? "";
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [storageReady, setStorageReady] = useState(false);
+  const skipNextConversationSave = useRef(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -108,21 +115,45 @@ export function ChatPage() {
     synthesis.speak(utterance);
   };
 
-  // Load only this signed-in farmer's chats — never a shared browser key.
+  // Load local cache, then merge with server so a new device gets full history.
   useEffect(() => {
+    let cancelled = false;
     setStorageReady(false);
     setActiveId(null);
     if (!farmerId) {
       setConversations([]);
       return;
     }
+
+    skipNextConversationSave.current = true;
     setConversations(loadConversations(farmerId));
     setStorageReady(true);
+
+    void (async () => {
+      const merged = await syncConversationsFromServer(farmerId);
+      if (cancelled) return;
+      skipNextConversationSave.current = true;
+      setConversations(merged);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [farmerId]);
 
   useEffect(() => {
     if (!storageReady || !farmerId) return;
+    if (skipNextConversationSave.current) {
+      skipNextConversationSave.current = false;
+      return;
+    }
     saveConversations(farmerId, conversations);
+    const timer = window.setTimeout(() => {
+      void pushConversationsToServer(conversations).catch(() => {
+        /* offline — local cache remains source of truth until next sync */
+      });
+    }, 600);
+    return () => window.clearTimeout(timer);
   }, [conversations, farmerId, storageReady]);
 
   const active = useMemo(
@@ -354,6 +385,9 @@ export function ChatPage() {
   const handleDelete = (id: string) => {
     setConversations((prev) => prev.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
+    void removeRemoteConversation(id).catch(() => {
+      /* local delete still applied; next sync may reintroduce if push failed first */
+    });
     toast.success("Conversation deleted");
   };
 
@@ -519,6 +553,9 @@ export function ChatPage() {
         onClearAll={() => {
           setConversations([]);
           setActiveId(null);
+          void clearRemoteConversations().catch(() => {
+            /* local clear still applied */
+          });
         }}
       />
 

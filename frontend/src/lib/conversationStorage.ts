@@ -6,19 +6,32 @@ export function conversationsStorageKey(farmerId: string): string {
   return `krishi-ai-conversations:${farmerId}`;
 }
 
+function parseConversationList(raw: string | null): Conversation[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as Conversation[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function loadConversations(farmerId: string): Conversation[] {
   if (!farmerId) return [];
   try {
-    const scoped = localStorage.getItem(conversationsStorageKey(farmerId));
-    if (scoped) {
-      const parsed = JSON.parse(scoped) as Conversation[];
-      return Array.isArray(parsed) ? parsed : [];
+    const scoped = parseConversationList(localStorage.getItem(conversationsStorageKey(farmerId)));
+    if (scoped.length > 0) return scoped;
+
+    // One-time migrate: claim legacy shared chats for this account when scoped store is empty.
+    const legacy = parseConversationList(localStorage.getItem(LEGACY_CONVERSATIONS_KEY));
+    if (legacy.length > 0) {
+      localStorage.setItem(conversationsStorageKey(farmerId), JSON.stringify(legacy));
+      localStorage.removeItem(LEGACY_CONVERSATIONS_KEY);
+      return legacy;
     }
 
-    // One-time migrate: only if legacy blob exists AND no scoped data yet.
-    // Never assign another account's chats — drop the shared legacy key.
     localStorage.removeItem(LEGACY_CONVERSATIONS_KEY);
-    return [];
+    return scoped;
   } catch {
     return [];
   }

@@ -3,7 +3,7 @@ import { CheckCircle2, Leaf, ShieldCheck } from "lucide-react";
 import { FarmProfileForm } from "@/components/FarmProfileForm";
 import { Logo } from "@/components/Logo";
 import { getAuthUser, isAuthenticated } from "@/lib/authSession";
-import { isFarmProfileComplete } from "@/lib/farmProfile";
+import { hasRequiredFarmFields, isFarmProfileComplete, markOnboardingComplete } from "@/lib/farmProfile";
 
 const STEPS = [
   { label: "Account", done: true },
@@ -18,7 +18,11 @@ export function OnboardingPage() {
   if (!isAuthenticated()) {
     return <Navigate to="/auth" replace />;
   }
-  if (isFarmProfileComplete()) {
+  // Returning users with a saved farm profile go straight to chat.
+  if (isFarmProfileComplete() || hasRequiredFarmFields()) {
+    if (user?.farmer_id && hasRequiredFarmFields()) {
+      markOnboardingComplete(user.farmer_id);
+    }
     return <Navigate to="/chat" replace />;
   }
 

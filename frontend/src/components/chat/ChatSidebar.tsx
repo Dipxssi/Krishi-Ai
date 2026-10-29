@@ -83,7 +83,9 @@ export function ChatSidebar({
         </p>
         {filtered.length === 0 ? (
           <p className="px-2 py-6 text-sm text-sidebar-foreground/55">
-            No conversations match your search.
+            {conversations.length === 0
+              ? "No conversations yet. Start a new chat to see history here."
+              : "No conversations match your search."}
           </p>
         ) : (
           <ul className="grid gap-1">

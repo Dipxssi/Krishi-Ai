@@ -108,10 +108,13 @@ export async function hydrateFarmProfileFromServer(): Promise<FarmContext | null
   try {
     const remote = await getFarmer(user.farmer_id);
     saveFarmProfileLocal(remote);
+    syncOnboardingFlagFromProfile(remote);
     return remote;
   } catch {
     ensureEmptyLocalFarmProfile(user.farmer_id);
-    return loadFarmProfile();
+    const local = loadFarmProfile();
+    syncOnboardingFlagFromProfile(local);
+    return local;
   }
 }
 
@@ -132,15 +135,36 @@ export function clearOnboardingComplete(farmerId?: string): void {
   keys.forEach((key) => localStorage.removeItem(key));
 }
 
-export function isFarmProfileComplete(profile?: FarmContext): boolean {
+/** True when required farm fields are filled (ignores local onboarding flag). */
+export function hasRequiredFarmFields(profile?: FarmContext): boolean {
   const user = getAuthUser();
   if (!user) return false;
   const p = profile ?? loadFarmProfile();
   if (p.farmer_id !== user.farmer_id) return false;
-  if (localStorage.getItem(onboardingKey(user.farmer_id)) !== "1") return false;
   return Boolean(
     p.location.trim() &&
       (p.crop ?? "").trim() &&
       Number(p.farm_area_acres) > 0,
   );
+}
+
+export function isFarmProfileComplete(profile?: FarmContext): boolean {
+  const user = getAuthUser();
+  if (!user) return false;
+  const p = profile ?? loadFarmProfile();
+  if (!hasRequiredFarmFields(p)) return false;
+  return localStorage.getItem(onboardingKey(user.farmer_id)) === "1";
+}
+
+/**
+ * After a returning user hydrates a complete Neon profile, treat onboarding as done
+ * so they are not forced through the signup farm form again.
+ */
+export function syncOnboardingFlagFromProfile(profile?: FarmContext): void {
+  const user = getAuthUser();
+  if (!user?.farmer_id) return;
+  const p = profile ?? loadFarmProfile();
+  if (hasRequiredFarmFields(p)) {
+    markOnboardingComplete(user.farmer_id);
+  }
 }

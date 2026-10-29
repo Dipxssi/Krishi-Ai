@@ -27,7 +27,7 @@ export default function App() {
         <Route
           path="/chat"
           element={
-            <RequireAuth requireFarmProfile>
+            <RequireAuth>
               <ChatPage />
             </RequireAuth>
           }

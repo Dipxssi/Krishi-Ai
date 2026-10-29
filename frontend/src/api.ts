@@ -1,3 +1,4 @@
+import type { Conversation } from "@/data/mockChats";
 import { clearAuthSession, getAccessToken, type AuthUser } from "@/lib/authSession";
 
 /** In dev, use Vite proxy (relative URLs). Set VITE_API_URL for production. */
@@ -265,6 +266,39 @@ export async function getFarmer(farmerId: string): Promise<FarmContext> {
   const res = await apiFetch(`/farmers/${encodeURIComponent(farmerId)}`, {}, true);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
+}
+
+export async function fetchRemoteConversations(): Promise<Conversation[]> {
+  const res = await apiFetch("/conversations", {}, true);
+  if (!res.ok) throw new Error(await parseError(res));
+  const body = (await res.json()) as { conversations?: Conversation[] };
+  return Array.isArray(body.conversations) ? body.conversations : [];
+}
+
+export async function pushRemoteConversations(conversations: Conversation[]): Promise<Conversation[]> {
+  const res = await apiFetch(
+    "/conversations",
+    {
+      method: "PUT",
+      body: JSON.stringify({ conversations }),
+    },
+    true,
+  );
+  if (!res.ok) throw new Error(await parseError(res));
+  const body = (await res.json()) as { conversations?: Conversation[] };
+  return Array.isArray(body.conversations) ? body.conversations : [];
+}
+
+export async function deleteRemoteConversation(conversationId: string): Promise<void> {
+  const res = await apiFetch(`/conversations/${encodeURIComponent(conversationId)}`, {
+    method: "DELETE",
+  }, true);
+  if (!res.ok && res.status !== 404) throw new Error(await parseError(res));
+}
+
+export async function deleteAllRemoteConversations(): Promise<void> {
+  const res = await apiFetch("/conversations", { method: "DELETE" }, true);
+  if (!res.ok) throw new Error(await parseError(res));
 }
 
 export async function askAdvice(

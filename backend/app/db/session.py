@@ -102,6 +102,7 @@ def init_db() -> None:
 
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
     # Register tables before create_all (also used from tests without importing main).
+    from app.db.conversations import ConversationRow  # noqa: F401
     from app.db.users import UserRow  # noqa: F401
     from app.services.audit import FeedbackRow, QueryRunRow  # noqa: F401
 

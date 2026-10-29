@@ -1,5 +1,4 @@
 import { notifyAuthChanged } from "@/lib/authEvents";
-import { clearLegacyConversationStorage } from "@/lib/conversationStorage";
 
 export type AuthUser = {
   id: string;
@@ -68,9 +67,8 @@ export function persistAuthSession(accessToken: string, user: AuthUser): void {
   localStorage.setItem(TOKEN_KEY, accessToken);
   localStorage.setItem(USER_KEY, JSON.stringify(user));
 
-  // Shared (unscoped) keys are unsafe on multi-account browsers / Vercel demos.
+  // Shared farm profile key is unsafe across accounts; conversations migrate on first load.
   clearLegacyFarmProfileStorage();
-  clearLegacyConversationStorage();
   ensureEmptyScopedFarmProfile(user.farmer_id);
 
   notifyAuthChanged();
@@ -81,7 +79,6 @@ export function clearAuthSession(): void {
   localStorage.removeItem(USER_KEY);
   localStorage.removeItem("krishi-ai-demo-user");
   clearLegacyFarmProfileStorage();
-  clearLegacyConversationStorage();
   notifyAuthChanged();
 }
 
