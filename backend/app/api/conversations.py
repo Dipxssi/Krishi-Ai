@@ -17,6 +17,7 @@ class ConversationPayload(BaseModel):
     title: str = "Chat"
     updatedAt: int = 0
     messages: list[dict[str, Any]] = Field(default_factory=list)
+    summary: str | None = None
 
 
 class ConversationBatchPayload(BaseModel):

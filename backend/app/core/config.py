@@ -21,7 +21,8 @@ class Settings(BaseSettings):
     app_env: str = "development"  # development | production
     cors_origins: str = (
         "http://localhost:5173,http://127.0.0.1:5173,"
-        "http://localhost:3000,http://127.0.0.1:3000"
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "https://krishi-ai-ruddy.vercel.app"
     )
 
     database_url: str = f"sqlite:///{BACKEND_DIR / 'data' / 'krishiai.db'}"

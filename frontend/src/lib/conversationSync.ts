@@ -76,12 +76,38 @@ export function mergeConversations(preferred: Conversation[], other: Conversatio
   return Array.from(byId.values()).sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0));
 }
 
+function isLikelyColdStartOrCors(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    /failed to fetch/i.test(message) ||
+    /networkerror/i.test(message) ||
+    /load failed/i.test(message) ||
+    /\b5\d\d\b/.test(message) ||
+    /cors/i.test(message)
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** One retry after a short wait — covers Render free-tier cold starts that look like CORS. */
+async function withColdStartRetry<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!isLikelyColdStartOrCors(error)) throw error;
+    await sleep(2500);
+    return run();
+  }
+}
+
 async function pushAllResilient(conversations: Conversation[]): Promise<void> {
   const payload = conversations.map(sanitizeConversationForSync);
   if (payload.length === 0) return;
 
   try {
-    await pushRemoteConversations(payload);
+    await withColdStartRetry(() => pushRemoteConversations(payload));
     return;
   } catch (batchError) {
     console.warn("[krishi] batch conversation sync failed; retrying one-by-one", batchError);
@@ -91,7 +117,7 @@ async function pushAllResilient(conversations: Conversation[]): Promise<void> {
   const failures: string[] = [];
   for (const conversation of payload) {
     try {
-      await pushRemoteConversation(conversation);
+      await withColdStartRetry(() => pushRemoteConversation(conversation));
     } catch (error) {
       failures.push(conversation.id);
       console.warn("[krishi] failed to sync conversation", conversation.id, error);
@@ -124,7 +150,7 @@ export async function syncConversationsFromServer(farmerId: string): Promise<Con
   let wrongApi = false;
 
   try {
-    remote = await fetchRemoteConversations();
+    remote = await withColdStartRetry(() => fetchRemoteConversations());
     pulled = true;
   } catch (error) {
     console.warn("[krishi] could not fetch remote conversations", error);

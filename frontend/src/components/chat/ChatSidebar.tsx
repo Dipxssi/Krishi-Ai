@@ -66,6 +66,10 @@ export function ChatSidebar({
     setMemoryPreview(loadProfileMemory(authUser?.farmer_id));
     setPackMeta(getOfflinePackMeta());
     void ensureOfflinePackSynced().then(() => setPackMeta(getOfflinePackMeta()));
+  }, [authUser?.farmer_id]);
+
+  useEffect(() => {
+    setMemoryPreview(loadProfileMemory(authUser?.farmer_id));
   }, [authUser?.farmer_id, conversations]);
 
   return (

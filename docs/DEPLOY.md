@@ -66,7 +66,7 @@ Set `VISION_MODEL=mobilenetv3` and `HF_TOKEN` if the Hugging Face repo needs it.
    | `APP_ENV` | yes | `production` |
    | `DATABASE_URL` | yes | Neon pooled URL |
    | `JWT_SECRET` | yes | ≥32 random chars (or Render Generate) |
-   | `CORS_ORIGINS` | yes | `https://your-app.vercel.app` |
+   | `CORS_ORIGINS` | yes | `https://krishi-ai-ruddy.vercel.app` (comma-separate more origins; code also allows `*.vercel.app`) |
    | `VISION_MODEL` | yes on Free | `heuristic` |
    | `GROQ_API_KEY` | yes for LLM/voice STT | Groq key |
    | `GROQ_MODEL` | optional | e.g. `llama-3.3-70b-versatile` |

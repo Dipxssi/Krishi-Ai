@@ -19,8 +19,9 @@ services:
         sync: false
       - key: JWT_SECRET
         generateValue: true
+      # Must include the Vercel app origin (comma-separated). Also allow *.vercel.app via code regex.
       - key: CORS_ORIGINS
-        sync: false
+        value: https://krishi-ai-ruddy.vercel.app,http://localhost:5173,http://127.0.0.1:5173
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
