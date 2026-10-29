@@ -11,9 +11,9 @@ import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { newId, type Conversation, type ChatMessageData } from "@/data/mockChats";
-import { SUGGESTED_PROMPTS } from "@/data/mockResponses";
 import { useApiConnection } from "@/hooks/useApiConnection";
 import { useAuthUser } from "@/hooks/useAuthUser";
+import { useI18n } from "@/hooks/useI18n";
 import { useOutboxFlush } from "@/hooks/useOutboxFlush";
 import { isNetworkFailure, isUnauthorizedError } from "@/lib/apiReachability";
 import {
@@ -36,6 +36,7 @@ function titleFrom(text: string) {
 }
 
 export function ChatPage() {
+  const { t } = useI18n();
   const user = useAuthUser();
   const farmerId = user?.farmer_id ?? "";
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -60,7 +61,7 @@ export function ChatPage() {
 
   const speak = (text: string, messageId: string) => {
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
-      toast.error("Speech playback is not supported by this browser.");
+      toast.error(t("chat.speakUnsupported"));
       return;
     }
 
@@ -92,7 +93,7 @@ export function ChatPage() {
     if (matchingVoice) {
       utterance.voice = matchingVoice;
     } else if (voices.length > 0) {
-      toast.info(`No ${language} voice is installed. Using the device's default voice.`);
+      toast.info(t("chat.speakNoVoice", { lang: language }));
     }
 
     speechUtteranceRef.current = utterance;
@@ -109,7 +110,7 @@ export function ChatPage() {
     utterance.onerror = (event) => {
       finish();
       if (event.error !== "canceled" && event.error !== "interrupted") {
-        toast.error("The device could not speak this response.");
+        toast.error(t("chat.speakFail"));
       }
     };
     synthesis.speak(utterance);
@@ -125,19 +126,34 @@ export function ChatPage() {
       return;
     }
 
+    const runSync = async (quiet: boolean) => {
+      const result = await syncConversationsFromServer(farmerId);
+      if (cancelled) return;
+      skipNextConversationSave.current = true;
+      setConversations(result.conversations);
+      if (!quiet && result.conversations.length > 0 && !result.pushed) {
+        toast.error(t("chat.syncFail"));
+      }
+    };
+
     skipNextConversationSave.current = true;
     setConversations(loadConversations(farmerId));
     setStorageReady(true);
+    void runSync(false);
 
-    void (async () => {
-      const merged = await syncConversationsFromServer(farmerId);
-      if (cancelled) return;
-      skipNextConversationSave.current = true;
-      setConversations(merged);
-    })();
+    const onOnline = () => {
+      void runSync(true);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void runSync(true);
+    };
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
       cancelled = true;
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [farmerId]);
 
@@ -149,10 +165,10 @@ export function ChatPage() {
     }
     saveConversations(farmerId, conversations);
     const timer = window.setTimeout(() => {
-      void pushConversationsToServer(conversations).catch(() => {
-        /* offline — local cache remains source of truth until next sync */
+      void pushConversationsToServer(conversations).catch((error) => {
+        console.warn("[krishi] debounced conversation push failed", error);
       });
-    }, 600);
+    }, 250);
     return () => window.clearTimeout(timer);
   }, [conversations, farmerId, storageReady]);
 
@@ -200,9 +216,9 @@ export function ChatPage() {
   const handleOutboxDelivered = useCallback(
     ({ item, response }: { item: { conversationId: string; placeholderMessageId: string }; response: QueryResponse }) => {
       applyAdviceReply(item.conversationId, response, item.placeholderMessageId);
-      toast.success("Queued question answered");
+      toast.success(t("chat.queuedOk"));
     },
-    [applyAdviceReply],
+    [applyAdviceReply, t],
   );
 
   const { flushing, pendingCount, flush, refreshCount } = useOutboxFlush(
@@ -260,9 +276,7 @@ export function ChatPage() {
       id: placeholderId,
       role: "assistant",
       content:
-        status === "auth_required"
-          ? "Your question is saved on this phone. Sign in again when you have a connection, then it will send automatically."
-          : "Your question is saved on this phone. When you join the shop WiFi (or any internet), Krishi AI will answer automatically.",
+        status === "auth_required" ? t("chat.offlineAuthBody") : t("chat.offlineWaitBody"),
       agent: "general",
       deliveryStatus: status,
       outboxId,
@@ -274,9 +288,7 @@ export function ChatPage() {
     }));
     await refreshCount();
     toast.message(
-      status === "auth_required"
-        ? "Saved — sign in when online"
-        : "Saved offline — will send when connected",
+      status === "auth_required" ? t("chat.offlineAuthToast") : t("chat.offlineWaitToast"),
     );
   };
 
@@ -288,7 +300,8 @@ export function ChatPage() {
         profile.farmer_id,
         question,
         imageBase64,
-        cropHint || profile.crop || undefined,
+        // Empty leaf crop = Auto-detect; server falls back to farm-profile crop for vision.
+        cropHint || undefined,
         imageBase64 ? "mobilenetv3" : undefined,
         profile.preferred_language,
       );
@@ -303,7 +316,7 @@ export function ChatPage() {
           question,
           fid,
           imageBase64,
-          cropHint || profile.crop,
+          cropHint || null,
           profile.preferred_language,
           "auth_required",
         );
@@ -315,19 +328,23 @@ export function ChatPage() {
           question,
           fid,
           imageBase64,
-          cropHint || profile.crop,
+          cropHint || null,
           profile.preferred_language,
           "waiting",
         );
         void refreshConnection();
         return;
       }
-      const message = error instanceof Error ? error.message : "Request failed";
+      const message = error instanceof Error ? error.message : t("chat.requestFailed");
       toast.error(message);
       const reply: ChatMessageData = {
         id: newId(),
         role: "assistant",
-        content: `Sorry — I could not get advice right now.\n\n${message}\n\nCheck Settings for your farm profile, or open Field relay if you need shop WiFi.`,
+        content: t("chat.errorBody", {
+          prefix: t("chat.errorPrefix"),
+          message,
+          hint: t("chat.errorHint"),
+        }),
         agent: "general",
       };
       updateConversation(conversationId, (c) => ({
@@ -374,7 +391,7 @@ export function ChatPage() {
   const handleNewChat = () => {
     setActiveId(null);
     setSidebarOpen(false);
-    toast.success("Started a new chat");
+    toast.success(t("chat.started"));
   };
 
   const handleSelect = (id: string) => {
@@ -388,12 +405,12 @@ export function ChatPage() {
     void removeRemoteConversation(id).catch(() => {
       /* local delete still applied; next sync may reintroduce if push failed first */
     });
-    toast.success("Conversation deleted");
+    toast.success(t("chat.deleted"));
   };
 
   const handleClear = (id: string) => {
     updateConversation(id, (c) => ({ ...c, messages: [] }));
-    toast.success("Conversation cleared");
+    toast.success(t("chat.cleared"));
   };
 
   const handleRegenerate = () => {
@@ -406,7 +423,7 @@ export function ChatPage() {
       return { ...c, messages: trimmed };
     });
     void respond(active.id, lastUser.content, lastUser.imagePreview);
-    toast("Regenerating response…");
+    toast(t("chat.regenerating"));
   };
 
   const handleFeedback = async (messageId: string, value: "up" | "down") => {
@@ -425,7 +442,7 @@ export function ChatPage() {
         /* non-blocking */
       }
     }
-    toast.success(value === "up" ? "Thanks for the feedback!" : "Feedback noted");
+    toast.success(value === "up" ? t("chat.feedbackUp") : t("chat.feedbackDown"));
   };
 
   const sidebar = (
@@ -451,7 +468,7 @@ export function ChatPage() {
           side="left"
           className="w-[min(100vw,20rem)] max-w-full border-none bg-sidebar p-0"
         >
-          <SheetTitle className="sr-only">Conversations</SheetTitle>
+          <SheetTitle className="sr-only">{t("chat.conversations")}</SheetTitle>
           {sidebar}
         </SheetContent>
       </Sheet>
@@ -473,15 +490,19 @@ export function ChatPage() {
                   <Sprout className="size-8 text-primary-foreground" aria-hidden="true" />
                 </span>
                 <h1 className="mt-6 text-2xl font-semibold text-foreground sm:text-3xl">
-                  How can Krishi AI help you today?
+                  {t("chat.hello")}
                 </h1>
                 <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-                  Ask about crops, diseases, farming practices, finance — or attach a leaf photo for
-                  MobileNetV3 diagnosis.
+                  {t("chat.helloBody")}
                 </p>
               </div>
               <div className="mt-9 grid gap-3 sm:grid-cols-2">
-                {SUGGESTED_PROMPTS.map((p) => (
+                {[
+                  { emoji: "🌾", text: t("chat.prompt1") },
+                  { emoji: "🐛", text: t("chat.prompt2") },
+                  { emoji: "💰", text: t("chat.prompt3") },
+                  { emoji: "🌱", text: t("chat.prompt4") },
+                ].map((p) => (
                   <SuggestedPrompt
                     key={p.text}
                     emoji={p.emoji}
@@ -531,7 +552,7 @@ export function ChatPage() {
                         />
                       ))}
                     </span>
-                    <span className="text-sm text-muted-foreground">Krishi AI is thinking…</span>
+                    <span className="text-sm text-muted-foreground">{t("chat.thinking")}</span>
                   </div>
                 </div>
               )}

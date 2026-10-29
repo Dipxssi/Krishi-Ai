@@ -164,6 +164,18 @@ function handleUnauthorized(res: Response): void {
   // Let RequireAuth / AuthSessionBootstrap navigate — keep outbox enqueue able to finish first.
 }
 
+/** Reject HTML/SPA responses so a wrong VITE_API_URL fails loudly instead of "empty history". */
+async function ensureApiJson(res: Response, path: string): Promise<void> {
+  if (res.status === 204) return;
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (ct.includes("application/json")) return;
+  const snippet = (await res.clone().text()).slice(0, 80).replace(/\s+/g, " ");
+  throw new Error(
+    `API ${path} returned non-JSON (${res.status}, ${ct || "unknown type"}). ` +
+      `Set Vercel VITE_API_URL to your Render FastAPI URL (no trailing slash). Preview: ${snippet}`,
+  );
+}
+
 async function apiFetch(path: string, init: RequestInit = {}, auth = false): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body != null && !headers.has("Content-Type")) {
@@ -270,6 +282,7 @@ export async function getFarmer(farmerId: string): Promise<FarmContext> {
 
 export async function fetchRemoteConversations(): Promise<Conversation[]> {
   const res = await apiFetch("/conversations", {}, true);
+  await ensureApiJson(res, "GET /conversations");
   if (!res.ok) throw new Error(await parseError(res));
   const body = (await res.json()) as { conversations?: Conversation[] };
   return Array.isArray(body.conversations) ? body.conversations : [];
@@ -284,9 +297,24 @@ export async function pushRemoteConversations(conversations: Conversation[]): Pr
     },
     true,
   );
+  await ensureApiJson(res, "PUT /conversations");
   if (!res.ok) throw new Error(await parseError(res));
   const body = (await res.json()) as { conversations?: Conversation[] };
   return Array.isArray(body.conversations) ? body.conversations : [];
+}
+
+export async function pushRemoteConversation(conversation: Conversation): Promise<Conversation> {
+  const res = await apiFetch(
+    `/conversations/${encodeURIComponent(conversation.id)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify(conversation),
+    },
+    true,
+  );
+  await ensureApiJson(res, `PUT /conversations/${conversation.id}`);
+  if (!res.ok) throw new Error(await parseError(res));
+  return res.json();
 }
 
 export async function deleteRemoteConversation(conversationId: string): Promise<void> {

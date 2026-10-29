@@ -6,6 +6,8 @@ import { login, signup } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { useI18n } from "@/hooks/useI18n";
 import { persistAuthSession } from "@/lib/authSession";
 import { hydrateFarmProfileFromServer } from "@/lib/farmProfile";
 import { cn } from "@/lib/utils";
@@ -17,6 +19,7 @@ const emailValid = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
 
 export function AuthForm() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [mode, setMode] = useState<Mode>("signin");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -39,17 +42,17 @@ export function AuthForm() {
     const next: Errors = {};
 
     if (mode === "signup" && values.name.trim().length < 2) {
-      next.name = "Please enter your full name.";
+      next.name = t("auth.errName");
     }
-    if (!emailValid(values.email.trim())) next.email = "Enter a valid email address.";
-    if (values.password.length < 6) next.password = "Password must be at least 6 characters.";
+    if (!emailValid(values.email.trim())) next.email = t("auth.errEmail");
+    if (values.password.length < 6) next.password = t("auth.errPassword");
     if (mode === "signup" && values.confirm !== values.password) {
-      next.confirm = "Passwords do not match.";
+      next.confirm = t("auth.errConfirm");
     }
 
     setErrors(next);
     if (Object.keys(next).length > 0) {
-      toast.error("Please fix the highlighted fields.");
+      toast.error(t("auth.errFix"));
       return;
     }
 
@@ -62,15 +65,12 @@ export function AuthForm() {
           : await login(email, values.password);
       persistAuthSession(auth.access_token, auth.user);
       await hydrateFarmProfileFromServer();
-      toast.success(mode === "signin" ? "Welcome back to Krishi AI." : "Account created.");
-      // Sign-in → chat. Farm profile form only on signup (or later via Settings).
+      toast.success(mode === "signin" ? t("auth.welcomeToast") : t("auth.createdToast"));
       navigate(mode === "signup" ? "/onboarding" : "/chat");
     } catch (error) {
-      const raw = error instanceof Error ? error.message : "Authentication failed";
+      const raw = error instanceof Error ? error.message : t("auth.failed");
       const message =
-        mode === "signin" && /invalid email or password/i.test(raw)
-          ? "No account found for that email/password. Use Sign Up if you haven’t created one on Neon yet."
-          : raw;
+        mode === "signin" && /invalid email or password/i.test(raw) ? t("auth.noAccountToast") : raw;
       toast.error(message);
     } finally {
       setSubmitting(false);
@@ -79,9 +79,12 @@ export function AuthForm() {
 
   return (
     <div className="w-full max-w-md">
+      <div className="mb-4 flex justify-end">
+        <LanguageSwitcher />
+      </div>
       <div
         role="tablist"
-        aria-label="Authentication mode"
+        aria-label={t("auth.modeAria")}
         className="grid grid-cols-2 gap-1 rounded-2xl bg-muted p-1"
       >
         {(["signin", "signup"] as Mode[]).map((m) => (
@@ -98,26 +101,26 @@ export function AuthForm() {
                 : "text-muted-foreground hover:text-foreground",
             )}
           >
-            {m === "signin" ? "Sign In" : "Sign Up"}
+            {m === "signin" ? t("auth.signIn") : t("auth.signUp")}
           </button>
         ))}
       </div>
 
       <div key={mode} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
         <h1 className="mt-8 text-3xl font-semibold text-foreground">
-          {mode === "signin" ? "Welcome Back" : "Create Your Account"}
+          {mode === "signin" ? t("auth.welcomeBack") : t("auth.createAccount")}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          {mode === "signin" ? "Sign in to continue to Krishi AI" : "Start using Krishi AI today"}
+          {mode === "signin" ? t("auth.signInHint") : t("auth.signUpHint")}
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="mt-7 grid gap-4">
           {mode === "signup" && (
-            <Field label="Full Name" error={errors.name} id="name">
+            <Field label={t("auth.fullName")} error={errors.name} id="name">
               <Input
                 id="name"
                 autoComplete="name"
-                placeholder="Enter your full name"
+                placeholder={t("auth.namePlaceholder")}
                 value={values.name}
                 onChange={set("name")}
                 aria-invalid={!!errors.name}
@@ -126,12 +129,12 @@ export function AuthForm() {
             </Field>
           )}
 
-          <Field label="Email" error={errors.email} id="email">
+          <Field label={t("auth.email")} error={errors.email} id="email">
             <Input
               id="email"
               type="email"
               autoComplete="email"
-              placeholder="Enter your email"
+              placeholder={t("auth.emailPlaceholder")}
               value={values.email}
               onChange={set("email")}
               aria-invalid={!!errors.email}
@@ -139,13 +142,15 @@ export function AuthForm() {
             />
           </Field>
 
-          <Field label="Password" error={errors.password} id="password">
+          <Field label={t("auth.password")} error={errors.password} id="password">
             <div className="relative">
               <Input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                placeholder={mode === "signin" ? "Enter your password" : "Create a password"}
+                placeholder={
+                  mode === "signin" ? t("auth.passwordPlaceholder") : t("auth.createPasswordPlaceholder")
+                }
                 value={values.password}
                 onChange={set("password")}
                 aria-invalid={!!errors.password}
@@ -154,7 +159,7 @@ export function AuthForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={showPassword ? t("auth.hidePassword") : t("auth.showPassword")}
                 className="absolute top-1/2 right-2 grid size-9 -translate-y-1/2 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
@@ -163,12 +168,12 @@ export function AuthForm() {
           </Field>
 
           {mode === "signup" && (
-            <Field label="Confirm Password" error={errors.confirm} id="confirm">
+            <Field label={t("auth.confirmPassword")} error={errors.confirm} id="confirm">
               <Input
                 id="confirm"
                 type={showPassword ? "text" : "password"}
                 autoComplete="new-password"
-                placeholder="Confirm your password"
+                placeholder={t("auth.confirmPlaceholder")}
                 value={values.confirm}
                 onChange={set("confirm")}
                 aria-invalid={!!errors.confirm}
@@ -180,10 +185,10 @@ export function AuthForm() {
           {mode === "signin" && (
             <button
               type="button"
-              onClick={() => toast("Password reset is not available yet.")}
+              onClick={() => toast(t("auth.resetSoon"))}
               className="justify-self-end text-sm font-medium text-primary hover:underline"
             >
-              Forgot Password?
+              {t("auth.forgot")}
             </button>
           )}
 
@@ -193,18 +198,18 @@ export function AuthForm() {
             className="mt-1 h-12 rounded-xl bg-gradient-leaf text-base font-semibold shadow-soft hover:opacity-95"
           >
             {submitting && <Loader2 className="mr-2 size-4 animate-spin" />}
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            {mode === "signin" ? t("auth.submitSignIn") : t("auth.submitSignUp")}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          {mode === "signin" ? "Don't have an account? " : "Already have an account? "}
+          {mode === "signin" ? t("auth.noAccount") : t("auth.hasAccount")}{" "}
           <button
             type="button"
             onClick={() => switchMode(mode === "signin" ? "signup" : "signin")}
             className="font-semibold text-primary hover:underline"
           >
-            {mode === "signin" ? "Sign Up" : "Sign In"}
+            {mode === "signin" ? t("auth.signUp") : t("auth.signIn")}
           </button>
         </p>
       </div>
@@ -237,4 +242,3 @@ function Field({
     </div>
   );
 }
-

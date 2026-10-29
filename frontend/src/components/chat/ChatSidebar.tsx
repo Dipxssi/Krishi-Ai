@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { LogOut, MessageSquare, MoreVertical, Plus, Search, Settings, Trash2 } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Logo } from "@/components/Logo";
 import {
   DropdownMenu,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { Conversation } from "@/data/mockChats";
 import { initialsFromName, useAuthUser } from "@/hooks/useAuthUser";
+import { useI18n } from "@/hooks/useI18n";
 import { clearAuthSession } from "@/lib/authSession";
 import { cn } from "@/lib/utils";
 
@@ -35,9 +37,10 @@ export function ChatSidebar({
   onOpenSettings,
 }: ChatSidebarProps) {
   const [query, setQuery] = useState("");
+  const { t } = useI18n();
   const authUser = useAuthUser();
   const displayName = authUser?.name?.trim() || authUser?.email?.split("@")[0] || "Farmer";
-  const displayEmail = authUser?.email || "Not signed in";
+  const displayEmail = authUser?.email || t("chat.notSignedIn");
   const initials = initialsFromName(displayName);
   const filtered = conversations.filter((c) =>
     (c.title + " " + c.messages.map((m) => m.content).join(" "))
@@ -48,7 +51,10 @@ export function ChatSidebar({
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="p-4">
-        <Logo tone="onDark" />
+        <div className="flex items-start justify-between gap-2">
+          <Logo tone="onDark" />
+          <LanguageSwitcher tone="dark" />
+        </div>
 
         <button
           type="button"
@@ -56,7 +62,7 @@ export function ChatSidebar({
           className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-leaf px-4 py-3 text-sm font-semibold text-primary-foreground shadow-soft transition-opacity hover:opacity-95 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-none"
         >
           <Plus className="size-4" />
-          New Chat
+          {t("chat.new")}
         </button>
 
         <div className="relative mt-4">
@@ -65,13 +71,13 @@ export function ChatSidebar({
             aria-hidden="true"
           />
           <label htmlFor="chat-search" className="sr-only">
-            Search conversations
+            {t("chat.searchAria")}
           </label>
           <input
             id="chat-search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search conversations"
+            placeholder={t("chat.search")}
             className="w-full rounded-xl border border-sidebar-border bg-sidebar-accent/60 py-2.5 pr-3 pl-9 text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/50 focus:border-sidebar-ring focus:outline-none"
           />
         </div>
@@ -79,13 +85,11 @@ export function ChatSidebar({
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         <p className="px-2 py-2 text-xs font-semibold tracking-wider text-sidebar-foreground/50 uppercase">
-          Recent Chats
+          {t("chat.recent")}
         </p>
         {filtered.length === 0 ? (
           <p className="px-2 py-6 text-sm text-sidebar-foreground/55">
-            {conversations.length === 0
-              ? "No conversations yet. Start a new chat to see history here."
-              : "No conversations match your search."}
+            {conversations.length === 0 ? t("chat.empty") : t("chat.noMatch")}
           </p>
         ) : (
           <ul className="grid gap-1">
@@ -108,7 +112,7 @@ export function ChatSidebar({
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
-                      aria-label={`Options for ${c.title}`}
+                      aria-label={t("chat.options", { title: c.title })}
                       className="absolute top-1/2 right-1 grid size-7 -translate-y-1/2 place-items-center rounded-lg text-sidebar-foreground/60 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-sidebar-border/60 hover:text-sidebar-foreground"
                     >
                       <MoreVertical className="size-4" />
@@ -117,11 +121,14 @@ export function ChatSidebar({
                   <DropdownMenuContent align="start" className="w-48">
                     <DropdownMenuItem onClick={() => onClear(c.id)}>
                       <MessageSquare className="size-4" />
-                      Clear conversation
+                      {t("chat.clear")}
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(c.id)}>
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onClick={() => onDelete(c.id)}
+                    >
                       <Trash2 className="size-4" />
-                      Delete conversation
+                      {t("chat.delete")}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -156,7 +163,7 @@ export function ChatSidebar({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onOpenSettings}>
               <Settings className="size-4" />
-              Settings
+              {t("chat.settings")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-destructive focus:text-destructive" asChild>
@@ -167,7 +174,7 @@ export function ChatSidebar({
                 }}
               >
                 <LogOut className="size-4" />
-                Log out
+                {t("chat.logout")}
               </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>

@@ -652,7 +652,8 @@ def handle_query(
         except Exception:
             image_decoded = False
 
-        crop_hint = user_selected_crop
+        # Prefer explicit leaf selection; otherwise farm profile crop (image detect often fails).
+        crop_hint = user_selected_crop or farm_profile_crop
         if chosen_vision_model == "mobilenetv3":
             vision_function = "diagnose_image_with_mobilenetv3"
             inference_mechanism = "mobilenetv3_plantdisease_best"

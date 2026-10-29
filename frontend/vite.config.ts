@@ -33,7 +33,7 @@ export default defineConfig({
         navigateFallback: "/index.html",
         globPatterns: ["**/*.{js,css,html,ico,svg,png,jpg,jpeg,webp,woff2}"],
         runtimeCaching: [],
-        navigateFallbackDenylist: [/^\/api/, /^\/auth\/(signup|login|me)/],
+        navigateFallbackDenylist: [/^\/api/, /^\/auth\/(signup|login|me)/, /^\/conversations/],
       },
       devOptions: {
         enabled: false,
@@ -54,6 +54,7 @@ export default defineConfig({
       "/auth/login": "http://127.0.0.1:8000",
       "/auth/me": "http://127.0.0.1:8000",
       "/farmers": "http://127.0.0.1:8000",
+      "/conversations": "http://127.0.0.1:8000",
       "/query": "http://127.0.0.1:8000",
       "/route": "http://127.0.0.1:8000",
       "/crop": "http://127.0.0.1:8000",

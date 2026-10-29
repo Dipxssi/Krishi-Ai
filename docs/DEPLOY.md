@@ -88,7 +88,7 @@ Set `VISION_MODEL=mobilenetv3` and `HF_TOKEN` if the Hugging Face repo needs it.
 1. New project → import the same GitHub repo.
 2. **Root Directory**: `frontend`
 3. Framework preset: Vite
-4. Env: `VITE_API_URL=https://<service>.onrender.com` (no trailing slash)
+4. Env: `VITE_API_URL=https://<service>.onrender.com` (no trailing slash) — **required for cross-device chat history**. After deploy, open `https://<service>.onrender.com/` (must return JSON, not HTML) and `https://<service>.onrender.com/docs` should list `/conversations`.
 5. Deploy. Put the Vercel URL into Render `CORS_ORIGINS`, then redeploy the API if needed.
 
 ## 4. Offline / field relay

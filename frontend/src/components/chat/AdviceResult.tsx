@@ -12,6 +12,7 @@ import {
 import type { DecisionScore, QueryResponse } from "@/api";
 import SafeRecommendationRenderer from "@/SafeRecommendationRenderer";
 import { NearbyHelpDialog } from "@/components/chat/NearbyHelpDialog";
+import { useI18n } from "@/hooks/useI18n";
 import { cn } from "@/lib/utils";
 
 function formatInr(value: number): string {
@@ -34,14 +35,13 @@ export function AdviceResult({
   onOpenScores?: () => void;
   className?: string;
 }) {
+  const { t } = useI18n();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const score = result.decision_score;
   const confidencePct = pct(result.confidence ?? 0);
   const escalation = result.escalation;
 
-  const disclaimerText =
-    result.disclaimer ||
-    "KrishiAI provides AI-generated guidance that may not always be accurate. Verify important crop diagnoses and treatment decisions with a qualified agricultural expert.";
+  const disclaimerText = result.disclaimer || t("advice.disclaimer");
 
   if (compact) {
     return (
@@ -50,15 +50,12 @@ export function AdviceResult({
           <SafeRecommendationRenderer text={result.final_recommendation} />
         </div>
 
-        {/* Safety & Expert Referral Banner when warranted */}
         {escalation?.requires_escalation && (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-50/70 p-3.5 dark:border-amber-500/20 dark:bg-amber-950/25 space-y-2.5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
               <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
               <span>
-                {escalation.urgency === "high"
-                  ? "Expert Verification Recommended"
-                  : "Agronomic Referral Advised"}
+                {escalation.urgency === "high" ? t("advice.expertHigh") : t("advice.expertMid")}
               </span>
             </div>
 
@@ -70,7 +67,7 @@ export function AdviceResult({
 
             {escalation.safe_next_step && (
               <div className="text-xs text-foreground/80 bg-background/60 dark:bg-background/40 rounded-xl p-2.5 border border-amber-200/50 dark:border-amber-900/40">
-                <strong className="text-foreground">Safe Immediate Step: </strong>
+                <strong className="text-foreground">{t("advice.safeStep")} </strong>
                 {escalation.safe_next_step}
               </div>
             )}
@@ -83,7 +80,7 @@ export function AdviceResult({
               >
                 <MapPin className="size-3.5 shrink-0" />
                 <span className="min-w-0 break-words">
-                  {escalation.action_label || "Find an agricultural expert near me"}
+                  {escalation.action_label || t("advice.findExpert")}
                 </span>
               </button>
             </div>
@@ -96,7 +93,7 @@ export function AdviceResult({
             onClick={onOpenScores}
             className="group inline-flex w-fit items-center gap-1.5 rounded-xl border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/10 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            See crop economics & viability score
+            {t("advice.scores")}
             <ChevronRight
               className="size-3.5 transition-transform group-hover:translate-x-0.5"
               aria-hidden="true"
@@ -104,7 +101,6 @@ export function AdviceResult({
           </button>
         )}
 
-        {/* Subtle AI Disclaimer at Bottom */}
         <div className="mt-1 flex items-start gap-1.5 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground/80">
           <Info className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
           <span>{disclaimerText}</span>
@@ -124,24 +120,24 @@ export function AdviceResult({
       <div className="flex flex-wrap items-center gap-2">
         <MetricPill
           icon={Gauge}
-          label="Confidence"
+          label={t("advice.confidence")}
           value={`${confidencePct}%`}
-          hint="Pipeline heuristic"
+          hint={t("advice.pipeline")}
           tone={confidencePct >= 70 ? "good" : confidencePct >= 45 ? "mid" : "low"}
         />
         {score && (
           <MetricPill
             icon={Sparkles}
-            label="Decision"
+            label={t("advice.decision")}
             value={`${pct(score.final_score)}/100`}
-            hint="Composite index"
+            hint={t("advice.composite")}
             tone={pct(score.final_score) >= 65 ? "good" : "mid"}
           />
         )}
         {result.structured_recommendation?.risk_level && (
           <MetricPill
             icon={ShieldAlert}
-            label="Risk"
+            label={t("advice.risk")}
             value={result.structured_recommendation.risk_level}
             tone="mid"
           />
@@ -152,15 +148,12 @@ export function AdviceResult({
         <SafeRecommendationRenderer text={result.final_recommendation} />
       </div>
 
-      {/* Safety & Expert Referral Banner when warranted */}
       {escalation?.requires_escalation && (
         <div className="rounded-2xl border border-amber-500/30 bg-amber-50/70 p-4 dark:border-amber-500/20 dark:bg-amber-950/25 space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
             <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
             <span>
-              {escalation.urgency === "high"
-                ? "Expert Physical Verification Recommended"
-                : "Agricultural Extension Referral Advised"}
+              {escalation.urgency === "high" ? t("advice.expertHighFull") : t("advice.expertMidFull")}
             </span>
           </div>
 
@@ -172,14 +165,16 @@ export function AdviceResult({
 
           {escalation.safe_next_step && (
             <div className="text-xs sm:text-sm text-foreground/90 bg-background/60 dark:bg-background/40 rounded-xl p-3 border border-amber-200/50 dark:border-amber-900/40">
-              <strong className="text-foreground">Safe Immediate Step: </strong>
+              <strong className="text-foreground">{t("advice.safeStep")} </strong>
               {escalation.safe_next_step}
             </div>
           )}
 
           {escalation.sample_instructions && (
             <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span>What to take: {escalation.sample_instructions}</span>
+              <span>
+                {t("advice.sample")} {escalation.sample_instructions}
+              </span>
             </div>
           )}
 
@@ -191,7 +186,7 @@ export function AdviceResult({
             >
               <MapPin className="size-4 shrink-0" />
               <span className="min-w-0 break-words">
-                {escalation.action_label || "Find an agricultural expert near me"}
+                {escalation.action_label || t("advice.findExpert")}
               </span>
             </button>
           </div>
@@ -199,25 +194,23 @@ export function AdviceResult({
       )}
 
       {score ? (
-        <section className="grid gap-3" aria-label="Decision scores">
+        <section className="grid gap-3" aria-label={t("chat.scoresAria")}>
           <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Crop Economics & Viability
+            {t("advice.economics")}
           </h3>
           <div className="grid gap-2.5">
-            <ScoreBar label="Agronomic suitability" value={score.agronomic_score} tone="leaf" />
-            <ScoreBar label="Economic viability" value={score.economic_score} tone="gold" />
-            <ScoreBar label="Overall decision index" value={score.final_score} tone="soil" />
+            <ScoreBar label={t("advice.agronomic")} value={score.agronomic_score} tone="leaf" />
+            <ScoreBar label={t("advice.economic")} value={score.economic_score} tone="gold" />
+            <ScoreBar label={t("advice.overall")} value={score.final_score} tone="soil" />
           </div>
           <ScoreMetrics score={score} />
         </section>
       ) : (
         <p className="rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          No decision score for this reply — scores appear when the pipeline has enough farm and market
-          context.
+          {t("advice.noScore")}
         </p>
       )}
 
-      {/* Subtle AI Disclaimer at Bottom */}
       <div className="mt-2 flex items-start gap-1.5 border-t border-border/40 pt-3 text-[11px] leading-relaxed text-muted-foreground/80">
         <Info className="mt-0.5 size-3.5 shrink-0 text-muted-foreground/60" aria-hidden="true" />
         <span>{disclaimerText}</span>
@@ -233,24 +226,25 @@ export function AdviceResult({
 }
 
 function ScoreMetrics({ score }: { score: DecisionScore }) {
+  const { t } = useI18n();
   return (
     <div className="mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
       <MiniStat
         icon={BadgeIndianRupee}
-        label="Expected profit"
+        label={t("advice.profit")}
         value={`₹${formatInr(score.expected_profit)}`}
       />
-      <MiniStat icon={BadgeIndianRupee} label="Input cost" value={`₹${formatInr(score.input_cost)}`} />
+      <MiniStat icon={BadgeIndianRupee} label={t("advice.cost")} value={`₹${formatInr(score.input_cost)}`} />
       <MiniStat
         icon={Droplets}
-        label="Water risk"
+        label={t("advice.water")}
         value={`${pct(score.water_risk)}%`}
       />
       <MiniStat
         icon={ShieldAlert}
-        label="Disease risk"
+        label={t("advice.disease")}
         value={
-          score.disease_risk != null ? `${pct(score.disease_risk)}%` : "Suppressed"
+          score.disease_risk != null ? `${pct(score.disease_risk)}%` : t("advice.suppressed")
         }
       />
     </div>

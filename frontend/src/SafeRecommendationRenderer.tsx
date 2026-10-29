@@ -1,4 +1,5 @@
 import React from "react";
+import { t } from "@/lib/i18n";
 
 interface Props {
   text: string;
@@ -75,7 +76,7 @@ function isTableSeparator(line: string): boolean {
  */
 export default function SafeRecommendationRenderer({ text }: Props) {
   if (!text || !text.trim()) {
-    return <p className="recommendation-empty">No recommendation provided.</p>;
+    return <p className="recommendation-empty">{t("advice.empty")}</p>;
   }
 
   const lines = text.split("\n");

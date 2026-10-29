@@ -9,6 +9,7 @@ import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useI18n } from "@/hooks/useI18n";
 import {
   MOCK_CONVERSATIONS,
   newId,
@@ -45,6 +46,7 @@ function titleFrom(text: string) {
 }
 
 function ChatPage() {
+  const { t } = useI18n();
   // Demo/mock route — do not persist shared browser history (tenant isolation).
   const [conversations, setConversations] = useState<Conversation[]>(MOCK_CONVERSATIONS);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -108,7 +110,7 @@ function ChatPage() {
   const handleNewChat = () => {
     setActiveId(null);
     setSidebarOpen(false);
-    toast.success("Started a new chat");
+    toast.success(t("chat.started"));
   };
 
   const handleSelect = (id: string) => {
@@ -119,12 +121,12 @@ function ChatPage() {
   const handleDelete = (id: string) => {
     setConversations((prev) => prev.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
-    toast.success("Conversation deleted");
+    toast.success(t("chat.deleted"));
   };
 
   const handleClear = (id: string) => {
     updateConversation(id, (c) => ({ ...c, messages: [] }));
-    toast.success("Conversation cleared");
+    toast.success(t("chat.cleared"));
   };
 
   const handleRegenerate = () => {
@@ -137,7 +139,7 @@ function ChatPage() {
       return { ...c, messages: trimmed };
     });
     respond(active.id, lastUser.content, 1);
-    toast("Regenerating response…");
+    toast(t("chat.regenerating"));
   };
 
   const handleFeedback = (messageId: string, value: "up" | "down") => {
@@ -148,7 +150,7 @@ function ChatPage() {
         m.id === messageId ? { ...m, feedback: m.feedback === value ? undefined : value } : m,
       ),
     }));
-    toast.success(value === "up" ? "Thanks for the feedback!" : "Feedback noted");
+    toast.success(value === "up" ? t("chat.feedbackUp") : t("chat.feedbackDown"));
   };
 
   const sidebar = (

@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { AdviceResult } from "@/components/chat/AdviceResult";
 import { AgentIndicator } from "@/components/chat/AgentIndicator";
 import type { ChatMessageData } from "@/data/mockChats";
+import { useI18n } from "@/hooks/useI18n";
 import { cn } from "@/lib/utils";
 
 interface ChatMessageProps {
@@ -22,15 +23,16 @@ export function ChatMessage({
   onSpeak,
   isSpeaking = false,
 }: ChatMessageProps) {
+  const { t } = useI18n();
   const isUser = message.role === "user";
 
   const copy = async () => {
     try {
       const text = message.queryResult?.final_recommendation || message.content;
       await navigator.clipboard.writeText(text);
-      toast.success("Response copied");
+      toast.success(t("chat.copyOk"));
     } catch {
-      toast.error("Could not copy the response");
+      toast.error(t("chat.copyFail"));
     }
   };
 
@@ -41,7 +43,7 @@ export function ChatMessage({
           {message.imagePreview && (
             <img
               src={message.imagePreview}
-              alt="Attached leaf"
+              alt={t("input.altLeaf")}
               className="mb-3 max-h-40 w-full rounded-2xl object-cover"
             />
           )}
@@ -75,12 +77,10 @@ export function ChatMessage({
                 message.deliveryStatus === "failed" && "bg-destructive/10 text-destructive",
               )}
             >
-              {message.deliveryStatus === "waiting" &&
-                "Saved on this phone. Join shop WiFi or any internet to send to Krishi AI."}
-              {message.deliveryStatus === "sending" && "Sending your question to Krishi AI…"}
-              {message.deliveryStatus === "auth_required" &&
-                "Sign in again when you have a connection. Your question is still saved."}
-              {message.deliveryStatus === "failed" && "Could not send this question. Try again later."}
+              {message.deliveryStatus === "waiting" && t("chat.delivery.waiting")}
+              {message.deliveryStatus === "sending" && t("chat.delivery.sending")}
+              {message.deliveryStatus === "auth_required" && t("chat.delivery.auth")}
+              {message.deliveryStatus === "failed" && t("chat.delivery.failed")}
             </p>
           )}
           {message.queryResult ? (
@@ -95,28 +95,28 @@ export function ChatMessage({
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-1">
           {!message.deliveryStatus && (
-            <IconAction label="Copy response" onClick={copy} icon={Copy} />
+            <IconAction label={t("chat.copy")} onClick={copy} icon={Copy} />
           )}
           {onSpeak && !message.deliveryStatus && (
             <IconAction
-              label={isSpeaking ? "Stop speaking" : "Read response aloud"}
+              label={isSpeaking ? t("chat.stopSpeak") : t("chat.speak")}
               onClick={onSpeak}
               icon={isSpeaking ? VolumeX : Volume2}
             />
           )}
           {onRegenerate && !message.deliveryStatus && (
-            <IconAction label="Regenerate response" onClick={onRegenerate} icon={RefreshCw} />
+            <IconAction label={t("chat.regenerate")} onClick={onRegenerate} icon={RefreshCw} />
           )}
           {onFeedback && !message.deliveryStatus && (
             <>
               <IconAction
-                label="Good response"
+                label={t("chat.good")}
                 onClick={() => onFeedback("up")}
                 icon={ThumbsUp}
                 active={message.feedback === "up"}
               />
               <IconAction
-                label="Bad response"
+                label={t("chat.bad")}
                 onClick={() => onFeedback("down")}
                 icon={ThumbsDown}
                 active={message.feedback === "down"}

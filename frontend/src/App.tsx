@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthSessionBootstrap } from "@/components/AuthSessionBootstrap";
+import { LanguageGate } from "@/components/LanguageGate";
 import { RequireAuth } from "@/components/RequireAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthPage } from "@/pages/AuthPage";
@@ -13,6 +14,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthSessionBootstrap />
+      <LanguageGate />
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/auth" element={<AuthPage />} />

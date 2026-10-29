@@ -24,12 +24,14 @@ class ConversationBatchPayload(BaseModel):
 
 
 @router.get("")
+@router.get("/")
 def get_conversations(user: UserRow = Depends(get_current_user)) -> dict[str, Any]:
     items = conversation_store.list_conversations(user.farmer_id)
     return {"conversations": items}
 
 
 @router.put("")
+@router.put("/")
 def put_conversations(
     payload: ConversationBatchPayload,
     user: UserRow = Depends(get_current_user),
@@ -74,5 +76,6 @@ def remove_conversation(
 
 
 @router.delete("", status_code=204)
+@router.delete("/", status_code=204)
 def remove_all_conversations(user: UserRow = Depends(get_current_user)) -> None:
     conversation_store.delete_all_conversations(user.farmer_id)

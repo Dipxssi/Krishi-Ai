@@ -1,13 +1,15 @@
 import { Logo } from "@/components/Logo";
-
-const LINKS = [
-  { label: "Home", target: "top" },
-  { label: "Features", target: "features" },
-  { label: "About", target: "about" },
-  { label: "How It Works", target: "how-it-works" },
-];
+import { useI18n } from "@/hooks/useI18n";
 
 export function Footer() {
+  const { t } = useI18n();
+  const links = [
+    { label: t("nav.home"), target: "top" },
+    { label: t("nav.features"), target: "features" },
+    { label: t("nav.about"), target: "about" },
+    { label: t("nav.how"), target: "how-it-works" },
+  ];
+
   const scrollTo = (id: string) => {
     if (id === "top") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -22,17 +24,15 @@ export function Footer() {
         <div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
           <div className="max-w-sm">
             <Logo tone="onDark" />
-            <p className="mt-4 text-sm text-forest-foreground/75">
-              AI-powered assistance for smarter agriculture.
-            </p>
+            <p className="mt-4 text-sm text-forest-foreground/75">{t("footer.tagline")}</p>
           </div>
           <nav aria-label="Footer navigation">
             <h3 className="text-sm font-semibold tracking-wide text-forest-foreground/90 uppercase">
-              Explore
+              {t("footer.explore")}
             </h3>
             <ul className="mt-4 grid gap-2">
-              {LINKS.map((link) => (
-                <li key={link.label}>
+              {links.map((link) => (
+                <li key={link.target}>
                   <button
                     type="button"
                     onClick={() => scrollTo(link.target)}
@@ -46,7 +46,7 @@ export function Footer() {
           </nav>
         </div>
         <div className="mt-12 border-t border-forest-foreground/15 pt-6 text-xs text-forest-foreground/60">
-          © 2026 Krishi AI. All rights reserved.
+          {t("footer.rights", { year: 2026 })}
         </div>
       </div>
     </footer>

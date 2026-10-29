@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Paperclip, SendHorizontal, Square, X } from "lucide-react";
 import { toast } from "sonner";
 import { transcribeAudio } from "@/api";
+import { useI18n } from "@/hooks/useI18n";
+import { loadFarmProfile } from "@/lib/farmProfile";
 
 interface ChatInputProps {
   onSend: (text: string, imageBase64?: string | null, cropHint?: string | null) => void;
@@ -22,12 +24,24 @@ function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(new Error("Could not read image"));
+    reader.onerror = () => reject(new Error("read-fail"));
     reader.readAsDataURL(file);
   });
 }
 
+const LEAF_CROPS = ["tomato", "potato", "maize"] as const;
+
+function normalizeLeafCrop(raw: string | null | undefined): string {
+  if (!raw?.trim()) return "";
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (key === "corn" || key === "maize_corn") return "maize";
+  if (key === "tomatoes") return "tomato";
+  if (key === "potatoes") return "potato";
+  return key;
+}
+
 export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProps) {
+  const { t } = useI18n();
   const [value, setValue] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [cropHint, setCropHint] = useState<string>("");
@@ -39,6 +53,17 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const canSend = (value.trim().length > 0 || !!imageBase64) && !disabled && !recording && !transcribing;
+
+  const profileCrop = useMemo(() => {
+    try {
+      return (loadFarmProfile().crop ?? "").trim();
+    } catch {
+      return "";
+    }
+  }, [imageBase64]);
+
+  const profileCropNorm = normalizeLeafCrop(profileCrop);
+  const profileIsKnownLeaf = (LEAF_CROPS as readonly string[]).includes(profileCropNorm);
 
   useEffect(() => () => {
     if (recorderRef.current) {
@@ -53,12 +78,12 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
     setTranscribing(true);
     try {
       if (blob.size > 25 * 1024 * 1024) {
-        throw new Error("Recording is too large. Please record a shorter question.");
+        throw new Error(t("input.tooLarge"));
       }
       const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(String(reader.result).split(",", 2)[1] ?? "");
-        reader.onerror = () => reject(new Error("Could not read recording."));
+        reader.onerror = () => reject(new Error(t("input.readRecording")));
         reader.readAsDataURL(blob);
       });
       const ext = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
@@ -75,9 +100,9 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
         }
       });
-      toast.success("Speech transcribed. Review it, then send your question.");
+      toast.success(t("input.transcribed"));
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not transcribe the recording.");
+      toast.error(error instanceof Error ? error.message : t("input.transcribeFail"));
     } finally {
       setTranscribing(false);
     }
@@ -90,7 +115,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
       return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-      toast.error("This browser does not support audio recording.");
+      toast.error(t("input.noMic"));
       return;
     }
     try {
@@ -108,7 +133,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         stream.getTracks().forEach((track) => track.stop());
         streamRef.current = null;
         setRecording(false);
-        toast.error("Audio recording failed. Please try again.");
+        toast.error(t("input.audioFail"));
       };
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
@@ -119,7 +144,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
       recorder.start();
       setRecording(true);
     } catch {
-      toast.error("Microphone access was denied or is unavailable.");
+      toast.error(t("input.micDenied"));
     }
   };
 
@@ -128,7 +153,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
     const text =
       value.trim() ||
       (imageBase64
-        ? "Please diagnose this leaf image and suggest safe next steps."
+        ? t("input.diagnoseLeaf")
         : "");
     if (!text) return;
     onSend(text, imageBase64, cropHint || undefined);
@@ -141,19 +166,29 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
   const onPickImage = async (file: File | undefined) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) {
-      toast.error("Please attach an image file.");
+      toast.error(t("input.needImage"));
       return;
     }
     if (file.size > 8 * 1024 * 1024) {
-      toast.error("Image must be under 8MB.");
+      toast.error(t("input.imageSize"));
       return;
     }
     try {
       const dataUrl = await fileToDataUrl(file);
+      const crop = (loadFarmProfile().crop ?? "").trim();
+      const norm = normalizeLeafCrop(crop);
+      // Option C: pre-select farm profile crop; farmer can switch to Auto-detect.
+      if ((LEAF_CROPS as readonly string[]).includes(norm)) {
+        setCropHint(norm);
+      } else if (crop) {
+        setCropHint(norm || crop.toLowerCase());
+      } else {
+        setCropHint("");
+      }
       setImageBase64(dataUrl);
-      toast.success("Leaf photo attached");
+      toast.success(t("input.attached"));
     } catch {
-      toast.error("Could not read that image.");
+      toast.error(t("input.readFail"));
     }
   };
 
@@ -170,12 +205,12 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           <div className="flex flex-wrap items-start gap-3 px-2 pt-2">
             <img
               src={imageBase64}
-              alt="Attached leaf"
+              alt={t("input.altLeaf")}
               className="h-16 w-16 shrink-0 rounded-xl object-cover border border-border"
             />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <label htmlFor="crop-hint-select" className="text-xs font-medium text-muted-foreground">
-                Leaf crop (optional)
+                {t("input.leafCrop")}
               </label>
               <select
                 id="crop-hint-select"
@@ -183,16 +218,21 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
                 onChange={(e) => setCropHint(e.target.value)}
                 className="h-8 w-full max-w-xs rounded-lg border border-border bg-background px-2.5 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
               >
-                <option value="">Auto-detect / Unsure</option>
-                <option value="tomato">Tomato</option>
-                <option value="potato">Potato</option>
-                <option value="maize">Maize (Corn)</option>
-                <option value="other">Other / Unsupported Crop</option>
+                <option value="">{t("input.autoDetect")}</option>
+                {profileCrop && !profileIsKnownLeaf && (
+                  <option value={profileCropNorm || profileCrop.toLowerCase()}>
+                    {t("input.profileCrop", { crop: profileCrop })}
+                  </option>
+                )}
+                <option value="tomato">{t("input.tomato")}</option>
+                <option value="potato">{t("input.potato")}</option>
+                <option value="maize">{t("input.maize")}</option>
+                <option value="other">{t("input.other")}</option>
               </select>
             </div>
             <button
               type="button"
-              aria-label="Remove attachment"
+              aria-label={t("input.remove")}
               onClick={() => {
                 setImageBase64(null);
                 setCropHint("");
@@ -217,7 +257,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           />
           <button
             type="button"
-            aria-label="Attach a leaf photo"
+            aria-label={t("input.attach")}
             onClick={() => fileRef.current?.click()}
             disabled={disabled}
             className="grid size-9 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50 sm:size-10"
@@ -226,7 +266,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           </button>
 
           <label htmlFor="chat-composer" className="sr-only">
-            Message Krishi AI
+            {t("input.messageAria")}
           </label>
           <textarea
             id="chat-composer"
@@ -245,14 +285,14 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
                 submit();
               }
             }}
-            placeholder="Ask about crops, pests, finance…"
+            placeholder={t("input.placeholder")}
             className="max-h-44 min-h-9 min-w-0 flex-1 resize-none bg-transparent py-2 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:outline-none sm:min-h-10 sm:py-2.5"
           />
 
           <button
             type="button"
-            aria-label={recording ? "Stop recording" : "Record a voice question"}
-            title={recording ? "Stop recording" : "Record a voice question"}
+            aria-label={recording ? t("input.stopRecord") : t("input.record")}
+            title={recording ? t("input.stopRecord") : t("input.record")}
             onClick={() => void toggleRecording()}
             disabled={disabled || transcribing}
             className="grid size-9 shrink-0 place-items-center rounded-2xl text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 sm:size-10"
@@ -263,7 +303,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
           <button
             type="submit"
             disabled={!canSend}
-            aria-label="Send message"
+            aria-label={t("input.send")}
             className="grid size-9 shrink-0 place-items-center rounded-2xl bg-gradient-leaf text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:bg-none disabled:bg-muted disabled:text-muted-foreground sm:size-10"
           >
             <SendHorizontal className="size-5" />
@@ -272,10 +312,10 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
       </form>
       <p className="mx-auto mt-2 max-w-3xl px-1 text-center text-[11px] leading-snug text-muted-foreground sm:text-xs">
         {transcribing
-          ? "Transcribing your recording…"
+          ? t("input.transcribing")
           : recording
-            ? "Recording… select stop when finished."
-            : "Live advice — verify spray/dose decisions with a local expert or KVK."}
+            ? t("input.recording")
+            : t("input.disclaimer")}
       </p>
     </div>
   );

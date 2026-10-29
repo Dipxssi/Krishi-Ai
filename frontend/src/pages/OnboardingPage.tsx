@@ -1,30 +1,32 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { CheckCircle2, Leaf, ShieldCheck } from "lucide-react";
 import { FarmProfileForm } from "@/components/FarmProfileForm";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { Logo } from "@/components/Logo";
+import { useI18n } from "@/hooks/useI18n";
 import { getAuthUser, isAuthenticated } from "@/lib/authSession";
 import { hasRequiredFarmFields, isFarmProfileComplete, markOnboardingComplete } from "@/lib/farmProfile";
 
-const STEPS = [
-  { label: "Account", done: true },
-  { label: "Farm profile", done: false },
-  { label: "Ask Krishi AI", done: false },
-];
-
 export function OnboardingPage() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const user = getAuthUser();
 
   if (!isAuthenticated()) {
     return <Navigate to="/auth" replace />;
   }
-  // Returning users with a saved farm profile go straight to chat.
   if (isFarmProfileComplete() || hasRequiredFarmFields()) {
     if (user?.farmer_id && hasRequiredFarmFields()) {
       markOnboardingComplete(user.farmer_id);
     }
     return <Navigate to="/chat" replace />;
   }
+
+  const steps = [
+    { label: t("onboard.stepAccount"), done: true },
+    { label: t("onboard.stepFarm"), done: false },
+    { label: t("onboard.stepAsk"), done: false },
+  ];
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-cream">
@@ -42,31 +44,33 @@ export function OnboardingPage() {
       />
 
       <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col px-5 py-8 sm:px-8 lg:py-12">
-        <header className="flex items-center justify-between">
+        <header className="flex items-center justify-between gap-3">
           <Logo size="md" />
-          {user?.name && (
-            <p className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
-              Welcome, <span className="text-foreground">{user.name.split(" ")[0]}</span>
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            {user?.name && (
+              <p className="rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-xs font-medium text-muted-foreground backdrop-blur">
+                {t("onboard.welcome", { name: user.name.split(" ")[0] })}
+              </p>
+            )}
+          </div>
         </header>
 
         <div className="mt-10 grid flex-1 items-center gap-10 lg:mt-0 lg:grid-cols-[1fr_1.05fr] lg:gap-16">
           <section className="animate-in fade-in slide-in-from-left-3 duration-500">
             <p className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-card/70 px-3 py-1 text-xs font-semibold tracking-wide text-primary uppercase">
               <Leaf className="size-3.5" aria-hidden="true" />
-              Step 2 of 3
+              {t("onboard.stepOf", { n: 2, total: 3 })}
             </p>
             <h1 className="mt-5 max-w-md font-display text-3xl leading-tight font-semibold text-foreground sm:text-5xl">
-              Tell us about your farm
+              {t("onboard.title")}
             </h1>
             <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
-              A short profile helps Krishi AI give advice that fits your land, crop, and conditions —
-              before you ask your first question.
+              {t("onboard.body")}
             </p>
 
             <ol className="mt-8 grid max-w-sm gap-3">
-              {STEPS.map((step, index) => {
+              {steps.map((step, index) => {
                 const current = index === 1;
                 return (
                   <li
@@ -104,20 +108,18 @@ export function OnboardingPage() {
 
             <p className="mt-8 flex items-start gap-2 text-sm text-muted-foreground">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden="true" />
-              Used only to personalize recommendations. You can update this anytime in Settings.
+              {t("onboard.privacy")}
             </p>
           </section>
 
           <section className="animate-in fade-in slide-in-from-bottom-3 duration-500">
             <div className="rounded-[2rem] border border-border/80 bg-card p-6 shadow-lift sm:p-8">
               <div className="mb-6 border-b border-border/70 pb-5">
-                <h2 className="text-xl font-semibold text-foreground">Farm profile</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Required fields are marked. Soil type is optional.
-                </p>
+                <h2 className="text-xl font-semibold text-foreground">{t("onboard.formTitle")}</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{t("onboard.formHint")}</p>
               </div>
               <FarmProfileForm
-                submitLabel="Continue to Krishi AI"
+                submitLabel={t("onboard.continue")}
                 onSaved={() => navigate("/chat", { replace: true })}
               />
             </div>
