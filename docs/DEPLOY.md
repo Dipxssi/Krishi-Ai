@@ -78,7 +78,9 @@ Clear `VISION_INFERENCE_URL` and keep `VISION_MODEL=mobilenetv3`.
    | `CORS_ORIGINS` | yes | `https://krishi-ai-ruddy.vercel.app` (comma-separate more origins; code also allows `*.vercel.app`) |
    | `VISION_MODEL` | yes | `mobilenetv3` with Space URL, else `heuristic` |
    | `VISION_INFERENCE_URL` | for free MobileNet | `https://<you>-krishiai-vision.hf.space` |
-   | `GROQ_API_KEY` | yes for LLM/voice STT | Groq key |
+   | `GROQ_API_KEY` | yes for LLM/voice STT | Primary Groq key |
+   | `GROQ_API_KEYS` | optional | Comma-separated extra keys; failover on 429/auth |
+   | `GROQ_MAX_TOKENS` | optional | Default `2200` (Hindi advice; avoid mid-cut) |
    | `GROQ_MODEL` | optional | e.g. `llama-3.3-70b-versatile` |
    | `OPENAI_API_KEY` | optional | TTS only |
    | `WEATHER_API_KEY` | optional | else labeled mock weather |

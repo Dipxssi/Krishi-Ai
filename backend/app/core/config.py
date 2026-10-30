@@ -49,7 +49,11 @@ class Settings(BaseSettings):
         return cleaned
 
     groq_api_key: str | None = None
+    # Optional comma-separated extra keys for rate-limit failover (merged with GROQ_API_KEY).
+    groq_api_keys: str | None = None
     groq_model: str = "qwen/qwen3.8-27b"
+    # Hindi/Devanagari uses more tokens than English; 750 truncates long crop advice mid-sentence.
+    groq_max_tokens: int = 2200
     openai_api_key: str | None = None
     openai_tts_model: str = "gpt-4o-mini-tts"
 

@@ -25,6 +25,10 @@ services:
         value: https://krishi-ai-ruddy.vercel.app,http://localhost:5173,http://127.0.0.1:5173
       - key: GROQ_API_KEY
         sync: false
+      - key: GROQ_API_KEYS
+        sync: false
+      - key: GROQ_MAX_TOKENS
+        value: "2200"
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
       - key: VISION_MODEL
