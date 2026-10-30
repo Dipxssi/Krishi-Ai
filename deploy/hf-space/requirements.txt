@@ -1,4 +1,5 @@
-gradio>=4.44.0
+# Pinned to the Gradio 6 API the Render client calls (/gradio_api/call/v2/predict).
+gradio==6.31.0
 spaces>=0.30.0
 torch>=2.2.0
 torchvision>=0.17.0

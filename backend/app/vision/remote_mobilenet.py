@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
+import time
 from typing import Any
+
+import httpx
 
 from app.core.config import get_settings
 from app.schemas.models import ImageDiagnosisResult, MobileNetV3PredictionItem
@@ -15,10 +19,104 @@ def _space_id_or_url(url: str) -> str:
     """Accept Space id, hf.space host, or huggingface.co/spaces/... URL."""
     raw = url.strip().rstrip("/")
     if "huggingface.co/spaces/" in raw:
-        # https://huggingface.co/spaces/user/name -> user/name
         part = raw.split("huggingface.co/spaces/", 1)[1]
         return part.strip("/")
     return raw
+
+
+def _space_runtime_url(space: str) -> str:
+    raw = space.strip().rstrip("/")
+    if raw.startswith("http://") or raw.startswith("https://"):
+        return raw
+    if "/" not in raw:
+        return raw
+    owner, name = raw.split("/", 1)
+    slug = f"{owner}-{name}".lower().replace("_", "-")
+    return f"https://{slug}.hf.space"
+
+
+def _wake_space(space: str) -> None:
+    """Free Spaces sleep. A GET starts the container before inference."""
+    url = _space_runtime_url(space)
+    if not url.startswith("http"):
+        return
+    try:
+        httpx.get(url, timeout=httpx.Timeout(20.0, connect=10.0), follow_redirects=True)
+        logger.info("Woke vision Space at %s", url)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Vision Space wake request failed for %s: %s", url, exc)
+
+
+def _flush_sse_event(event_name: str, data_lines: list[str]) -> Any:
+    """Return a diagnosis payload, raise on error, or None to keep reading."""
+    payload = "\n".join(data_lines).strip()
+    if event_name in {"heartbeat", "message"} or payload in {"", "null"}:
+        return None
+    if event_name == "error":
+        raise RuntimeError(payload[:500] or "Space returned an error event")
+    if event_name != "complete":
+        return None
+    parsed = json.loads(payload)
+    if isinstance(parsed, list):
+        if not parsed:
+            raise RuntimeError("Space returned an empty result")
+        return parsed[0]
+    return parsed
+
+
+def _read_gradio_sse(lines: Any) -> Any:
+    event_name = "message"
+    data_lines: list[str] = []
+    saw_event = False
+    for raw in lines:
+        line = str(raw).strip("\r")
+        if line.startswith("event:"):
+            event_name = line.split(":", 1)[1].strip()
+            saw_event = True
+            data_lines = []
+        elif line.startswith("data:"):
+            data_lines.append(line.split(":", 1)[1].lstrip())
+            saw_event = True
+        elif line == "" and saw_event:
+            result = _flush_sse_event(event_name, data_lines)
+            event_name = "message"
+            data_lines = []
+            saw_event = False
+            if result is not None:
+                return result
+    if saw_event:
+        result = _flush_sse_event(event_name, data_lines)
+        if result is not None:
+            return result
+    raise RuntimeError("Space stream ended before a diagnosis")
+
+
+def _predict_on_space(space: str, image_base64: str, crop_hint: str | None, threshold: float) -> Any:
+    """Gradio 6 named API: POST /gradio_api/call/v2/predict, then read the SSE result.
+
+    The positional gradio_client call targets an older protocol and fails closed
+    on the live Space, which is what dropped diagnosis onto the color-ratio heuristic.
+    """
+    runtime = _space_runtime_url(space).rstrip("/")
+    timeout = httpx.Timeout(connect=20.0, read=180.0, write=60.0, pool=20.0)
+    payload = {
+        "image_base64": image_base64,
+        "crop_hint": (crop_hint or "").strip() or None,
+        "confidence_threshold": float(threshold),
+    }
+    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+        posted = client.post(f"{runtime}/gradio_api/call/v2/predict", json=payload)
+        posted.raise_for_status()
+        event_id = (posted.json() or {}).get("event_id")
+        if not event_id:
+            raise RuntimeError(f"Space did not return event_id: {posted.text[:200]}")
+        with client.stream(
+            "GET",
+            f"{runtime}/gradio_api/call/predict/{event_id}",
+            headers={"Accept": "text/event-stream"},
+        ) as stream:
+            stream.raise_for_status()
+            return _read_gradio_sse(stream.iter_lines())
 
 
 def diagnose_image_via_remote(
@@ -37,29 +135,31 @@ def diagnose_image_via_remote(
         else settings.vision_confidence_threshold
     )
 
-    try:
-        from gradio_client import Client
-    except ImportError as exc:
-        raise RuntimeError(
-            "gradio_client is not installed. Add it to the slim backend deps "
-            "(needed to call the free Gradio Space)."
-        ) from exc
-
     space = _space_id_or_url(base)
-    try:
-        client = Client(space, verbose=False)
-        # Matches api_name="predict" on the Gradio "API (base64)" tab.
-        data = client.predict(
-            image_base64,
-            crop_hint or "",
-            float(threshold),
-            api_name="/predict",
-        )
-    except Exception as exc:
+    last_error: Exception | None = None
+    data: Any = None
+    for attempt in range(2):
+        _wake_space(space)
+        try:
+            data = _predict_on_space(space, image_base64, crop_hint, float(threshold))
+            last_error = None
+            break
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            logger.warning(
+                "Remote MobileNet attempt %s/2 failed for %s: %s",
+                attempt + 1,
+                space,
+                exc,
+            )
+            if attempt == 0:
+                time.sleep(3)
+
+    if last_error is not None or data is None:
         raise RuntimeError(
-            f"Remote MobileNet failed talking to Space '{space}': {exc}. "
+            f"Remote MobileNet failed talking to Space '{space}': {last_error}. "
             "Wake the Hugging Face Space in a browser, then retry."
-        ) from exc
+        ) from last_error
 
     if isinstance(data, str):
         import json

@@ -682,6 +682,10 @@ def handle_query(
                 vision_function = "diagnose_image_bytes"
                 inference_mechanism = "color_ratio_heuristic_v1"
                 image_diagnosis = diagnose_image_bytes(image_base64, crop_hint=crop_hint)
+                image_diagnosis.rejection_reason = (
+                    f"MobileNet Space was not used ({exc}). "
+                    + (image_diagnosis.rejection_reason or "")
+                )
         else:
             vision_function = "diagnose_image_bytes"
             inference_mechanism = "color_ratio_heuristic_v1"

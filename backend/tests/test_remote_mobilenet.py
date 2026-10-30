@@ -8,6 +8,7 @@ import pytest
 
 from app.core.config import get_settings
 from app.vision.remote_mobilenet import (
+    _read_gradio_sse,
     _space_id_or_url,
     diagnose_image_via_remote,
     diagnose_image_with_mobilenetv3,
@@ -22,9 +23,12 @@ def clear_settings():
 
 
 def test_space_id_parsing():
+    from app.vision.remote_mobilenet import _space_runtime_url
+
     assert _space_id_or_url("https://huggingface.co/spaces/Dipxssi/krishiai-vision/") == "Dipxssi/krishiai-vision"
     assert _space_id_or_url("https://dipxssi-krishiai-vision.hf.space") == "https://dipxssi-krishiai-vision.hf.space"
     assert _space_id_or_url("Dipxssi/krishiai-vision") == "Dipxssi/krishiai-vision"
+    assert _space_runtime_url("Dipssi/krishiai-vision") == "https://dipssi-krishiai-vision.hf.space"
 
 
 def test_remote_maps_accepted_response(monkeypatch):
@@ -55,10 +59,10 @@ def test_remote_maps_accepted_response(monkeypatch):
         "model_version": "mobilenetv3_plantdisease_best",
     }
 
-    fake_client = MagicMock()
-    fake_client.predict.return_value = payload
-
-    with patch("gradio_client.Client", return_value=fake_client) as client_cls:
+    with (
+        patch("app.vision.remote_mobilenet._wake_space"),
+        patch("app.vision.remote_mobilenet._predict_on_space", return_value=payload) as predict,
+    ):
         result = diagnose_image_via_remote("data:image/jpeg;base64,aaa", crop_hint="tomato")
 
     assert result.status == "accepted"
@@ -66,15 +70,36 @@ def test_remote_maps_accepted_response(monkeypatch):
     assert result.predicted_disease == "Early Blight"
     assert "hf_space" in (result.model_version or "")
     assert len(result.top_3) == 1
-    client_cls.assert_called_once_with("demo/krishiai-vision", verbose=False)
-    fake_client.predict.assert_called_once()
+    predict.assert_called_once()
+    assert predict.call_args.args[0] == "demo/krishiai-vision"
+
+
+def test_gradio6_sse_unwraps_complete_payload():
+    body = [
+        "event: heartbeat",
+        "data: null",
+        "",
+        "event: complete",
+        'data: [{"status": "rejected", "rejection_reason": "Image too small", "model_version": "mobilenetv3_plantdisease_best", "inference_source": "hf_space"}]',
+        "",
+    ]
+    parsed = _read_gradio_sse(body)
+    assert parsed["status"] == "rejected"
+    assert parsed["rejection_reason"] == "Image too small"
 
 
 def test_remote_error_mentions_wake_space(monkeypatch):
     monkeypatch.setenv("VISION_INFERENCE_URL", "demo/krishiai-vision")
     get_settings.cache_clear()
 
-    with patch("gradio_client.Client", side_effect=RuntimeError("Space is sleeping")):
+    with (
+        patch("app.vision.remote_mobilenet._wake_space"),
+        patch("app.vision.remote_mobilenet.time.sleep"),
+        patch(
+            "app.vision.remote_mobilenet._predict_on_space",
+            side_effect=RuntimeError("Space is sleeping"),
+        ),
+    ):
         with pytest.raises(RuntimeError, match="Wake the Hugging Face Space"):
             diagnose_image_via_remote("aaa")
 
