@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
-import { askAdvice, getFarmer, submitFeedback, type QueryResponse } from "@/api";
+import { askAdvice, getFarmer, submitFeedback, synthesizeSpeech, type QueryResponse } from "@/api";
 import { getAccessToken, isOfflineSession, setOfflineSession } from "@/lib/authSession";
 import { buildOfflineAdvice } from "@/lib/offlineAdvisor";
 import { AdviceDetailsPanel } from "@/components/chat/AdviceDetailsPanel";
@@ -62,34 +62,47 @@ export function ChatPage() {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechAudioRef = useRef<HTMLAudioElement | null>(null);
+  const speechObjectUrlRef = useRef<string | null>(null);
   const speakingMessageRef = useRef<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
 
-  useEffect(() => () => {
+  const stopSpeaking = useCallback(() => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
+    if (speechAudioRef.current) {
+      speechAudioRef.current.pause();
+      speechAudioRef.current.src = "";
+      speechAudioRef.current = null;
+    }
+    if (speechObjectUrlRef.current) {
+      URL.revokeObjectURL(speechObjectUrlRef.current);
+      speechObjectUrlRef.current = null;
+    }
+    speechUtteranceRef.current = null;
+    speakingMessageRef.current = null;
+    setSpeakingMessageId(null);
   }, []);
 
-  const speak = (text: string, messageId: string) => {
+  useEffect(() => () => stopSpeaking(), [stopSpeaking]);
+
+  const plainTextForSpeech = (raw: string) =>
+    raw
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/!\[[^\]]*]\([^)]*\)/g, " ")
+      .replace(/\[([^\]]+)]\([^)]*\)/g, "$1")
+      .replace(/[#>*_`~]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 3500);
+
+  const speakWithBrowser = (text: string, messageId: string) => {
     if (!("speechSynthesis" in window) || !("SpeechSynthesisUtterance" in window)) {
       toast.error(t("chat.speakUnsupported"));
       return;
     }
-
     const synthesis = window.speechSynthesis;
-    if (speakingMessageRef.current === messageId) {
-      synthesis.cancel();
-      speechUtteranceRef.current = null;
-      speakingMessageRef.current = null;
-      setSpeakingMessageId(null);
-      return;
-    }
-
-    synthesis.cancel();
-    speechUtteranceRef.current = null;
-    speakingMessageRef.current = null;
-
     const utterance = new SpeechSynthesisUtterance(text);
     const language = /[\u0C80-\u0CFF]/u.test(text)
       ? "kn-IN"
@@ -98,34 +111,94 @@ export function ChatPage() {
         : "en-IN";
     utterance.lang = language;
 
-    const voices = synthesis.getVoices();
-    const matchingVoice = voices.find((voice) => voice.lang.toLowerCase() === language.toLowerCase())
-      ?? voices.find((voice) => voice.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()))
-      ?? (language === "en-IN" ? voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) : undefined);
-    if (matchingVoice) {
-      utterance.voice = matchingVoice;
-    } else if (voices.length > 0) {
-      toast.info(t("chat.speakNoVoice", { lang: language }));
+    const pickVoice = () => {
+      const voices = synthesis.getVoices();
+      return (
+        voices.find((voice) => voice.lang.toLowerCase() === language.toLowerCase())
+        ?? voices.find((voice) => voice.lang.toLowerCase().startsWith(language.slice(0, 2).toLowerCase()))
+        ?? (language.startsWith("en")
+          ? voices.find((voice) => voice.lang.toLowerCase().startsWith("en"))
+          : undefined)
+      );
+    };
+
+    const start = () => {
+      const matchingVoice = pickVoice();
+      if (matchingVoice) utterance.voice = matchingVoice;
+      else if (synthesis.getVoices().length > 0 && !language.startsWith("en")) {
+        toast.info(t("chat.speakNoVoice", { lang: language }));
+      }
+      speechUtteranceRef.current = utterance;
+      speakingMessageRef.current = messageId;
+      setSpeakingMessageId(messageId);
+      const finish = () => {
+        if (speechUtteranceRef.current === utterance) {
+          speechUtteranceRef.current = null;
+          speakingMessageRef.current = null;
+          setSpeakingMessageId(null);
+        }
+      };
+      utterance.onend = finish;
+      utterance.onerror = (event) => {
+        finish();
+        if (event.error !== "canceled" && event.error !== "interrupted") {
+          toast.error(t("chat.speakFail"));
+        }
+      };
+      synthesis.speak(utterance);
+    };
+
+    // Chrome often returns [] until voiceschanged fires (needed for hi-IN / kn-IN).
+    if (synthesis.getVoices().length === 0) {
+      const onVoices = () => {
+        synthesis.removeEventListener("voiceschanged", onVoices);
+        start();
+      };
+      synthesis.addEventListener("voiceschanged", onVoices);
+      window.setTimeout(() => {
+        synthesis.removeEventListener("voiceschanged", onVoices);
+        start();
+      }, 400);
+      return;
+    }
+    start();
+  };
+
+  const speak = async (text: string, messageId: string) => {
+    const cleaned = plainTextForSpeech(text);
+    if (!cleaned) return;
+
+    if (speakingMessageRef.current === messageId) {
+      stopSpeaking();
+      return;
     }
 
-    speechUtteranceRef.current = utterance;
+    stopSpeaking();
     speakingMessageRef.current = messageId;
     setSpeakingMessageId(messageId);
-    const finish = () => {
-      if (speechUtteranceRef.current === utterance) {
-        speechUtteranceRef.current = null;
-        speakingMessageRef.current = null;
-        setSpeakingMessageId(null);
-      }
-    };
-    utterance.onend = finish;
-    utterance.onerror = (event) => {
-      finish();
-      if (event.error !== "canceled" && event.error !== "interrupted") {
-        toast.error(t("chat.speakFail"));
-      }
-    };
-    synthesis.speak(utterance);
+
+    // Prefer Groq Orpheus TTS (no OpenAI). Hindi/Kannada is summarized to English on the server.
+    try {
+      const blob = await synthesizeSpeech(cleaned);
+      if (speakingMessageRef.current !== messageId) return;
+      const url = URL.createObjectURL(blob);
+      speechObjectUrlRef.current = url;
+      const audio = new Audio(url);
+      speechAudioRef.current = audio;
+      audio.onended = () => {
+        if (speakingMessageRef.current === messageId) stopSpeaking();
+      };
+      audio.onerror = () => {
+        stopSpeaking();
+        speakWithBrowser(cleaned, messageId);
+      };
+      await audio.play();
+      return;
+    } catch {
+      // Fall through to browser voices if Groq TTS fails.
+    }
+
+    speakWithBrowser(cleaned, messageId);
   };
 
   // Load local cache, then merge with server so a new device gets full history.
@@ -206,7 +279,8 @@ export function ChatPage() {
       response: QueryResponse,
       placeholderMessageId?: string,
       askedQuestion?: string,
-    ) => {
+    ): string => {
+      const replyId = placeholderMessageId ?? newId();
       updateConversation(conversationId, (c) => {
         const prior = placeholderMessageId
           ? c.messages.find((m) => m.id === placeholderMessageId)
@@ -216,7 +290,7 @@ export function ChatPage() {
           ? c.messages.filter((m) => m.id !== placeholderMessageId)
           : c.messages;
         const reply: ChatMessageData = {
-          id: placeholderMessageId ?? newId(),
+          id: replyId,
           role: "assistant",
           content: formatAdviceMessage(response),
           agent: mapAgentsToUi(response.agents_used ?? []),
@@ -244,6 +318,7 @@ export function ChatPage() {
           messages: [...withoutPlaceholder, reply],
         };
       });
+      return replyId;
     },
     [farmerId],
   );
@@ -342,7 +417,13 @@ export function ChatPage() {
     );
   };
 
-  const respond = async (conversationId: string, question: string, imageBase64?: string | null, cropHint?: string | null) => {
+  const respond = async (
+    conversationId: string,
+    question: string,
+    imageBase64?: string | null,
+    cropHint?: string | null,
+    options?: { fromVoice?: boolean },
+  ) => {
     setThinking(true);
     try {
       const profile = await ensureFarmer();
@@ -385,7 +466,10 @@ export function ChatPage() {
         imageBase64 ? "mobilenetv3" : undefined,
         profile.preferred_language,
       );
-      applyAdviceReply(conversationId, response, undefined, question);
+      const replyId = applyAdviceReply(conversationId, response, undefined, question);
+      if (options?.fromVoice && response.final_recommendation) {
+        void speak(response.final_recommendation, replyId);
+      }
       void refreshConnection();
     } catch (error) {
       const profile = loadFarmProfile();
@@ -442,7 +526,12 @@ export function ChatPage() {
     }
   };
 
-  const handleSend = (text: string, imageBase64?: string | null, cropHint?: string | null) => {
+  const handleSend = (
+    text: string,
+    imageBase64?: string | null,
+    cropHint?: string | null,
+    options?: { fromVoice?: boolean },
+  ) => {
     const userMessage: ChatMessageData = {
       id: newId(),
       role: "user",
@@ -459,7 +548,7 @@ export function ChatPage() {
       };
       setConversations((prev) => [conversation, ...prev]);
       setActiveId(conversation.id);
-      void respond(conversation.id, text, imageBase64, cropHint);
+      void respond(conversation.id, text, imageBase64, cropHint, options);
       return;
     }
 
@@ -469,7 +558,7 @@ export function ChatPage() {
       updatedAt: Date.now(),
       messages: [...c.messages, userMessage],
     }));
-    void respond(active.id, text, imageBase64, cropHint);
+    void respond(active.id, text, imageBase64, cropHint, options);
   };
 
   const handleNewChat = () => {

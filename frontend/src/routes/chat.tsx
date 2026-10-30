@@ -11,6 +11,7 @@ import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useI18n } from "@/hooks/useI18n";
+import { loadFarmProfile } from "@/lib/farmProfile";
 import {
   MOCK_CONVERSATIONS,
   newId,
@@ -256,7 +257,11 @@ function ChatPage() {
           )}
         </div>
 
-        <ChatInput onSend={handleSend} disabled={thinking} />
+        <ChatInput
+          onSend={handleSend}
+          disabled={thinking}
+          preferredLanguage={loadFarmProfile().preferred_language}
+        />
       </main>
 
       <MemoryPanel open={memoryOpen} onOpenChange={setMemoryOpen} />

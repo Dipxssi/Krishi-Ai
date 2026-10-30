@@ -47,6 +47,36 @@ def transcript_needs_hindi_retry(text: str, detected_language: str | None = None
     return marked / len(letters) >= 0.12
 
 
+def indic_script_strength(text: str) -> tuple[str | None, int]:
+    """Return ('hi'|'kn', char_count) when enough Indic script is present."""
+    if not text:
+        return None, 0
+    hi = len(_DEVANAGARI_RE.findall(text))
+    kn = len(_KANNADA_RE.findall(text))
+    if hi >= 8 and hi >= kn:
+        return "hi", hi
+    if kn >= 8 and kn > hi:
+        return "kn", kn
+    return None, 0
+
+
+def transcript_lacks_indic_script(text: str) -> bool:
+    """True when Whisper returned Latin/English instead of Hindi/Kannada script."""
+    lang, count = indic_script_strength(text)
+    return lang is None or count < 8
+
+
+def prefer_indic_transcript(primary: str, candidate: str) -> str:
+    """Keep candidate when it has clear Indic script and primary does not."""
+    if not candidate or not candidate.strip():
+        return primary
+    cand_lang, cand_n = indic_script_strength(candidate)
+    prim_lang, prim_n = indic_script_strength(primary)
+    if cand_lang and cand_n >= 8 and (prim_lang is None or cand_n > prim_n):
+        return candidate
+    return primary
+
+
 def normalize_indic_script(text: str) -> str:
     """Normalize any Telugu Unicode characters that Whisper mixed into Kannada speech.
 

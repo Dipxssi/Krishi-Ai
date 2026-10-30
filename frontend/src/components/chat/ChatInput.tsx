@@ -6,18 +6,38 @@ import { useI18n } from "@/hooks/useI18n";
 import { loadFarmProfile } from "@/lib/farmProfile";
 
 interface ChatInputProps {
-  onSend: (text: string, imageBase64?: string | null, cropHint?: string | null) => void;
+  onSend: (
+    text: string,
+    imageBase64?: string | null,
+    cropHint?: string | null,
+    options?: { fromVoice?: boolean },
+  ) => void;
   disabled?: boolean | undefined;
   preferredLanguage?: string | null | undefined;
 }
 
-/** Only pin Whisper for Indic languages; English/default lets Groq auto-detect. */
+/** Only pin Whisper for Indic languages; English/default lets Groq auto-detect (+ server-side hi/kn recovery). */
 function whisperLanguageHint(preferred?: string | null): string | undefined {
   if (!preferred) return undefined;
   const clean = preferred.trim().toLowerCase();
   if (clean.startsWith("kn") || clean.includes("kannada")) return "kn";
   if (clean.startsWith("hi") || clean.includes("hindi")) return "hi";
   return undefined;
+}
+
+function resolveWhisperHint(
+  preferredLanguage?: string | null,
+  locale?: string | null,
+): string | undefined {
+  // Farm preference first (UI may stay English while farmer speaks Hindi).
+  try {
+    const farmLang = loadFarmProfile().preferred_language;
+    const fromFarm = whisperLanguageHint(farmLang);
+    if (fromFarm) return fromFarm;
+  } catch {
+    /* ignore */
+  }
+  return whisperLanguageHint(preferredLanguage) ?? whisperLanguageHint(locale);
 }
 
 function fileToDataUrl(file: File): Promise<string> {
@@ -47,6 +67,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
   const [cropHint, setCropHint] = useState<string>("");
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const fromVoiceRef = useRef(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -91,8 +112,9 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         base64,
         blob.type || "audio/webm",
         `recording.${ext}`,
-        whisperLanguageHint(locale) ?? whisperLanguageHint(preferredLanguage),
+        resolveWhisperHint(preferredLanguage, locale),
       );
+      fromVoiceRef.current = true;
       setValue(result.text);
       requestAnimationFrame(() => {
         if (textareaRef.current) {
@@ -156,7 +178,10 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         ? t("input.diagnoseLeaf")
         : "");
     if (!text) return;
-    onSend(text, imageBase64, cropHint || undefined);
+    const fromVoice = fromVoiceRef.current;
+    fromVoiceRef.current = false;
+    // Empty cropHint = Auto-detect — MobileNet chooses tomato/potato/maize from the image.
+    onSend(text, imageBase64, cropHint || undefined, { fromVoice });
     setValue("");
     setImageBase64(null);
     setCropHint("");
@@ -175,16 +200,8 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
     }
     try {
       const dataUrl = await fileToDataUrl(file);
-      const crop = (loadFarmProfile().crop ?? "").trim();
-      const norm = normalizeLeafCrop(crop);
-      // Option C: pre-select farm profile crop; farmer can switch to Auto-detect.
-      if ((LEAF_CROPS as readonly string[]).includes(norm)) {
-        setCropHint(norm);
-      } else if (crop) {
-        setCropHint(norm || crop.toLowerCase());
-      } else {
-        setCropHint("");
-      }
+      // Default Auto-detect so MobileNet predicts the crop; farmer can override.
+      setCropHint("");
       setImageBase64(dataUrl);
       toast.success(t("input.attached"));
     } catch {
@@ -274,6 +291,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
             rows={1}
             value={value}
             onChange={(e) => {
+              fromVoiceRef.current = false;
               setValue(e.target.value);
               const el = e.currentTarget;
               el.style.height = "auto";

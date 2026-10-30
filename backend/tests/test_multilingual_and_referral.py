@@ -54,10 +54,19 @@ class TestLanguageDetectionAndDisclaimers:
         assert detect_language(query) == "hi"
 
     def test_icelandic_misread_of_hindi_needs_retry(self):
+        from app.services.multilingual import prefer_indic_transcript, transcript_lacks_indic_script
+
         garbage = "Ísum meõ kjá issú hei, kjá hó sakti hei, kïði hún yelú turn"
         assert transcript_needs_hindi_retry(garbage, "is") is True
         assert transcript_needs_hindi_retry("How do I protect my tomato crop?", "en") is False
         assert transcript_needs_hindi_retry("पत्तियाँ पीली हो रही हैं", "hi") is False
+        assert transcript_lacks_indic_script("What is the problem with this crop? Why is it broken?")
+        hindi = "इस फसल में क्या समस्या है पत्तियाँ खराब क्यों हो गईं"
+        assert not transcript_lacks_indic_script(hindi)
+        assert prefer_indic_transcript(
+            "What is the problem with this crop?",
+            hindi,
+        ) == hindi
 
     def test_language_detection_english(self):
         query = "How do I care for my tomato plants?"

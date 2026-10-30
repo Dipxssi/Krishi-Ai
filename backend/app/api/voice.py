@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/voice", tags=["voice"])
 MAX_AUDIO_BYTES = 25 * 1024 * 1024
 _SECRET_VALUE_RE = re.compile(
-    r"(?i)\b(?:sk|gsk|sess|rk)-[A-Za-z0-9_-]{8,}\b|\bBearer\s+[A-Za-z0-9._~-]+"
+    r"(?i)\b(?:sk|gsk|sess|rk)[-_][A-Za-z0-9_-]{8,}\b|\bBearer\s+[A-Za-z0-9._~-]+"
 )
 _NAMED_SECRET_RE = re.compile(
     r"(?i)(api[_ -]?key|authorization|access[_ -]?token)(\s*[:=]\s*)[^\s,;]+"
@@ -32,7 +32,39 @@ _NAMED_SECRET_RE = re.compile(
 
 
 class AudioResponse(Response):
-    media_type = "audio/mpeg"
+    media_type = "audio/wav"
+
+
+_ORPHEUS_MAX_CHARS = 200
+_INDIC_RE = re.compile(r"[\u0900-\u097F\u0C80-\u0CFF]")
+
+
+def _spoken_english_for_tts(raw: str) -> str:
+    """Groq Orpheus is English-only and capped at 200 chars — summarize if needed."""
+    cleaned = " ".join((raw or "").split())
+    if not cleaned:
+        return "No advice to read."
+
+    needs_summary = bool(_INDIC_RE.search(cleaned)) or len(cleaned) > _ORPHEUS_MAX_CHARS
+    if needs_summary:
+        from app.services import llm
+
+        prompt = (
+            "Rewrite the following farm advice as a short spoken English summary "
+            f"for a farmer. Max {_ORPHEUS_MAX_CHARS - 20} characters. "
+            "No markdown, no bullet lists, plain sentences only.\n\n"
+            f"{cleaned[:3000]}"
+        )
+        summary = llm.generate(
+            prompt,
+            system="You convert crop advice into brief clear spoken English.",
+        )
+        if summary:
+            cleaned = " ".join(summary.split())
+
+    if len(cleaned) > _ORPHEUS_MAX_CHARS:
+        cleaned = cleaned[: _ORPHEUS_MAX_CHARS - 1].rsplit(" ", 1)[0] + "…"
+    return cleaned or "Please review the on-screen advice."
 
 
 def _provider_error_message(response: httpx.Response) -> str:
@@ -115,7 +147,12 @@ def transcribe(
             pinned = lang_code
             data["language"] = lang_code
 
-    from app.services.multilingual import normalize_indic_script, transcript_needs_hindi_retry
+    from app.services.multilingual import (
+        normalize_indic_script,
+        prefer_indic_transcript,
+        transcript_lacks_indic_script,
+        transcript_needs_hindi_retry,
+    )
 
     text = ""
     last_http_error: httpx.HTTPStatusError | None = None
@@ -142,16 +179,31 @@ def transcribe(
             payload = _call(data)
             text = normalize_indic_script(payload["text"].strip())
             detected = payload.get("language") if isinstance(payload.get("language"), str) else None
-            # Unpinned audio is auto-detected. Hindi is often labeled Icelandic and
-            # written as accented Latin. Ask again with language=hi before giving up.
+
+            # 1) Icelandic/Latin garbage mis-ID of Hindi → force hi
             if pinned is None and transcript_needs_hindi_retry(text, detected):
                 retry = _call({**data, "language": "hi"})
                 retry_text = normalize_indic_script(retry["text"].strip())
-                if retry_text and not transcript_needs_hindi_retry(
-                    retry_text,
-                    retry.get("language") if isinstance(retry.get("language"), str) else "hi",
-                ):
-                    text = retry_text
+                text = prefer_indic_transcript(text, retry_text)
+
+            # 2) Hindi/Kannada speech auto-detected as English paraphrase
+            #    ("What is the problem with this crop?") — recover Indic script.
+            if pinned is None and transcript_lacks_indic_script(text):
+                for force_lang in ("hi", "kn"):
+                    retry = _call({**data, "language": force_lang})
+                    retry_text = normalize_indic_script(retry["text"].strip())
+                    improved = prefer_indic_transcript(text, retry_text)
+                    if improved != text:
+                        text = improved
+                        logger.info(
+                            "Recovered %s script after English/Latin Whisper auto-detect",
+                            force_lang,
+                        )
+                        break
+            elif pinned == "hi" and transcript_lacks_indic_script(text):
+                # Pinned Hindi still returned Latin — one more forced hi pass is useless;
+                # try without conflicting fields already set.
+                pass
             break
         except httpx.HTTPStatusError as exc:
             last_http_error = exc
@@ -193,37 +245,81 @@ def transcribe(
 @router.post(
     "/speech",
     response_class=AudioResponse,
-    responses={200: {"content": {"audio/mpeg": {"schema": {"type": "string", "format": "binary"}}}}},
+    responses={200: {"content": {"audio/wav": {"schema": {"type": "string", "format": "binary"}}}}},
 )
 def synthesize_speech(
     request: VoiceSpeechRequest,
     _user: UserRow = Depends(get_current_user),
 ) -> AudioResponse:
+    """TTS via Groq Orpheus (no OpenAI key). Hindi/Kannada text → short English spoken summary."""
+    from app.services.groq_keys import (
+        has_groq_api_key,
+        is_key_failover_error,
+        iter_groq_api_keys_for_attempt,
+    )
+
+    if not has_groq_api_key():
+        raise HTTPException(
+            status_code=503,
+            detail="Speech playback is not configured (GROQ_API_KEY / GROQ_API_KEYS).",
+        )
+
     settings = get_settings()
-    if not settings.openai_api_key or not settings.openai_api_key.strip():
-        raise HTTPException(status_code=503, detail="Speech playback is not configured (OPENAI_API_KEY).")
-    try:
-        result = httpx.post(
-            "https://api.openai.com/v1/audio/speech",
-            headers={"Authorization": f"Bearer {settings.openai_api_key.strip()}"},
-            json={"model": settings.openai_tts_model, "voice": request.voice, "input": request.text, "response_format": "mp3"},
-            timeout=90.0,
-        )
-        result.raise_for_status()
-        if not result.content:
-            raise HTTPException(status_code=502, detail="Speech provider returned empty audio.")
-        return AudioResponse(content=result.content)
-    except httpx.HTTPStatusError as exc:
-        provider_detail = _provider_error_message(exc.response)
-        logger.warning(
-            "OpenAI speech request failed (HTTP %s): %s",
-            exc.response.status_code,
-            provider_detail,
-        )
-        raise HTTPException(status_code=502, detail="Speech playback provider rejected the request.") from exc
-    except httpx.HTTPError as exc:
-        logger.exception("OpenAI speech request failed")
-        raise HTTPException(status_code=502, detail="Speech playback is temporarily unavailable.") from exc
+    spoken = _spoken_english_for_tts(request.text)
+    # Map legacy OpenAI voice names to an Orpheus English voice.
+    voice = request.voice.strip() if request.voice else settings.groq_tts_voice
+    if voice.lower() in {"alloy", "echo", "fable", "onyx", "nova", "shimmer"}:
+        voice = settings.groq_tts_voice
+    model = settings.groq_tts_model
+    keys = list(iter_groq_api_keys_for_attempt())
+    last_error: Exception | None = None
+
+    for key_index, api_key in enumerate(keys):
+        try:
+            result = httpx.post(
+                "https://api.groq.com/openai/v1/audio/speech",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": model,
+                    "voice": voice,
+                    "input": spoken,
+                    "response_format": "wav",
+                },
+                timeout=90.0,
+            )
+            result.raise_for_status()
+            if not result.content:
+                raise HTTPException(status_code=502, detail="Speech provider returned empty audio.")
+            return AudioResponse(content=result.content, media_type="audio/wav")
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            logger.warning(
+                "Groq speech rejected key#%s/%s (HTTP %s): %s",
+                key_index + 1,
+                len(keys),
+                exc.response.status_code,
+                _provider_error_message(exc.response),
+            )
+            if is_key_failover_error(exc) and key_index + 1 < len(keys):
+                continue
+            raise HTTPException(
+                status_code=502,
+                detail="Speech playback provider rejected the request.",
+            ) from exc
+        except httpx.HTTPError as exc:
+            last_error = exc
+            logger.exception("Groq speech request failed key#%s/%s", key_index + 1, len(keys))
+            if is_key_failover_error(exc) and key_index + 1 < len(keys):
+                continue
+            raise HTTPException(
+                status_code=502,
+                detail="Speech playback is temporarily unavailable.",
+            ) from exc
+
+    raise HTTPException(
+        status_code=502,
+        detail="Speech playback is temporarily unavailable.",
+    ) from last_error
 
 
 @router.post("/normalize-crop")

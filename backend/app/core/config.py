@@ -54,7 +54,10 @@ class Settings(BaseSettings):
     groq_model: str = "qwen/qwen3.8-27b"
     # Hindi/Devanagari uses more tokens than English; 750 truncates long crop advice mid-sentence.
     groq_max_tokens: int = 2200
-    openai_api_key: str | None = None
+    # Groq Orpheus TTS (English/Arabic only; Hindi advice is summarized to English first).
+    groq_tts_model: str = "canopylabs/orpheus-v1-english"
+    groq_tts_voice: str = "austin"
+    openai_api_key: str | None = None  # optional legacy; speech prefers Groq
     openai_tts_model: str = "gpt-4o-mini-tts"
 
     # Default heuristic so slim/Free deploys work without torch.

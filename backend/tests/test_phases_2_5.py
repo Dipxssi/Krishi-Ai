@@ -191,6 +191,41 @@ def test_voice_transcribe_retries_hindi_after_icelandic_misread(client, monkeypa
     assert r.json()["text"] == "इसमें क्या दिक्कत है, पत्तियाँ पीली हो रही हैं"
 
 
+def test_voice_transcribe_recovers_hindi_after_english_paraphrase(client, monkeypatch):
+    """Hindi spoken with English UI often becomes an English paraphrase — recover Devanagari."""
+    calls: list[dict] = []
+    responses = [
+        {"text": "What is the problem with this crop? Why is it broken?", "language": "en"},
+        {"text": "इस फसल में क्या समस्या है इसकी हालत ऐसी क्यों हो गई है", "language": "hi"},
+    ]
+
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self._payload = payload
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._payload
+
+    def fake_post(*args, **kwargs):
+        calls.append(kwargs.get("data") or {})
+        return FakeResponse(responses[len(calls) - 1])
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
+    r = client.post(
+        "/voice/transcribe",
+        json={"audio_base64": base64.b64encode(b"x" * 32).decode()},
+    )
+    assert r.status_code == 200, r.text
+    assert "language" not in calls[0]
+    assert calls[1]["language"] == "hi"
+    assert "समस्या" in r.json()["text"]
+
+
 def test_voice_transcribe_sets_language_for_hindi_hint(client, monkeypatch):
     captured: dict = {}
 
@@ -264,12 +299,13 @@ def test_voice_transcribe_rejects_oversized_base64_before_decoding():
 
 def test_voice_speech_returns_audio(client, monkeypatch):
     class FakeResponse:
-        content = b"fake-mp3"
+        content = b"fake-wav"
 
         def raise_for_status(self):
             pass
 
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     get_settings.cache_clear()
     captured = {}
 
@@ -281,25 +317,23 @@ def test_voice_speech_returns_audio(client, monkeypatch):
     monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
     r = client.post("/voice/speech", json={"text": "Hello farmer"})
     assert r.status_code == 200
-    assert r.headers["content-type"].startswith("audio/mpeg")
-    assert r.content == b"fake-mp3"
-    assert captured["url"] == "https://api.openai.com/v1/audio/speech"
+    assert r.headers["content-type"].startswith("audio/wav")
+    assert r.content == b"fake-wav"
+    assert captured["url"] == "https://api.groq.com/openai/v1/audio/speech"
     assert captured["headers"]["Authorization"] == "Bearer test-key"
-    assert captured["json"] == {
-        "model": "gpt-4o-mini-tts",
-        "voice": "alloy",
-        "input": "Hello farmer",
-        "response_format": "mp3",
-    }
+    assert captured["json"]["model"] == "canopylabs/orpheus-v1-english"
+    assert captured["json"]["voice"] == "austin"
+    assert captured["json"]["input"] == "Hello farmer"
+    assert captured["json"]["response_format"] == "wav"
 
 
 def test_voice_speech_logs_provider_error_without_secrets(client, monkeypatch, caplog):
-    monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
     get_settings.cache_clear()
     response = httpx.Response(
         401,
-        json={"error": {"type": "authentication_error", "message": "Invalid API key sk-proj-supersecretvalue"}},
-        request=httpx.Request("POST", "https://api.openai.com/v1/audio/speech"),
+        json={"error": {"type": "authentication_error", "message": "Invalid API key gsk_supersecretvalue"}},
+        request=httpx.Request("POST", "https://api.groq.com/openai/v1/audio/speech"),
     )
     monkeypatch.setattr("app.api.voice.httpx.post", lambda *args, **kwargs: response)
 
@@ -311,11 +345,12 @@ def test_voice_speech_logs_provider_error_without_secrets(client, monkeypatch, c
     assert "authentication_error" in caplog.text
     assert "Invalid API key" in caplog.text
     assert "[REDACTED]" in caplog.text
-    assert "sk-proj-supersecretvalue" not in caplog.text
+    assert "gsk_supersecretvalue" not in caplog.text
 
 
-def test_voice_speech_requires_openai_key(client, monkeypatch):
-    monkeypatch.setenv("OPENAI_API_KEY", "")
+def test_voice_speech_requires_groq_key(client, monkeypatch):
+    monkeypatch.setenv("GROQ_API_KEY", "")
+    monkeypatch.setenv("GROQ_API_KEYS", "")
     get_settings.cache_clear()
     r = client.post("/voice/speech", json={"text": "Hello farmer"})
     assert r.status_code == 503
@@ -328,7 +363,7 @@ def test_voice_and_query_openapi_contracts(client):
 
     assert paths["/voice/transcribe"]["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith("/VoiceTranscribeRequest")
     assert paths["/voice/transcribe"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith("/VoiceTranscribeResponse")
-    speech_response = paths["/voice/speech"]["post"]["responses"]["200"]["content"]["audio/mpeg"]["schema"]
+    speech_response = paths["/voice/speech"]["post"]["responses"]["200"]["content"]["audio/wav"]["schema"]
     assert speech_response == {"type": "string", "format": "binary"}
     assert paths["/query"]["post"]["requestBody"]["content"]["application/json"]["schema"]["$ref"].endswith("/QueryRequest")
     assert paths["/query"]["post"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"].endswith("/QueryResponse")

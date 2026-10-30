@@ -203,7 +203,8 @@ class VoiceTranscribeResponse(BaseModel):
 
 class VoiceSpeechRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
-    voice: str = Field(default="alloy", min_length=1, max_length=40)
+    # Groq Orpheus English voices: austin, troy, daniel, autumn, diana, hannah
+    voice: str = Field(default="austin", min_length=1, max_length=40)
 
 
 class EvidenceItem(BaseModel):
