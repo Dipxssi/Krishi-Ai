@@ -252,6 +252,7 @@ def diagnose_image_with_mobilenetv3(
     crop_hint: str | None = None,
     confidence_threshold: float | None = None,
     checkpoint_path: Any = None,
+    crop_prior: str | None = None,
 ) -> ImageDiagnosisResult:
     """Prefer the bundled ONNX model (no GPU quota). Then the HF Space, then local torch."""
     from app.vision.onnx_mobilenet import bundled_onnx_path
@@ -264,6 +265,7 @@ def diagnose_image_with_mobilenetv3(
             image_base64,
             crop_hint=crop_hint,
             confidence_threshold=confidence_threshold,
+            crop_prior=crop_prior,
         )
 
     settings = get_settings()

@@ -627,9 +627,12 @@ def handle_query(
 
     query = normalize_indic_script(query)
     farm_profile_crop = normalize_crop_name(context.crop)
-    user_selected_crop = normalize_crop_name(selected_crop)
-    if not user_selected_crop:
-        user_selected_crop = extract_crop_from_text(query)
+    # Dropdown selection, or a crop named in this question. Older chat notes
+    # often still say "tomato" and must not become the crop for a new photo.
+    question = _current_farmer_question(query)
+    explicit_crop = normalize_crop_name(selected_crop)
+    mentioned_crop = extract_crop_from_text(question)
+    user_selected_crop = explicit_crop or mentioned_crop
 
     effective_crop = user_selected_crop or farm_profile_crop
     detected_lang = detect_language(query, fallback=language or context.preferred_language or "en")
@@ -651,9 +654,16 @@ def handle_query(
         except Exception:
             image_decoded = False
 
-        # Auto-detect: only pass an explicit UI crop to MobileNet. Do not force farm-profile
-        # crop (that caused tomato-biased conflicts when the leaf was maize/potato).
+        # Auto-detect: do not pass the farm profile as a hard hint. A maize or
+        # potato profile is a prior so the tomato-heavy class list does not
+        # replace that crop. An older chat that mentioned tomato is ignored.
         crop_hint = user_selected_crop
+        crop_prior = None
+        if (
+            not crop_hint
+            and farm_profile_crop in {"tomato", "potato", "maize"}
+        ):
+            crop_prior = farm_profile_crop
         if chosen_vision_model == "mobilenetv3":
             vision_function = "diagnose_image_with_mobilenetv3"
             inference_mechanism = "mobilenetv3_onnx_cpu"
@@ -662,6 +672,7 @@ def handle_query(
                 image_diagnosis = diagnose_image_with_mobilenetv3(
                     image_base64,
                     crop_hint=crop_hint,
+                    crop_prior=crop_prior,
                     confidence_threshold=settings.vision_confidence_threshold,
                 )
                 version = (image_diagnosis.model_version or "") if image_diagnosis else ""

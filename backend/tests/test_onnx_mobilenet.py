@@ -26,3 +26,61 @@ def test_onnx_scores_a_leaf_sized_image():
     assert result.status == "accepted"
     assert result.crop_id in {"tomato", "potato", "maize"}
     assert result.top_3
+
+
+def test_maize_profile_beats_a_moderate_tomato_score():
+    from app.vision.onnx_mobilenet import _result_from_probs
+    import numpy as np
+
+    probs = np.zeros(17, dtype=np.float32)
+    probs[11] = 0.62  # tomato septoria
+    probs[2] = 0.28  # maize northern leaf blight
+    probs[3] = 0.10  # maize healthy
+    result = _result_from_probs(
+        probs,
+        crop_hint=None,
+        crop_prior="maize",
+        confidence_threshold=0.60,
+        latency_ms=1,
+    )
+    assert result.status == "accepted"
+    assert result.crop_id == "maize"
+    assert result.disease == "northern_leaf_blight"
+
+
+def test_confident_tomato_does_not_override_a_maize_profile():
+    from app.vision.onnx_mobilenet import _result_from_probs
+    import numpy as np
+
+    probs = np.zeros(17, dtype=np.float32)
+    probs[11] = 0.99
+    probs[2] = 0.01
+    result = _result_from_probs(
+        probs,
+        crop_hint=None,
+        crop_prior="maize",
+        confidence_threshold=0.60,
+        latency_ms=1,
+    )
+    assert result.status == "rejected"
+    assert result.crop_id is None
+    assert "maize" in (result.rejection_reason or "")
+    assert "Tomato" in (result.rejection_reason or "")
+
+
+def test_tomato_profile_does_not_override_a_clear_maize_prediction():
+    from app.vision.onnx_mobilenet import _result_from_probs
+    import numpy as np
+
+    probs = np.zeros(17, dtype=np.float32)
+    probs[1] = 0.84  # maize rust
+    probs[11] = 0.16
+    result = _result_from_probs(
+        probs,
+        crop_hint=None,
+        crop_prior="tomato",
+        confidence_threshold=0.60,
+        latency_ms=1,
+    )
+    assert result.status == "accepted"
+    assert result.crop_id == "maize"

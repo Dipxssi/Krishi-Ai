@@ -28,17 +28,24 @@ def normalize_crop_name(crop: str | None) -> str | None:
 
 
 def extract_crop_from_text(text: str | None) -> str | None:
-    """Extract and normalize a recognized crop name from text (query, prompt, or title)."""
+    """Return the last recognized crop name in text, if any.
+
+    The last mention wins so a new question can name maize after older notes
+    mentioned tomato.
+    """
     if not text or not str(text).strip():
         return None
-    lowered = f" {text.lower()} "
-    for alias, canonical in _CROP_ALIASES.items():
-        if re.search(rf"\b{re.escape(alias)}\b", lowered):
-            return canonical
-    for crop in list_supported_crops():
-        if re.search(rf"\b{re.escape(crop)}\b", lowered):
-            return crop
-    return None
+    lowered = text.lower()
+    found: list[tuple[int, str]] = []
+    names = [(alias, canonical) for alias, canonical in _CROP_ALIASES.items()]
+    names.extend((crop, crop) for crop in list_supported_crops())
+    for alias, canonical in names:
+        for match in re.finditer(rf"\b{re.escape(alias)}\b", lowered):
+            found.append((match.start(), canonical))
+    if not found:
+        return None
+    found.sort(key=lambda item: item[0])
+    return found[-1][1]
 
 
 @lru_cache(maxsize=1)

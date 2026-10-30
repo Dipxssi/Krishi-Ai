@@ -123,29 +123,87 @@ def _disease_label(meta: dict[str, Any]) -> str:
     return disp
 
 
+def _crop_indices(crop: str) -> list[int]:
+    return [i for i, meta in enumerate(TARGET_CLASSES) if meta["crop"] == crop]
+
+
+def _best_in_crop(probs: np.ndarray, crop: str) -> tuple[int, float]:
+    indices = _crop_indices(crop)
+    best = max(indices, key=lambda idx: float(probs[idx]))
+    return best, float(probs[best])
+
+
+def _select_class_index(
+    probs: np.ndarray,
+    *,
+    crop_hint: str | None,
+    crop_prior: str | None,
+) -> tuple[int, str]:
+    """Pick a class index.
+
+    An explicit hint or a farm-profile prior limits the choice to that crop so a
+    tomato-heavy 17-class head does not replace maize. Returns (index, mode)
+    where mode is "hint", "prior", or "open".
+    """
+    ranked = [int(idx) for idx in np.argsort(probs)[::-1]]
+    open_idx = ranked[0]
+    hint = _normalize_crop_hint(crop_hint)
+    prior = _normalize_crop_hint(crop_prior)
+    supported = {"tomato", "potato", "maize"}
+
+    if hint in supported:
+        idx, _ = _best_in_crop(probs, hint)
+        return idx, "hint"
+
+    if prior in supported and TARGET_CLASSES[open_idx]["crop"] != prior:
+        prior_idx, prior_p = _best_in_crop(probs, prior)
+        open_p = float(probs[open_idx])
+        open_crop = TARGET_CLASSES[open_idx]["crop"]
+        competitive = prior_p >= 0.35 * open_p
+        # Ten of the 17 classes are tomato, so a maize or potato profile should
+        # win over a tomato label when that crop still has a real score.
+        tomato_bias = open_crop == "tomato" and prior in {"maize", "potato"} and prior_p >= 0.08
+        if competitive or tomato_bias:
+            return prior_idx, "prior"
+    return open_idx, "open"
+
+
+def _top_items(probs: np.ndarray, indices: list[int]) -> list[MobileNetV3PredictionItem]:
+    ordered = sorted(indices, key=lambda idx: float(probs[idx]), reverse=True)
+    items: list[MobileNetV3PredictionItem] = []
+    for idx in ordered[:3]:
+        meta = TARGET_CLASSES[idx]
+        items.append(
+            MobileNetV3PredictionItem(
+                class_idx=idx,
+                display_name=meta["display_name"],
+                crop=meta["crop"],
+                disease=meta["disease"],
+                is_healthy=bool(meta["is_healthy"]),
+                confidence=round(float(probs[idx]), 4),
+                confidence_is_calibrated=False,
+            )
+        )
+    return items
+
+
 def _result_from_probs(
     probs: np.ndarray,
     *,
     crop_hint: str | None,
+    crop_prior: str | None,
     confidence_threshold: float,
     latency_ms: float,
 ) -> ImageDiagnosisResult:
-    ranked = np.argsort(probs)[::-1]
-    top_1_idx = int(ranked[0])
-    top_1_conf = float(probs[top_1_idx])
-    top_1_meta = TARGET_CLASSES[top_1_idx]
-    top_3 = [
-        MobileNetV3PredictionItem(
-            class_idx=int(idx),
-            display_name=TARGET_CLASSES[int(idx)]["display_name"],
-            crop=TARGET_CLASSES[int(idx)]["crop"],
-            disease=TARGET_CLASSES[int(idx)]["disease"],
-            is_healthy=bool(TARGET_CLASSES[int(idx)]["is_healthy"]),
-            confidence=round(float(probs[int(idx)]), 4),
-            confidence_is_calibrated=False,
-        )
-        for idx in ranked[:3]
-    ]
+    ranked = [int(idx) for idx in np.argsort(probs)[::-1]]
+    open_idx = ranked[0]
+    open_meta = TARGET_CLASSES[open_idx]
+    open_conf = float(probs[open_idx])
+    chosen_idx, mode = _select_class_index(probs, crop_hint=crop_hint, crop_prior=crop_prior)
+    top_1_meta = TARGET_CLASSES[chosen_idx]
+    top_1_conf = float(probs[chosen_idx])
+    pool = _crop_indices(top_1_meta["crop"]) if mode in {"hint", "prior"} else ranked
+    top_3 = _top_items(probs, pool)
 
     def rejected(reason: str, hints: list[str], *, confidence: float | None, include_top3: bool) -> ImageDiagnosisResult:
         return ImageDiagnosisResult(
@@ -185,10 +243,39 @@ def _result_from_probs(
             confidence=round(top_1_conf, 4),
             include_top3=True,
         )
-    if top_1_conf < confidence_threshold:
+    prior = _normalize_crop_hint(crop_prior)
+    if (
+        mode == "open"
+        and prior in {"maize", "potato"}
+        and open_meta["crop"] == "tomato"
+        and norm_hint is None
+    ):
+        prior_idx, prior_p = _best_in_crop(probs, prior)
+        prior_meta = TARGET_CLASSES[prior_idx]
+        return ImageDiagnosisResult(
+            status="rejected",
+            rejection_reason=(
+                f"Your farm profile crop is {prior}. This photo was not labeled {open_meta['crop']}. "
+                f"The strongest overall class was {_plant_name(open_meta['crop'])} · {_disease_label(open_meta)} "
+                f"({open_conf:.0%}). Closest {prior} class is {_disease_label(prior_meta)} ({prior_p:.0%})."
+            ),
+            is_healthy=False,
+            confidence=round(prior_p, 4),
+            confidence_is_calibrated=False,
+            model_version=MODEL_VERSION,
+            top_3=_top_items(probs, _crop_indices(prior)),
+            requires_expert=True,
+            treatment_hints=[
+                f"Confirm the plant is {prior} before any treatment.",
+                f"Do not treat this photo as {open_meta['crop']} while the farm profile is {prior}.",
+            ],
+            latency_ms=round(latency_ms, 2),
+        )
+    active_threshold = 0.08 if mode == "prior" else confidence_threshold
+    if top_1_conf < active_threshold:
         return rejected(
             (
-                f"Low model confidence ({top_1_conf:.2f} < threshold {confidence_threshold:.2f}). "
+                f"Low model confidence ({top_1_conf:.2f} < threshold {active_threshold:.2f}). "
                 "Prediction is uncertain and confidence is uncalibrated. "
                 "Upload a clearer photo or consult an extension specialist."
             ),
@@ -231,6 +318,7 @@ def diagnose_image_with_onnx(
     image_base64: str,
     crop_hint: str | None = None,
     confidence_threshold: float | None = None,
+    crop_prior: str | None = None,
 ) -> ImageDiagnosisResult:
     settings = get_settings()
     threshold = (
@@ -248,6 +336,7 @@ def diagnose_image_with_onnx(
     return _result_from_probs(
         _softmax(np.asarray(logits, dtype=np.float32)),
         crop_hint=crop_hint,
+        crop_prior=crop_prior,
         confidence_threshold=float(threshold),
         latency_ms=latency_ms,
     )

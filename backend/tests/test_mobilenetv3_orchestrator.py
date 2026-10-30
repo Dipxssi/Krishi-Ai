@@ -469,10 +469,45 @@ def test_auto_detect_does_not_pass_farm_crop_as_vision_hint(tomato_context):
 
         mock_vision.assert_called_once()
         assert mock_vision.call_args.kwargs.get("crop_hint") is None
+        assert mock_vision.call_args.kwargs.get("crop_prior") == "tomato"
         assert resp.image_diagnosis is not None
         assert resp.image_diagnosis.crop_id == "maize"
         # Typed English must stay English even when language/preferred is Hindi
         assert resp.response_language == "en"
+
+
+def test_old_tomato_notes_do_not_override_a_maize_profile(tomato_context):
+    """Chat memory that mentions tomato must not be sent as the vision crop hint."""
+    maize_profile = tomato_context.model_copy(update={"crop": "maize"})
+    wrapped = (
+        "This chat so far:\n• leaf photo → Tomato Septoria Leaf Spot\n\n"
+        "Farmer question:\nWhat is wrong with this leaf?"
+    )
+    b64 = _create_synthetic_image_b64()
+    with patch(
+        "app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3",
+        return_value=ImageDiagnosisResult(
+            status="accepted",
+            plant_name="Maize",
+            predicted_disease="Northern Leaf Blight",
+            crop_id="maize",
+            disease="northern_leaf_blight",
+            confidence=0.4,
+            model_version="mobilenetv3_plantdisease_best@cpu",
+        ),
+    ) as mock_vision:
+        resp = handle_query(
+            wrapped,
+            maize_profile,
+            image_base64=b64,
+            selected_crop=None,
+            persist=False,
+            vision_model="mobilenetv3",
+        )
+    assert mock_vision.call_args.kwargs.get("crop_hint") is None
+    assert mock_vision.call_args.kwargs.get("crop_prior") == "maize"
+    assert resp.image_diagnosis is not None
+    assert resp.image_diagnosis.crop_id == "maize"
 
 
 # 8. Heuristic fallback path
