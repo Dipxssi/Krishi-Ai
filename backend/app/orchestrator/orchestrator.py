@@ -205,6 +205,10 @@ def _clean_internal_metadata(text: str) -> str:
     # Strip raw json filenames
     text = re.sub(r"rag:[a-z0-9_.-]+", "", text)
     text = re.sub(r"\bconf=[0-9.]+\b", "", text)
+    text = re.sub(r"\(source:\s*[^)]+\)", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bmock_market_service\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bmock_weather_service\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\bsource\s*=\s*mock\b", "", text, flags=re.IGNORECASE)
     # Clean up double punctuation or empty lines
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
     return text
@@ -433,7 +437,9 @@ def _revise(
         "2. What the farmer should do next (practical action steps). "
         "3. Important precautions or preventive measures. "
         "4. If and only if the situation involves high risk, uncertainty, or chemical decisions, advise visiting a local KVK or extension officer. "
-        "Keep all advice strictly grounded in the provided evidence. Never invent unverified chemical sprays or pesticide doses."
+        "Keep all advice strictly grounded in the provided evidence. Never invent unverified chemical sprays or pesticide doses. "
+        "When evidence names markets, machines, a weather outlook, a soil result, or crop guidance, use those facts. "
+        "Do not replace them with a generic apology. Do not mention mock services, source labels, or citation ids."
     )
 
     clean_draft = _clean_internal_metadata(draft)

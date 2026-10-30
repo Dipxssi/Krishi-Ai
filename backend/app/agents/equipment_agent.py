@@ -46,12 +46,13 @@ def equipment_agent(query: str, context: FarmContext) -> AgentResult:
 
     equip_lines = [e.value for e in evidence if e.unit == "equipment"]
     scheme_lines = [e.value for e in evidence if e.unit == "scheme"]
+    place = context.location or "your district"
     draft = (
-        f"For {area} acres:\n"
-        f"Equipment options: {'; '.join(equip_lines) or 'none found'}.\n"
-        f"Subsidies: {'; '.join(scheme_lines) or 'none found'}.\n"
-        f"Prefer rental for small farms unless utilization > 100 days/year. "
-        f"Citations: {', '.join(citations) or 'none'}."
+        f"For {area} acres near {place}:\n"
+        f"Machines you can hire or buy: {'; '.join(equip_lines) or 'No sized machine was found for this area.'}\n"
+        f"Subsidy records: {'; '.join(scheme_lines) or 'No equipment subsidy record matched.'}\n"
+        f"Ask a custom hiring centre or the Krishi Vigyan Kendra in {place} which of these is available this week. "
+        f"Compare the rental with buying before you decide."
     )
     draft = apply_guidance(
         "equipment",

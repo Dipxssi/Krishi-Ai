@@ -44,17 +44,17 @@ def soil_agent(query: str, context: FarmContext) -> AgentResult:
         draft = (
             f"Soil type: {context.soil_type or 'unknown'}. "
             f"{interpretation.get('summary', '')}\n"
-            f"Details: {'; '.join(interpretation.get('recommendations', [])[:5]) or 'No major gaps detected.'}\n"
+            f"What to change: {'; '.join(interpretation.get('recommendations', [])[:5]) or 'No major nutrient gap was found.'}\n"
             f"Growth stage: {context.growth_stage or 'unknown'}. "
-            f"Citations: {', '.join(citations) or 'none'}."
+            f"Take this reading to the Krishi Vigyan Kendra in {context.location or 'your district'} before you apply manure."
         )
         confidence = 0.78 if interpretation.get("recommendations") else 0.65
     else:
         draft = (
-            f"Soil type: {context.soil_type or 'unknown'}. NPK: {npk or 'not provided'}. "
-            f"Provide lab NPK values (N, P, K in kg/ha) and crop for a structured gap analysis. "
-            f"Growth stage: {context.growth_stage or 'unknown'}. "
-            f"Citations: {', '.join(citations) or 'none'}."
+            f"Soil type on the profile: {context.soil_type or 'not saved'}. "
+            f"A lab nutrient reading is not on the profile yet. "
+            f"Take a soil sample to the Krishi Vigyan Kendra or the district soil-testing lab in {context.location or 'your district'}. "
+            f"Ask for nitrogen, phosphorus, potassium, and soil reaction for the {context.crop or 'crop'} field, then bring the report back."
         )
         confidence = 0.5 if context.soil_type or npk else 0.3
 

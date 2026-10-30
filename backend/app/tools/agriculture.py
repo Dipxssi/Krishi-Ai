@@ -111,25 +111,40 @@ def _mock_market_price(crop: str, market: str, date: str) -> dict[str, Any]:
     return result.model_dump()
 
 
+def _attach_sell_markets(payload: dict[str, Any]) -> dict[str, Any]:
+    from app.services.sell_markets import sell_markets_for
+
+    names: list[str] = []
+    for name in list(payload.get("matched_markets") or []) + sell_markets_for(str(payload.get("market") or "")):
+        label = str(name).strip()
+        if label and label not in names:
+            names.append(label)
+    payload["sell_markets"] = names[:6]
+    return payload
+
+
 def get_market_price(crop: str, market: str, date: str) -> dict[str, Any]:
     from app.services.live_market import fetch_market_price_live
 
     live = fetch_market_price_live(crop, market, date)
     if live is not None:
-        return {
-            "crop": live["crop"],
-            "market": live["market"],
-            "date": live["date"],
-            "current_price": live["current_price"],
-            "forecast_price": live["forecast_price"],
-            "forecast_horizon": live["forecast_horizon"],
-            "forecast_uncertainty": live["forecast_uncertainty"],
-            "unit": live.get("unit", "INR/kg"),
-            "source": live["source"],
-            "is_mock": bool(live.get("is_mock", False)),
-        }
+        return _attach_sell_markets(
+            {
+                "crop": live["crop"],
+                "market": live["market"],
+                "date": live["date"],
+                "current_price": live["current_price"],
+                "forecast_price": live["forecast_price"],
+                "forecast_horizon": live["forecast_horizon"],
+                "forecast_uncertainty": live["forecast_uncertainty"],
+                "unit": live.get("unit", "INR/kg"),
+                "source": live["source"],
+                "is_mock": bool(live.get("is_mock", False)),
+                "matched_markets": list(live.get("matched_markets") or []),
+            }
+        )
 
-    return _mock_market_price(crop, market, date)
+    return _attach_sell_markets(_mock_market_price(crop, market, date))
 
 
 # ---- Profit (deterministic) ----

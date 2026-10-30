@@ -74,7 +74,7 @@ def crop_health_agent(
                 f"Preventive care: Maintain adequate plant spacing for airflow, adopt drip irrigation to keep foliage dry, "
                 f"and follow balanced nutrition. Do not apply disease-specific chemical fungicides or bactericides.\n"
                 f"Hints: {'; '.join(image_diagnosis.treatment_hints) if image_diagnosis.treatment_hints else 'Maintain regular visual crop scouting'}.\n"
-                f"Growth stage: {stage}. Citations: {', '.join(citations) or 'none'}."
+                f"Growth stage: {stage}."
             )
             confidence = 0.82
         else:
@@ -122,15 +122,16 @@ def crop_health_agent(
                 f"Symptoms & Causes: Inspect leaves for characteristic lesions, spots, or blighting favored by foliage moisture.\n"
                 f"Next Steps & Management: Implement integrated pest management (IPM) starting with field sanitation, removing infected leaves, avoiding overhead irrigation, and applying recommended treatments as cited.\n"
                 f"Hints: {'; '.join(image_diagnosis.treatment_hints)}.\n"
-                f"Growth stage: {stage}. Citations: {', '.join(citations) or 'none'}."
+                f"Growth stage: {stage}."
             )
             confidence = 0.82
     else:
+        passages = [str(item.value).strip() for item in evidence if item.unit == "guidance" and str(item.value).strip()]
+        guidance = passages[0] if passages else "Show a leaf at the Krishi Vigyan Kendra before any treatment."
         draft = (
-            f"Text-only crop health for {crop} ({stage}). Upload a leaf photo for image diagnosis. "
-            f"Based on retrieved guidance, prioritize cultural controls, avoid unnecessary sprays before rain, "
-            f"and escalate to an agronomist if disease confidence is unclear. "
-            f"Citations: {', '.join(citations) or 'none'}."
+            f"For {crop} at {stage} near {context.location or 'your district'}: {guidance} "
+            f"Upload a leaf photo if you want a leaf scan. "
+            f"Take the leaf to the Krishi Vigyan Kendra before any treatment."
         )
         confidence = 0.55 if citations else 0.35
 

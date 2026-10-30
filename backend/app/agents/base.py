@@ -16,14 +16,16 @@ def evidence_from_trace(agent: str, trace) -> list[EvidenceItem]:
         return items
     out = trace.output
     if trace.tool == "get_weather":
-        items.append(EvidenceItem(source=out.get("source", "weather"), value=out.get("rainfall_mm"), unit="mm rainfall", agent=agent))
-        items.append(EvidenceItem(source=out.get("source", "weather"), value=out.get("avg_temp_c"), unit="C", agent=agent))
-        items.append(EvidenceItem(source=out.get("source", "weather"), value=out.get("condition"), unit="condition", agent=agent))
+        weather_source = "weather outlook estimate" if out.get("is_mock") else "weather outlook"
+        items.append(EvidenceItem(source=weather_source, value=out.get("rainfall_mm"), unit="mm rainfall", agent=agent))
+        items.append(EvidenceItem(source=weather_source, value=out.get("avg_temp_c"), unit="C", agent=agent))
+        items.append(EvidenceItem(source=weather_source, value=out.get("condition"), unit="condition", agent=agent))
     elif trace.tool == "get_market_price":
-        items.append(EvidenceItem(source=out.get("source", "market"), value=out.get("current_price"), unit=out.get("unit", "INR/kg"), agent=agent))
+        price_source = "mandi price estimate" if out.get("is_mock") else out.get("source", "market")
+        items.append(EvidenceItem(source=price_source, value=out.get("current_price"), unit=out.get("unit", "INR/kg"), agent=agent))
         items.append(
             EvidenceItem(
-                source=out.get("source", "market"),
+                source=price_source,
                 value={
                     "forecast_price": out.get("forecast_price"),
                     "horizon": out.get("forecast_horizon"),
@@ -33,17 +35,30 @@ def evidence_from_trace(agent: str, trace) -> list[EvidenceItem]:
                 agent=agent,
             )
         )
+        markets = [str(name).strip() for name in (out.get("sell_markets") or []) if str(name).strip()]
+        if markets:
+            items.append(
+                EvidenceItem(
+                    source="markets to sell at",
+                    value=", ".join(markets),
+                    unit="markets",
+                    agent=agent,
+                )
+            )
     elif trace.tool == "calculate_profit":
         items.append(EvidenceItem(source="profit_calculator", value=out.get("profit"), unit="INR profit", agent=agent))
         items.append(EvidenceItem(source="profit_calculator", value=out.get("total_cost"), unit="INR cost", agent=agent))
         items.append(EvidenceItem(source="profit_calculator", value=out.get("revenue"), unit="INR revenue", agent=agent))
     elif trace.tool == "search_crop_knowledge":
         for hit in out.get("results", []):
+            text = str(hit.get("text") or hit.get("title") or "").strip()
+            if not text:
+                continue
             items.append(
                 EvidenceItem(
-                    source=f"rag:{hit.get('source')}",
-                    value=hit.get("title"),
-                    unit="citation",
+                    source="crop guidance",
+                    value=text[:500],
+                    unit="guidance",
                     agent=agent,
                 )
             )
@@ -105,9 +120,11 @@ def enrich_with_llm(agent: str, context: FarmContext, query: str, draft: str, ev
         f"Tool/RAG evidence (ONLY use these facts):\n{evidence_lines or '(none)'}\n"
         f"Draft recommendation:\n{draft}\n\n"
         f"Rewrite a concise recommendation grounded ONLY in the evidence and context in fluent {lang_name}. "
-        f"If loan or scheme records are in the evidence, name them with their rate, eligibility, and where to apply. "
-        f"Do not say loan information is missing when those records are present. "
-        f"If evidence is missing, say what is unknown. Do not invent prices, rainfall, or profits."
+        f"If loan, scheme, equipment, weather, soil, or crop-guidance records are in the evidence, state those facts. "
+        f"Name the place, machine, nutrient, forecast, or guidance that the evidence gives. "
+        f"Do not say that information is missing when those records are present. "
+        f"Do not mention mock services, source labels, citation ids, or agent names. "
+        f"If evidence is missing, say what is unknown and point to the Krishi Vigyan Kendra. Do not invent prices, rainfall, or profits."
     )
     system = (
         f"Evidence-grounded agricultural advisor. {reply_language_instruction(lang)} "

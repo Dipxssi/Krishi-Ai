@@ -34,11 +34,17 @@ def weather_agent(query: str, context: FarmContext) -> AgentResult:
     evidence.extend(evidence_from_trace("weather", trace))
     out = trace.output if trace.status.startswith("success") and isinstance(trace.output, dict) else {}
 
+    outlook = (
+        "This is an estimate, not a live forecast. Confirm it locally before you change irrigation or field work."
+        if out.get("is_mock")
+        else "This is a forecast. Confirm it locally before you change irrigation or field work."
+    )
     draft = (
         f"7-day outlook for {context.location}: rainfall {out.get('rainfall_mm')} mm, "
-        f"avg temp {out.get('avg_temp_c')} C, condition {out.get('condition')} "
-        f"(source={out.get('source')}, mock={out.get('is_mock')}). "
-        f"Avoid spraying immediately before expected rain; watch disease pressure if wet."
+        f"average temperature {out.get('avg_temp_c')} C, condition {out.get('condition')}. "
+        f"{outlook} "
+        f"Delay field work when heavy rain is expected. "
+        f"Ask the Krishi Vigyan Kendra in {context.location} if the outlook changes the week's plan."
     )
     draft = apply_guidance("weather", query, draft, evidence, tools_empty=not out)
     recommendation = enrich_with_llm("weather", context, query, draft, evidence)

@@ -8,8 +8,11 @@ def knowledge_retriever_agent(query: str, context: FarmContext) -> AgentResult:
     evidence, citations = run_knowledge("knowledge_retriever", query, context.crop)
     # Also pull explicit tool output for richer draft
     # evidence already from run_knowledge
-    draft_bits = [c for c in citations] or ["No matching knowledge passages found."]
-    draft = "Retrieved guidance: " + "; ".join(draft_bits)
+    passages = [str(item.value).strip() for item in evidence if item.unit == "guidance" and str(item.value).strip()]
+    if passages:
+        draft = "Crop guidance to use in the answer:\n" + "\n".join(f"- {text}" for text in passages)
+    else:
+        draft = "No matching crop note was found for this question."
     draft = apply_guidance(
         "knowledge_retriever",
         query,
