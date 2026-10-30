@@ -111,7 +111,7 @@ export async function clearOfflinePack(): Promise<void> {
 
 /** Fetch the curated pack from the app origin (must be online once). */
 export async function downloadOfflinePack(url = "/offline-pack/v1.json"): Promise<OfflinePack> {
-  const res = await fetch(url, { cache: "no-store" });
+  const res = await fetch(url, { cache: "no-cache" });
   if (!res.ok) throw new Error(`Could not download offline pack (${res.status})`);
   const pack = (await res.json()) as OfflinePack;
   if (!pack?.version || !Array.isArray(pack.entries)) {
@@ -136,7 +136,7 @@ export async function ensureOfflinePackSynced(
       if (typeof navigator !== "undefined" && navigator.onLine === false) {
         return loadOfflinePack();
       }
-      const res = await fetch(url, { cache: "no-store" });
+      const res = await fetch(url, { cache: "no-cache" });
       if (!res.ok) return loadOfflinePack();
       const pack = (await res.json()) as OfflinePack;
       if (!pack?.version || !Array.isArray(pack.entries)) return loadOfflinePack();

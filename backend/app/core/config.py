@@ -54,9 +54,13 @@ class Settings(BaseSettings):
     openai_tts_model: str = "gpt-4o-mini-tts"
 
     # Default heuristic so slim/Free deploys work without torch.
-    # Set VISION_MODEL=mobilenetv3 only when the vision extra is installed.
+    # Prefer VISION_MODEL=mobilenetv3 + VISION_INFERENCE_URL (free HF Space) on Render Free.
+    # In-process torch needs: uv sync --extra vision + ≥2GB RAM.
     vision_model: str = "heuristic"  # heuristic | mobilenetv3
     vision_confidence_threshold: float = 0.60
+    vision_inference_url: str | None = None  # e.g. https://user-krishiai-vision.hf.space
+    vision_inference_connect_timeout: float = 15.0
+    vision_inference_read_timeout: float = 120.0  # HF Space cold start
     hf_model_repo: str = "Ishan2702/krishiai-mobilenetv3"
     hf_model_filename: str = "mobilenetv3_plantdisease_best.pth"
     hf_token: str | None = None

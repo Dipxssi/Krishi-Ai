@@ -148,7 +148,9 @@ export function FarmProfileForm({
         setLocating(false);
         toast.error(t("farm.geoDenied"));
       },
-      { enableHighAccuracy: true, timeout: 15000 },
+      // State-level lookup does not need GPS. High accuracy often waits 10–15s
+      // on a laptop before the onboarding form can fill in.
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300_000 },
     );
   };
 

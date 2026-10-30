@@ -30,6 +30,7 @@ from app.services import llm
 from app.services.audit import new_request_id, save_query_run
 from app.services.conflict_resolver import resolve_conflicts
 from app.services.crop_registry import build_profit_inputs, extract_crop_from_text, normalize_crop_name
+from app.services.nearby_help import append_nearby_kvk_office
 from app.services.multilingual import (
     detect_language,
     get_disclaimer,
@@ -656,14 +657,25 @@ def handle_query(
         crop_hint = user_selected_crop or farm_profile_crop
         if chosen_vision_model == "mobilenetv3":
             vision_function = "diagnose_image_with_mobilenetv3"
-            inference_mechanism = "mobilenetv3_plantdisease_best"
+            inference_mechanism = (
+                "mobilenetv3_hf_space"
+                if settings.vision_inference_url
+                else "mobilenetv3_plantdisease_best"
+            )
             try:
-                from app.vision.mobilenetv3_service import diagnose_image_with_mobilenetv3
+                # remote_mobilenet prefers VISION_INFERENCE_URL (no torch on Free Render).
+                from app.vision.remote_mobilenet import diagnose_image_with_mobilenetv3
                 image_diagnosis = diagnose_image_with_mobilenetv3(
                     image_base64,
                     crop_hint=crop_hint,
                     confidence_threshold=settings.vision_confidence_threshold,
                 )
+                if (
+                    image_diagnosis
+                    and image_diagnosis.model_version
+                    and "hf_space" in image_diagnosis.model_version
+                ):
+                    inference_mechanism = "mobilenetv3_hf_space"
             except Exception as exc:
                 logger.warning("MobileNetV3 diagnosis failed, falling back to heuristic: %s", exc)
                 vision_function = "diagnose_image_bytes"
@@ -827,6 +839,11 @@ def handle_query(
 
     # Ensure all internal metadata, trace labels, confidence tags, and raw citation markers are stripped
     final = _clean_internal_metadata(final)
+    final = append_nearby_kvk_office(
+        final,
+        effective_context.location,
+        detected_lang,
+    )
 
     # Deterministic risk and escalation evaluation
     escalation_result = evaluate_escalation(

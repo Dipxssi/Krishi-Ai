@@ -37,7 +37,13 @@ function renderInline(text: string): React.ReactNode[] {
       const isSafeUrl = /^(https?:\/\/|mailto:)/i.test(url.trim());
       if (isSafeUrl) {
         parts.push(
-          <a key={key} href={url.trim()} target="_blank" rel="noopener noreferrer">
+          <a
+            key={key}
+            href={url.trim()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-primary underline underline-offset-2"
+          >
             {renderInline(label)}
           </a>
         );

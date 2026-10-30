@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Sprout } from "lucide-react";
 import { toast } from "sonner";
-import { askAdvice, getFarmer, saveFarmer, submitFeedback, type QueryResponse } from "@/api";
-import { probeApiReachable } from "@/lib/apiReachability";
+import { askAdvice, getFarmer, submitFeedback, type QueryResponse } from "@/api";
 import { getAccessToken, isOfflineSession, setOfflineSession } from "@/lib/authSession";
 import { buildOfflineAdvice } from "@/lib/offlineAdvisor";
 import { AdviceDetailsPanel } from "@/components/chat/AdviceDetailsPanel";
@@ -10,6 +9,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { MemoryPanel } from "@/components/chat/MemoryPanel";
 import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -57,6 +57,7 @@ export function ChatPage() {
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const [detailsResult, setDetailsResult] = useState<QueryResponse | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -274,13 +275,6 @@ export function ChatPage() {
         /* keep local */
       }
     }
-    if (profile.farmer_id && profile.farmer_id === farmerId) {
-      try {
-        await saveFarmer(profile);
-      } catch {
-        /* Offline or API down — local profile is enough to queue the question. */
-      }
-    }
     return profile;
   };
 
@@ -361,14 +355,10 @@ export function ChatPage() {
         profileNotes: conversation?.summary ? null : profileNotes,
       });
 
-      const reachable = await probeApiReachable();
       const token = getAccessToken();
-      if (reachable && token) {
-        setOfflineSession(false);
-      }
-      const canCallApi = Boolean(reachable && token);
-
-      if (!canCallApi) {
+      // Ask the API directly. A separate /health check added seconds and, when
+      // it timed out, sent a real question into the offline queue.
+      if (!token) {
         const fid = profile.farmer_id || farmerId;
         if (!fid) throw new Error(t("chat.requestFailed"));
         const advice = await buildOfflineAdvice(question);
@@ -379,13 +369,14 @@ export function ChatPage() {
           imageBase64,
           cropHint || null,
           profile.preferred_language,
-          getAccessToken() ? "waiting" : "auth_required",
+          "auth_required",
           advice.content,
         );
         void refreshConnection();
         return;
       }
 
+      setOfflineSession(false);
       const response = await askAdvice(
         profile.farmer_id,
         queryForApi,
@@ -570,6 +561,7 @@ export function ChatPage() {
         <ChatHeader
           onOpenSidebar={() => setSidebarOpen(true)}
           onNewChat={handleNewChat}
+          onOpenMemory={() => setMemoryOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           connectionStatus={connectionStatus}
           pendingCount={pendingCount}
@@ -661,6 +653,8 @@ export function ChatPage() {
           preferredLanguage={loadFarmProfile().preferred_language}
         />
       </main>
+
+      <MemoryPanel open={memoryOpen} onOpenChange={setMemoryOpen} />
 
       <SettingsPanel
         open={settingsOpen}

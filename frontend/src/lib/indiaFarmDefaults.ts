@@ -181,7 +181,7 @@ export async function reverseGeocodeIndianState(
     `&longitude=${encodeURIComponent(String(lon))}` +
     `&localityLanguage=en`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) {
     throw new Error(`Geocode failed (${res.status})`);
   }

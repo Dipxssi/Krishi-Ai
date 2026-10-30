@@ -104,7 +104,9 @@ export default function QueryResultPanel({ result }: { result: QueryResponse }) 
       {result.image_diagnosis && (() => {
         const diag = result.image_diagnosis;
         const isAccepted = (diag.status === "ok" || diag.status === "accepted") && !diag.requires_expert;
-        const isMobileNet = diag.model_version?.includes("mobilenetv3");
+        const isMobileNet =
+          Boolean(diag.model_version?.includes("mobilenetv3")) ||
+          Boolean(diag.model_version?.includes("hf_space"));
         const plantName = diag.plant_name || (diag.crop_id ? diag.crop_id.charAt(0).toUpperCase() + diag.crop_id.slice(1) : "Crop");
         const diseaseLabel = diag.predicted_disease || (diag.disease ? diag.disease.replace(/_/g, " ") : "Unknown");
         const confScore = diag.confidence ?? diag.disease_confidence;

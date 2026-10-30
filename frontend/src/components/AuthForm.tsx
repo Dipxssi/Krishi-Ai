@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Loader2, WifiOff } from "lucide-react";
 import { toast } from "sonner";
-import { login, signup } from "@/api";
+import { ApiTimeoutError, login, signup } from "@/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useI18n } from "@/hooks/useI18n";
-import { probeApiReachable } from "@/lib/apiReachability";
+import { browserIsOnline, isNetworkFailure, warmApi } from "@/lib/apiReachability";
 import {
   continueOfflineAs,
   getLastCachedUser,
@@ -30,23 +30,40 @@ export function AuthForm() {
   const [submitting, setSubmitting] = useState(false);
   const [values, setValues] = useState({ name: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Errors>({});
+  const [browserOnline, setBrowserOnline] = useState(browserIsOnline);
   const [apiOnline, setApiOnline] = useState(true);
+  const [probeSettled, setProbeSettled] = useState(false);
   const cachedUser = getLastCachedUser();
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => {
-      void probeApiReachable().then((ok) => {
-        if (!cancelled) setApiOnline(ok);
+    const markBrowser = () => setBrowserOnline(browserIsOnline());
+    const wake = () => {
+      if (!browserIsOnline()) {
+        if (!cancelled) {
+          setBrowserOnline(false);
+          setApiOnline(false);
+          setProbeSettled(true);
+        }
+        return;
+      }
+      // One long wake while the form is filled. Do not treat "still booting" as offline.
+      void warmApi().then((ok) => {
+        if (cancelled) return;
+        setBrowserOnline(browserIsOnline());
+        setApiOnline(ok);
+        setProbeSettled(true);
       });
     };
-    refresh();
-    window.addEventListener("online", refresh);
-    window.addEventListener("offline", refresh);
+    wake();
+    window.addEventListener("online", markBrowser);
+    window.addEventListener("online", wake);
+    window.addEventListener("offline", markBrowser);
     return () => {
       cancelled = true;
-      window.removeEventListener("online", refresh);
-      window.removeEventListener("offline", refresh);
+      window.removeEventListener("online", markBrowser);
+      window.removeEventListener("online", wake);
+      window.removeEventListener("offline", markBrowser);
     };
   }, []);
 
@@ -88,10 +105,18 @@ export function AuthForm() {
           ? await signup(values.name.trim(), email, values.password)
           : await login(email, values.password);
       persistAuthSession(auth.access_token, auth.user);
-      await hydrateFarmProfileFromServer();
+      // Farm profile is not needed to draw the next screen. Waiting on it
+      // added a full API round trip before first-time onboarding appeared.
+      void hydrateFarmProfileFromServer();
       toast.success(mode === "signin" ? t("auth.welcomeToast") : t("auth.createdToast"));
       navigate(mode === "signup" ? "/onboarding" : "/chat");
     } catch (error) {
+      if (error instanceof ApiTimeoutError || isNetworkFailure(error)) {
+        setProbeSettled(true);
+        setApiOnline(false);
+        toast.error(t("auth.unreachable"));
+        return;
+      }
       const raw = error instanceof Error ? error.message : t("auth.failed");
       const message =
         mode === "signin" && /invalid email or password/i.test(raw) ? t("auth.noAccountToast") : raw;
@@ -138,7 +163,10 @@ export function AuthForm() {
           {mode === "signin" ? t("auth.signInHint") : t("auth.signUpHint")}
         </p>
 
-        {mode === "signin" && cachedUser && !apiOnline && (
+        {mode === "signin" &&
+          cachedUser &&
+          !submitting &&
+          (!browserOnline || (probeSettled && !apiOnline)) && (
           <div className="mt-5 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4">
             <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <WifiOff className="size-4 text-amber-700" aria-hidden="true" />

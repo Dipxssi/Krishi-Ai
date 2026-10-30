@@ -6,6 +6,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
+import { MemoryPanel } from "@/components/chat/MemoryPanel";
 import { SettingsPanel } from "@/components/chat/SettingsPanel";
 import { SuggestedPrompt } from "@/components/chat/SuggestedPrompt";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
@@ -53,6 +54,7 @@ function ChatPage() {
   const [thinking, setThinking] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const active = useMemo(
@@ -185,6 +187,7 @@ function ChatPage() {
         <ChatHeader
           onOpenSidebar={() => setSidebarOpen(true)}
           onNewChat={handleNewChat}
+          onOpenMemory={() => setMemoryOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
 
@@ -255,6 +258,8 @@ function ChatPage() {
 
         <ChatInput onSend={handleSend} disabled={thinking} />
       </main>
+
+      <MemoryPanel open={memoryOpen} onOpenChange={setMemoryOpen} />
 
       <SettingsPanel
         open={settingsOpen}

@@ -176,7 +176,22 @@ async function ensureApiJson(res: Response, path: string): Promise<void> {
   );
 }
 
-async function apiFetch(path: string, init: RequestInit = {}, auth = false): Promise<Response> {
+/** Sign-in/sign-up wait long enough for one cold start, then fail clearly. */
+const AUTH_REQUEST_TIMEOUT_MS = 60_000;
+
+export class ApiTimeoutError extends Error {
+  constructor() {
+    super("Krishi AI took too long to respond.");
+    this.name = "ApiTimeoutError";
+  }
+}
+
+async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  auth = false,
+  timeoutMs?: number,
+): Promise<Response> {
   const headers = new Headers(init.headers);
   if (init.body != null && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
@@ -185,9 +200,22 @@ async function apiFetch(path: string, init: RequestInit = {}, auth = false): Pro
     const token = getAccessToken();
     if (token) headers.set("Authorization", `Bearer ${token}`);
   }
-  const res = await fetch(`${API_BASE}${path}`, { ...init, headers });
-  if (auth) handleUnauthorized(res);
-  return res;
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      headers,
+      signal: controller ? controller.signal : init.signal,
+    });
+    if (auth) handleUnauthorized(res);
+    return res;
+  } catch (error) {
+    if (controller?.signal.aborted) throw new ApiTimeoutError();
+    throw error;
+  } finally {
+    if (timer != null) window.clearTimeout(timer);
+  }
 }
 
 export type AuthResponse = {
@@ -210,7 +238,7 @@ export async function signup(
       password,
       location: location || undefined,
     }),
-  });
+  }, false, AUTH_REQUEST_TIMEOUT_MS);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -219,16 +247,16 @@ export async function login(email: string, password: string): Promise<AuthRespon
   const res = await apiFetch("/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
-  });
+  }, false, AUTH_REQUEST_TIMEOUT_MS);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
 export async function fetchMe(accessToken?: string | null): Promise<AuthUser> {
   const token = accessToken ?? getAccessToken();
-  const res = await fetch(`${API_BASE}/auth/me`, {
+  const res = await apiFetch("/auth/me", {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+  }, false, AUTH_REQUEST_TIMEOUT_MS);
   if (res.status === 401) {
     clearAuthSession();
   }

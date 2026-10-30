@@ -3,9 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 
-from app.db.session import create_farm_context, get_farm_context
-from app.db.users import create_user, get_user_by_email
-from app.schemas.models import FarmContextCreate
+from app.db.users import create_user_with_farm, get_user_by_email
 from app.services.auth_service import (
     create_access_token,
     get_current_user,
@@ -54,29 +52,21 @@ def _to_public(user: UserRow) -> UserPublic:
 @router.post("/signup", response_model=AuthResponse, status_code=201)
 def signup(payload: SignupRequest):
     email = str(payload.email).lower().strip()
-    if get_user_by_email(email):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     from uuid import uuid4
 
     farmer_id = str(uuid4())
-
-    user = create_user(
+    # Hash before opening a database connection so bcrypt does not hold a Neon session.
+    password_hash = hash_password(payload.password)
+    user = create_user_with_farm(
         email=email,
         name=payload.name.strip(),
-        password_hash=hash_password(payload.password),
+        password_hash=password_hash,
         farmer_id=farmer_id,
+        location=(payload.location or "India").strip() or "India",
     )
-
-    if not get_farm_context(farmer_id):
-        create_farm_context(
-            FarmContextCreate(
-                farmer_id=farmer_id,
-                location=(payload.location or "India").strip() or "India",
-                farm_area_acres=1.0,
-                preferred_language="en",
-            )
-        )
+    if not user:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
     token = create_access_token(user_id=user.id, email=user.email, farmer_id=user.farmer_id)
     return AuthResponse(access_token=token, user=_to_public(user))

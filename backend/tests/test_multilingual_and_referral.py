@@ -16,8 +16,12 @@ from app.services.multilingual import (
     get_ui_text,
     normalize_indic_script,
     normalize_language_code,
+    transcript_needs_hindi_retry,
 )
-from app.services.nearby_help import find_nearby_agricultural_help as find_nearby_help
+from app.services.nearby_help import (
+    append_nearby_kvk_office,
+    find_nearby_agricultural_help as find_nearby_help,
+)
 from app.services.safety_escalation import evaluate_escalation
 from app.tools.agriculture import calculate_profit
 
@@ -48,6 +52,12 @@ class TestLanguageDetectionAndDisclaimers:
     def test_language_detection_hindi(self):
         query = "टमाटर की फसल में अच्छी पैदावार के लिए क्या करें?"
         assert detect_language(query) == "hi"
+
+    def test_icelandic_misread_of_hindi_needs_retry(self):
+        garbage = "Ísum meõ kjá issú hei, kjá hó sakti hei, kïði hún yelú turn"
+        assert transcript_needs_hindi_retry(garbage, "is") is True
+        assert transcript_needs_hindi_retry("How do I protect my tomato crop?", "en") is False
+        assert transcript_needs_hindi_retry("पत्तियाँ पीली हो रही हैं", "hi") is False
 
     def test_language_detection_english(self):
         query = "How do I care for my tomato plants?"
@@ -172,6 +182,22 @@ class TestNearbyHelpVerification:
         assert resp["status"] == "ok"
         assert len(resp["results"]) >= 1
         assert "Dharwad" in resp["results"][0]["district"]
+
+    def test_kvk_advice_appends_bengaluru_office_map(self):
+        advice = (
+            "4. When to Visit Your Local KVK or Extension Officer\n\n"
+            "If the yellowing does not improve in 7–10 days, visit your local KVK."
+        )
+        text = append_nearby_kvk_office(advice, "Bengaluru, Karnataka", "en")
+        assert "Bengaluru Urban" in text
+        assert "GKVK, Bellary Road" in text
+        assert "https://www.google.com/maps/search/?api=1&query=13.0768,77.5753" in text
+        assert "Open live location" in text
+        assert "Bengaluru Rural" not in text
+
+    def test_kvk_advice_without_a_known_place_does_not_invent_an_office(self):
+        advice = "Visit your local KVK before spraying."
+        assert append_nearby_kvk_office(advice, "India", "en") == advice
 
     def test_unmatched_location_returns_fallback_notice_without_fabrication(self):
         # Query with unknown overseas or nonexistent district

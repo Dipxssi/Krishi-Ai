@@ -12,21 +12,30 @@ Do **not** use SQLite in production (Render disk is ephemeral).
 
 ## Free tier (512 MB) — supported path
 
-Render Free cannot load Torch/MobileNet. The default deploy is **slim**:
+Render Free cannot load Torch in-process. Keep the API **slim** and run MobileNet on a **free Hugging Face Space**:
 
-- Build: `uv sync --no-dev` (no `torch` / `torchvision`)
-- Env: `VISION_MODEL=heuristic`
-- Leaf photos use the light heuristic screener; text advice, auth, Neon still work
-- Free instances **sleep** when idle (first request after sleep can take ~30–60s)
+- Build: `uv sync --no-dev` (no `torch` / `torchvision` on Render)
+- Env: `VISION_MODEL=mobilenetv3` + `VISION_INFERENCE_URL=https://<you>-krishiai-vision.hf.space`
+- Space code: [`deploy/hf-space/`](../deploy/hf-space/) (Docker Space, CPU basic)
+- Leaf photos → Render proxies to Space `POST /predict` → real MobileNetV3
+- If the Space is asleep/unreachable, API falls back to the color-ratio heuristic
+- **Demo tip:** open the Space URL once before presenting (cold start 30–120s)
+- Render Free itself also sleeps when idle (~30–60s first request)
 
-Later, on a plan with **≥2 GB RAM**:
+### Deploy the free vision Space (one-time)
+
+1. Create a Docker Space named e.g. `krishiai-vision` on Hugging Face (CPU basic).
+2. Push contents of `deploy/hf-space/` into that Space.
+3. On Render → Environment: set `VISION_INFERENCE_URL` to the Space URL (no trailing slash) and `VISION_MODEL=mobilenetv3`.
+4. Save → wait for redeploy → smoke-test a leaf on Vercel.
+
+Optional later (paid ≥2 GB RAM, Torch on Render):
 
 ```bash
-# Build command
 pip install uv && uv sync --extra vision --no-dev
 ```
 
-Set `VISION_MODEL=mobilenetv3` and `HF_TOKEN` if the Hugging Face repo needs it.
+Clear `VISION_INFERENCE_URL` and keep `VISION_MODEL=mobilenetv3`.
 
 ## 1. Neon
 
@@ -67,13 +76,14 @@ Set `VISION_MODEL=mobilenetv3` and `HF_TOKEN` if the Hugging Face repo needs it.
    | `DATABASE_URL` | yes | Neon pooled URL |
    | `JWT_SECRET` | yes | ≥32 random chars (or Render Generate) |
    | `CORS_ORIGINS` | yes | `https://krishi-ai-ruddy.vercel.app` (comma-separate more origins; code also allows `*.vercel.app`) |
-   | `VISION_MODEL` | yes on Free | `heuristic` |
+   | `VISION_MODEL` | yes | `mobilenetv3` with Space URL, else `heuristic` |
+   | `VISION_INFERENCE_URL` | for free MobileNet | `https://<you>-krishiai-vision.hf.space` |
    | `GROQ_API_KEY` | yes for LLM/voice STT | Groq key |
    | `GROQ_MODEL` | optional | e.g. `llama-3.3-70b-versatile` |
    | `OPENAI_API_KEY` | optional | TTS only |
    | `WEATHER_API_KEY` | optional | else labeled mock weather |
    | `MARKET_API_KEY` / `DATA_GOV_API_KEY` | optional | else labeled mock market |
-   | `HF_TOKEN` | only with vision extra | Hugging Face token |
+   | `HF_TOKEN` | only with in-process vision | Hugging Face token |
 
 7. Generate a secret locally if needed:
 
@@ -118,13 +128,13 @@ Bluetooth mesh cannot reach the API; a normal hotspot can because the phone stil
 1. Open Vercel URL → Sign up.
 2. Complete onboarding.
 3. Ask a text question → recommendation appears.
-4. Upload a leaf image → heuristic screening (or safe rejection), not MobileNet.
+4. Wake HF Space → upload a leaf image → MobileNetV3 prediction (or safe rejection). Without `VISION_INFERENCE_URL`, falls back to heuristic.
 5. Expired/missing token → redirected to `/auth`.
 6. Airplane mode → ask a question → sees “waiting”; leave airplane / join hotspot → answer fills in.
 
 ## Local vs production
 
 - Local slim: `cd backend && uv sync --no-dev`
-- Local with MobileNet: `uv sync --extra vision`
-- Production Free: slim + `VISION_MODEL=heuristic`
-- Production with HF model: `--extra vision` + `VISION_MODEL=mobilenetv3` + enough RAM
+- Local with MobileNet: `uv sync --extra vision` **or** `VISION_INFERENCE_URL` pointing at a Space
+- Production Free: slim + `VISION_MODEL=mobilenetv3` + `VISION_INFERENCE_URL` (HF Space)
+- Production single-box: `--extra vision` + `VISION_MODEL=mobilenetv3` + ≥2GB RAM (no Space URL)

@@ -26,6 +26,27 @@ _ROMANIZED_HINDI_WORDS = {
 }
 
 
+# whisper-large-v3-turbo often tags Hindi speech as Icelandic or a nearby Latin language
+# and then writes phonetic garbage ("Ísum meõ kjá…") instead of Devanagari.
+_HINDI_MISDETECT_LANGS = {"is", "fo", "cy", "nn", "nb", "sv", "da", "fi"}
+
+
+def transcript_needs_hindi_retry(text: str, detected_language: str | None = None) -> bool:
+    """True when a transcript is a Whisper language-ID miss, not real English or Indic text."""
+    if not text or not text.strip():
+        return False
+    if _DEVANAGARI_RE.search(text) or _KANNADA_RE.search(text) or _TELUGU_RE.search(text):
+        return False
+    code = (detected_language or "").strip().lower().split("-", 1)[0]
+    if code in _HINDI_MISDETECT_LANGS:
+        return True
+    letters = [char for char in text if char.isalpha()]
+    if len(letters) < 12:
+        return False
+    marked = sum(1 for char in letters if ord(char) > 127)
+    return marked / len(letters) >= 0.12
+
+
 def normalize_indic_script(text: str) -> str:
     """Normalize any Telugu Unicode characters that Whisper mixed into Kannada speech.
 

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +19,22 @@ from app.core.config import get_settings
 
 OFFICIAL_KISAN_HELPLINE = "1800-180-1551"
 OFFICIAL_KVK_PORTAL = "https://kvk.icar.gov.in"
+
+_PLACE_ALIASES = {
+    "bangalore": "bengaluru",
+    "bengalore": "bengaluru",
+    "belgaum": "belagavi",
+    "belgam": "belagavi",
+    "mysore": "mysuru",
+    "mangalore": "dakshina kannada",
+    "hubli": "dharwad",
+    "hubballi": "dharwad",
+}
+
+_KVK_ADVICE_RE = re.compile(
+    r"\bKVK\b|Krishi Vigyan|extension officer|कृषि विज्ञान|ಕೃಷಿ ವಿಜ್ಞಾನ",
+    re.IGNORECASE,
+)
 
 
 def _haversine_distance_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -43,6 +60,119 @@ def load_kvk_directory() -> list[dict[str, Any]]:
         return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
         return []
+
+
+def _normalize_place(text: str) -> str:
+    lowered = re.sub(r"[^a-z0-9\s]", " ", text.lower())
+    for source, target in _PLACE_ALIASES.items():
+        lowered = re.sub(rf"\b{source}\b", target, lowered)
+    return re.sub(r"\s+", " ", lowered).strip()
+
+
+def maps_url(latitude: float, longitude: float) -> str:
+    """Open the office pin in Google Maps. Coordinates come from the ICAR directory."""
+    return f"https://www.google.com/maps/search/?api=1&query={latitude},{longitude}"
+
+
+def nearest_verified_kvk(location: str | None) -> dict[str, Any] | None:
+    """Pick the verified KVK for a farm place. Never invents an office.
+
+    A bare city name such as Bengaluru prefers the Urban kendra. 'Rural' in the
+    place name keeps the rural kendra.
+    """
+    raw = (location or "").strip()
+    if not raw or raw.lower() in {"india", "unknown"}:
+        return None
+    place = _normalize_place(raw)
+    if not place:
+        return None
+    wants_rural = "rural" in place
+    pin_match = re.search(r"\b(\d{6})\b", raw)
+    pin = pin_match.group(1) if pin_match else ""
+    scored: list[tuple[int, dict[str, Any]]] = []
+    for center in load_kvk_directory():
+        district = _normalize_place(str(center.get("district") or ""))
+        state = _normalize_place(str(center.get("state") or ""))
+        center_pin = str(center.get("pincode") or "")
+        score = 0
+        if pin and pin == center_pin:
+            score += 8
+        district_tokens = [
+            token
+            for token in district.split()
+            if len(token) > 3 and token not in {"rural", "urban"}
+        ]
+        if district and district in place:
+            score += 6
+        elif district_tokens and all(token in place for token in district_tokens):
+            score += 5
+        elif district_tokens and any(token in place for token in district_tokens):
+            score += 3
+        if state and state in place:
+            score += 1
+        if score <= 0:
+            continue
+        if "urban" in district and not wants_rural:
+            score += 2
+        if "rural" in district and wants_rural:
+            score += 2
+        if "rural" in district and not wants_rural:
+            score -= 1
+        scored.append((score, center))
+    if not scored:
+        return None
+    scored.sort(key=lambda item: item[0], reverse=True)
+    chosen = dict(scored[0][1])
+    chosen["verified"] = True
+    return chosen
+
+
+def format_nearby_kvk_block(location: str | None, language: str = "en") -> str:
+    """Short office card: name, address, phone, and a map pin. Empty when unknown."""
+    center = nearest_verified_kvk(location)
+    if not center:
+        return ""
+    name = str(center.get("name") or "").strip()
+    address = str(center.get("address") or "").strip()
+    phone = str(center.get("phone") or "").strip()
+    lat = center.get("latitude")
+    lon = center.get("longitude")
+    map_line = ""
+    if isinstance(lat, (int, float)) and isinstance(lon, (int, float)):
+        url = maps_url(float(lat), float(lon))
+        if language == "hi":
+            map_line = f"[लाइव लोकेशन खोलें]({url})"
+        elif language == "kn":
+            map_line = f"[ಲೈವ್ ಸ್ಥಳ ತೆರೆಯಿರಿ]({url})"
+        else:
+            map_line = f"[Open live location]({url})"
+    if language == "hi":
+        lines = ["**सबसे नज़दीकी कृषि विज्ञान केंद्र**", name, address]
+        if phone:
+            lines.append(f"फ़ोन: {phone}")
+    elif language == "kn":
+        lines = ["**ಹತ್ತಿರದ ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರ**", name, address]
+        if phone:
+            lines.append(f"ಫೋನ್: {phone}")
+    else:
+        lines = ["**Nearest verified KVK**", name, address]
+        if phone:
+            lines.append(f"Phone: {phone}")
+    if map_line:
+        lines.append(map_line)
+    return "\n".join(line for line in lines if line)
+
+
+def append_nearby_kvk_office(recommendation: str, location: str | None, language: str = "en") -> str:
+    """Add the real nearby office when the answer tells the farmer to visit a KVK."""
+    if not recommendation or not _KVK_ADVICE_RE.search(recommendation):
+        return recommendation
+    if "maps/search/?api=1&query=" in recommendation:
+        return recommendation
+    block = format_nearby_kvk_block(location, language)
+    if not block:
+        return recommendation
+    return recommendation.rstrip() + "\n\n" + block
 
 
 def find_nearby_agricultural_help(

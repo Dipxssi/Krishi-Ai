@@ -60,9 +60,44 @@ def mobilenetv3_diagnosis(
 ):
     """
     Test inference endpoint for evaluating the trained MobileNetV3 transfer learning model.
-    Reuses exact evaluation preprocessing, ImageNet normalization, and uncertainty rejection.
-    Kept separate from the live heuristic endpoint until expert-verified field evaluation passes.
+    Prefer VISION_INFERENCE_URL (free HF Space) on slim hosts; else local torch extra.
     """
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    if settings.vision_inference_url:
+        try:
+            from app.vision.remote_mobilenet import diagnose_image_via_remote
+
+            result = diagnose_image_via_remote(
+                request.image_base64,
+                crop_hint=request.crop_hint,
+                confidence_threshold=request.confidence_threshold,
+            )
+            return MobileNetV3DiagnosisResponse(
+                status=result.status,
+                rejection_reason=result.rejection_reason,
+                plant_name=result.plant_name,
+                predicted_disease=result.predicted_disease,
+                is_healthy=result.is_healthy,
+                predicted_class=result.predicted_disease,
+                crop_id=result.crop_id,
+                disease=result.disease,
+                confidence=result.confidence,
+                confidence_is_calibrated=result.confidence_is_calibrated,
+                top_3=result.top_3,
+                requires_expert=result.requires_expert,
+                treatment_hints=result.treatment_hints,
+                image_quality_score=result.image_quality_score,
+                inference_time_ms=float(result.latency_ms or 0.0),
+                model_version=result.model_version or "mobilenetv3_plantdisease_best",
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Remote MobileNet unavailable: {exc}",
+            ) from exc
+
     try:
         from app.vision.mobilenetv3_service import run_mobilenetv3_diagnosis
 
@@ -72,7 +107,7 @@ def mobilenetv3_diagnosis(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=(
                 "MobileNetV3 vision stack is not installed. "
-                "On Free hosts use VISION_MODEL=heuristic, or install: uv sync --extra vision"
+                "Set VISION_INFERENCE_URL to a free HF Space, or install: uv sync --extra vision"
             ),
         ) from exc
     except Exception as exc:

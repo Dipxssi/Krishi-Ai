@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { probeApiReachable, type ApiReachability } from "@/lib/apiReachability";
+import { browserIsOnline, probeApiReachable, type ApiReachability } from "@/lib/apiReachability";
 
 export type ConnectionUiState = ApiReachability | "sending";
 
@@ -15,12 +15,25 @@ export function useApiConnection(options?: {
   const [reachability, setReachability] = useState<ApiReachability>("checking");
   const inFlight = useRef(false);
 
+  const misses = useRef(0);
+
   const refresh = useCallback(async () => {
     if (inFlight.current) return;
     inFlight.current = true;
     try {
+      if (!browserIsOnline()) {
+        setReachability("offline");
+        return;
+      }
       const ok = await probeApiReachable();
-      setReachability(ok ? "online" : "offline");
+      if (ok) {
+        misses.current = 0;
+        setReachability("online");
+        return;
+      }
+      // One slow /health is a waking server, not a dead network.
+      misses.current += 1;
+      setReachability(misses.current >= 2 ? "offline" : "checking");
     } finally {
       inFlight.current = false;
     }

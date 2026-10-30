@@ -110,6 +110,7 @@ export const en = {
   "auth.noAccountToast":
     "No account found for that email/password. Use Sign Up if you haven’t created one yet.",
   "auth.failed": "Authentication failed",
+  "auth.unreachable": "Could not reach Krishi AI. Wait a moment and try again.",
   "auth.resetSoon": "Password reset is not available yet.",
   "auth.farmerAlt": "Farmer holding rice seedlings in a green paddy field",
   "auth.offlineContinueTitle": "Continue offline",
@@ -192,6 +193,7 @@ export const en = {
   "chat.openSidebar": "Open conversations",
   "chat.newAria": "Start a new chat",
   "chat.settingsAria": "Open settings",
+  "chat.memoryAria": "Open conversation memory and offline pack",
   "chat.fieldRelay": "Field relay",
   "chat.subtitle": "AI Agricultural Assistant",
   "chat.hello": "How can Krishi AI help you today?",
@@ -511,6 +513,7 @@ export const hi: Record<MessageKey, string> = {
   "auth.noAccountToast":
     "उस ईमेल/पासवर्ड से खाता नहीं मिला। अगर अभी तक नहीं बनाया तो साइन अप करें।",
   "auth.failed": "प्रमाणीकरण विफल",
+  "auth.unreachable": "कृषि AI तक नहीं पहुँच सके। थोड़ी देर रुककर फिर कोशिश करें।",
   "auth.resetSoon": "पासवर्ड रीसेट अभी उपलब्ध नहीं है।",
   "auth.farmerAlt": "हरे धान के खेत में पौधे पकड़े किसान",
   "auth.offlineContinueTitle": "ऑफ़लाइन जारी रखें",
@@ -590,6 +593,7 @@ export const hi: Record<MessageKey, string> = {
   "chat.openSidebar": "बातचीत खोलें",
   "chat.newAria": "नई चैट शुरू करें",
   "chat.settingsAria": "सेटिंग्स खोलें",
+  "chat.memoryAria": "बातचीत मेमोरी और ऑफ़लाइन पैक खोलें",
   "chat.fieldRelay": "फ़ील्ड रिले",
   "chat.subtitle": "AI कृषि सहायक",
   "chat.hello": "कृषि AI आज आपकी कैसे मदद कर सकता है?",
@@ -902,6 +906,7 @@ export const kn: Record<MessageKey, string> = {
   "auth.noAccountToast":
     "ಆ ಇಮೇಲ್/ಪಾಸ್‌ವರ್ಡ್‌ಗೆ ಖಾತೆ ಸಿಗಲಿಲ್ಲ. ಇನ್ನೂ ರಚಿಸದಿದ್ದರೆ ಸೈನ್ ಅಪ್ ಬಳಸಿ.",
   "auth.failed": "ಪ್ರಮಾಣೀಕರಣ ವಿಫಲವಾಯಿತು",
+  "auth.unreachable": "ಕೃಷಿ AI ತಲುಪಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ಸ್ವಲ್ಪ ಕಾಯ್ದು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.",
   "auth.resetSoon": "ಪಾಸ್‌ವರ್ಡ್ ಮರುಹೊಂದಿಕೆ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ.",
   "auth.farmerAlt": "ಹಸಿರು ಭತ್ತದ ಹೊಲದಲ್ಲಿ ಸಸಿ ಹಿಡಿದ ರೈತ",
   "auth.offlineContinueTitle": "ಆಫ್‌ಲೈನ್ ಮುಂದುವರಿಸಿ",
@@ -981,6 +986,7 @@ export const kn: Record<MessageKey, string> = {
   "chat.openSidebar": "ಸಂಭಾಷಣೆಗಳನ್ನು ತೆರೆಯಿರಿ",
   "chat.newAria": "ಹೊಸ ಚಾಟ್ ಪ್ರಾರಂಭಿಸಿ",
   "chat.settingsAria": "ಸೆಟ್ಟಿಂಗ್‌ಗಳನ್ನು ತೆರೆಯಿರಿ",
+  "chat.memoryAria": "ಸಂಭಾಷಣೆ ಮೆಮೊರಿ ಮತ್ತು ಆಫ್‌ಲೈನ್ ಪ್ಯಾಕ್ ತೆರೆಯಿರಿ",
   "chat.fieldRelay": "ಫೀಲ್ಡ್ ರಿಲೇ",
   "chat.subtitle": "AI ಕೃಷಿ ಸಹಾಯಕ",
   "chat.hello": "ಕೃಷಿ AI ಇಂದು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಬಹುದು?",

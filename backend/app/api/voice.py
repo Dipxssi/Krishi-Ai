@@ -96,25 +96,44 @@ def transcribe(
     headers = {"Authorization": f"Bearer {settings.groq_api_key.strip()}"}
     safe_name = re.sub(r"[^A-Za-z0-9_.-]", "_", request.filename.replace("\\", "/").rsplit("/", 1)[-1])[:100]
     files = {"file": (safe_name or "recording.webm", audio, request.content_type)}
-    data = {"model": "whisper-large-v3-turbo", "response_format": "json"}
+    # verbose_json includes the language Whisper thought it heard.
+    data = {"model": "whisper-large-v3-turbo", "response_format": "verbose_json"}
     # Only pin Whisper for Indic languages. Forcing "en" (the farm-profile default)
     # makes Kannada/Hindi speech transcribe as English.
+    pinned: str | None = None
     if request.language_hint:
         from app.services.multilingual import normalize_language_code
         lang_code = normalize_language_code(request.language_hint)
         if lang_code in ("kn", "hi"):
+            pinned = lang_code
             data["language"] = lang_code
-    try:
+
+    def _call(form: dict) -> dict:
         result = httpx.post(
             "https://api.groq.com/openai/v1/audio/transcriptions",
-            headers=headers, data=data, files=files, timeout=90.0,
+            headers=headers, data=form, files=files, timeout=90.0,
         )
         result.raise_for_status()
         payload = result.json()
         if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
             raise ValueError("Unexpected transcription response")
-        from app.services.multilingual import normalize_indic_script
+        return payload
+
+    try:
+        from app.services.multilingual import normalize_indic_script, transcript_needs_hindi_retry
+        payload = _call(data)
         text = normalize_indic_script(payload["text"].strip())
+        detected = payload.get("language") if isinstance(payload.get("language"), str) else None
+        # Unpinned audio is auto-detected. Hindi is often labeled Icelandic and
+        # written as accented Latin. Ask again with language=hi before giving up.
+        if pinned is None and transcript_needs_hindi_retry(text, detected):
+            retry = _call({**data, "language": "hi"})
+            retry_text = normalize_indic_script(retry["text"].strip())
+            if retry_text and not transcript_needs_hindi_retry(
+                retry_text,
+                retry.get("language") if isinstance(retry.get("language"), str) else "hi",
+            ):
+                text = retry_text
     except httpx.HTTPStatusError as exc:
         logger.warning("Groq transcription rejected request (HTTP %s)", exc.response.status_code)
         raise HTTPException(status_code=502, detail="Speech transcription provider rejected the audio.") from exc

@@ -107,6 +107,13 @@ export async function hydrateFarmProfileFromServer(): Promise<FarmContext | null
   if (!user?.farmer_id) return null;
   try {
     const remote = await getFarmer(user.farmer_id);
+    const local = loadFarmProfile();
+    // Signup hydrates in the background. If the person already saved a real
+    // farm profile, a slower response that still has the empty stub must not
+    // overwrite it.
+    if (hasRequiredFarmFields(local) && !hasRequiredFarmFields(remote)) {
+      return local;
+    }
     saveFarmProfileLocal(remote);
     syncOnboardingFlagFromProfile(remote);
     return remote;

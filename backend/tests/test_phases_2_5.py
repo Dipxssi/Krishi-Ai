@@ -156,6 +156,70 @@ def test_voice_transcribe_omits_language_for_english_hint(client, monkeypatch):
     assert "language" not in (captured.get("data") or {})
 
 
+def test_voice_transcribe_retries_hindi_after_icelandic_misread(client, monkeypatch):
+    """Hindi speech left on auto-detect often comes back as Icelandic Latin. Retry as hi."""
+    calls: list[dict] = []
+    responses = [
+        {"text": "Ísum meõ kjá issú hei, kjá hó sakti hei, kïði hún yelú", "language": "is"},
+        {"text": "इसमें क्या दिक्कत है, पत्तियाँ पीली हो रही हैं", "language": "hi"},
+    ]
+
+    class FakeResponse:
+        def __init__(self, payload: dict):
+            self._payload = payload
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return self._payload
+
+    def fake_post(*args, **kwargs):
+        calls.append(kwargs.get("data") or {})
+        return FakeResponse(responses[len(calls) - 1])
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
+    r = client.post(
+        "/voice/transcribe",
+        json={"audio_base64": base64.b64encode(b"x" * 32).decode()},
+    )
+    assert r.status_code == 200, r.text
+    assert "language" not in calls[0]
+    assert calls[1]["language"] == "hi"
+    assert r.json()["text"] == "इसमें क्या दिक्कत है, पत्तियाँ पीली हो रही हैं"
+
+
+def test_voice_transcribe_sets_language_for_hindi_hint(client, monkeypatch):
+    captured: dict = {}
+
+    class FakeResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"text": "पत्तियाँ पीली हो रही हैं", "language": "hi"}
+
+    def fake_post(*args, **kwargs):
+        captured["data"] = kwargs.get("data")
+        return FakeResponse()
+
+    monkeypatch.setenv("GROQ_API_KEY", "test-key")
+    get_settings.cache_clear()
+    monkeypatch.setattr("app.api.voice.httpx.post", fake_post)
+    r = client.post(
+        "/voice/transcribe",
+        json={
+            "audio_base64": base64.b64encode(b"x" * 32).decode(),
+            "language_hint": "hi",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert (captured.get("data") or {}).get("language") == "hi"
+    assert r.json()["text"] == "पत्तियाँ पीली हो रही हैं"
+
+
 def test_voice_transcribe_sets_language_for_kannada_hint(client, monkeypatch):
     captured: dict = {}
 

@@ -1,8 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  BookOpen,
-  Brain,
   LogOut,
   MessageSquare,
   MoreVertical,
@@ -25,8 +23,6 @@ import type { Conversation } from "@/data/mockChats";
 import { initialsFromName, useAuthUser } from "@/hooks/useAuthUser";
 import { useI18n } from "@/hooks/useI18n";
 import { clearAuthSession } from "@/lib/authSession";
-import { loadProfileMemory } from "@/lib/conversationMemory";
-import { ensureOfflinePackSynced, getOfflinePackMeta, type OfflinePackMeta } from "@/lib/offlinePack";
 import { cn } from "@/lib/utils";
 
 interface ChatSidebarProps {
@@ -54,23 +50,11 @@ export function ChatSidebar({
   const displayName = authUser?.name?.trim() || authUser?.email?.split("@")[0] || "Farmer";
   const displayEmail = authUser?.email || t("chat.notSignedIn");
   const initials = initialsFromName(displayName);
-  const [packMeta, setPackMeta] = useState<OfflinePackMeta | null>(() => getOfflinePackMeta());
-  const [memoryPreview, setMemoryPreview] = useState("");
   const filtered = conversations.filter((c) =>
     (c.title + " " + c.messages.map((m) => m.content).join(" "))
       .toLowerCase()
       .includes(query.trim().toLowerCase()),
   );
-
-  useEffect(() => {
-    setMemoryPreview(loadProfileMemory(authUser?.farmer_id));
-    setPackMeta(getOfflinePackMeta());
-    void ensureOfflinePackSynced().then(() => setPackMeta(getOfflinePackMeta()));
-  }, [authUser?.farmer_id]);
-
-  useEffect(() => {
-    setMemoryPreview(loadProfileMemory(authUser?.farmer_id));
-  }, [authUser?.farmer_id, conversations]);
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-x-hidden bg-sidebar text-sidebar-foreground">
@@ -165,33 +149,6 @@ export function ChatSidebar({
       </div>
 
       <div className="min-w-0 shrink-0 overflow-x-hidden border-t border-sidebar-border p-3">
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          className="mb-2 w-full min-w-0 rounded-2xl border border-sidebar-border/80 bg-sidebar-accent/40 p-3 text-left transition-colors hover:bg-sidebar-accent/70"
-        >
-          <span className="flex items-center gap-2 text-xs font-semibold tracking-wide text-sidebar-foreground/80 uppercase">
-            <BookOpen className="size-3.5 shrink-0" aria-hidden="true" />
-            {t("settings.packTitle")}
-          </span>
-          <span className="mt-1 block truncate text-xs text-sidebar-foreground/65">
-            {packMeta
-              ? t("settings.packStatus", { version: packMeta.version, count: packMeta.entryCount })
-              : t("settings.packMissing")}
-          </span>
-          <span className="mt-2 flex items-start gap-2 border-t border-sidebar-border/60 pt-2">
-            <Brain className="mt-0.5 size-3.5 shrink-0 text-sidebar-foreground/70" aria-hidden="true" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-xs font-semibold text-sidebar-foreground/80">
-                {t("settings.memoryTitle")}
-              </span>
-              <span className="mt-0.5 line-clamp-2 block text-xs text-sidebar-foreground/60">
-                {memoryPreview.trim() || t("settings.memoryEmpty")}
-              </span>
-            </span>
-          </span>
-        </button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button

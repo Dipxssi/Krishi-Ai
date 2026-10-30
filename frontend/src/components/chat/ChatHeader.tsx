@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Menu, MessageSquarePlus, Radio, Settings, Sprout } from "lucide-react";
+import { Brain, Menu, MessageSquarePlus, Radio, Settings, Sprout } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import type { ConnectionUiState } from "@/hooks/useApiConnection";
 import { useI18n } from "@/hooks/useI18n";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 interface ChatHeaderProps {
   onOpenSidebar: () => void;
   onNewChat: () => void;
+  onOpenMemory: () => void;
   onOpenSettings: () => void;
   connectionStatus?: ConnectionUiState;
   pendingCount?: number;
@@ -18,6 +19,7 @@ interface ChatHeaderProps {
 export function ChatHeader({
   onOpenSidebar,
   onNewChat,
+  onOpenMemory,
   onOpenSettings,
   connectionStatus = "checking",
   pendingCount = 0,
@@ -112,6 +114,15 @@ export function ChatHeader({
           className="grid size-9 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground sm:size-10"
         >
           <MessageSquarePlus className="size-5" />
+        </button>
+        <button
+          type="button"
+          onClick={onOpenMemory}
+          aria-label={t("chat.memoryAria")}
+          title={t("settings.memoryTitle")}
+          className="grid size-9 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground sm:size-10"
+        >
+          <Brain className="size-5" />
         </button>
         <button
           type="button"

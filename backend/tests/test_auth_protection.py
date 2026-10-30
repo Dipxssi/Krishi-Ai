@@ -85,6 +85,40 @@ def test_query_ok_with_matching_farmer(client: TestClient):
     assert body["final_recommendation"]
 
 
+def test_signup_login_uses_cost_10_and_creates_farm(client: TestClient):
+    """Signup must stay one round trip: account, farm row, and a login that verifies."""
+    auth = _signup(client, email="fast-signup@example.com")
+    token = auth["access_token"]
+    farmer_id = auth["user"]["farmer_id"]
+
+    from app.db.users import get_user_by_email
+
+    user = get_user_by_email("fast-signup@example.com")
+    assert user is not None
+    assert user.password_hash.startswith("$2b$10$") or user.password_hash.startswith("$2a$10$")
+
+    farm = client.get(f"/farmers/{farmer_id}", headers=_auth_headers(token))
+    assert farm.status_code == 200, farm.text
+    assert farm.json()["farmer_id"] == farmer_id
+
+    logged_in = client.post(
+        "/auth/login",
+        json={"email": "fast-signup@example.com", "password": "secret12"},
+    )
+    assert logged_in.status_code == 200, logged_in.text
+    assert logged_in.json()["user"]["farmer_id"] == farmer_id
+
+    duplicate = client.post(
+        "/auth/signup",
+        json={
+            "name": "Test Farmer",
+            "email": "fast-signup@example.com",
+            "password": "secret12",
+        },
+    )
+    assert duplicate.status_code == 409
+
+
 def test_farmer_put_bound_to_token(client: TestClient):
     auth = _signup(client)
     token = auth["access_token"]

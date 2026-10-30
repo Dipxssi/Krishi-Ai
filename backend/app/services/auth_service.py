@@ -14,8 +14,16 @@ from app.db.users import UserRow, get_user_by_id
 _bearer = HTTPBearer(auto_error=False)
 
 
+# Cost 12 (bcrypt default) takes several seconds on a small host and blocks signup/login.
+# Cost 10 is still slow to brute-force and about 4× faster. Existing hashes keep their own cost.
+_BCRYPT_ROUNDS = 10
+
+
 def hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    return bcrypt.hashpw(
+        password.encode("utf-8"),
+        bcrypt.gensalt(rounds=_BCRYPT_ROUNDS),
+    ).decode("utf-8")
 
 
 def verify_password(password: str, password_hash: str) -> bool:

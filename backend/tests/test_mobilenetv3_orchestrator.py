@@ -189,7 +189,7 @@ def test_accepted_disease_prediction_reaches_orchestrator(tomato_context):
         latency_ms=12.5,
     )
 
-    with patch("app.vision.mobilenetv3_service.diagnose_image_with_mobilenetv3", return_value=mock_accepted):
+    with patch("app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3", return_value=mock_accepted):
         b64 = _create_synthetic_image_b64()
         resp = handle_query(
             "What is affecting my tomato leaf and how do I manage it?",
@@ -250,7 +250,7 @@ def test_healthy_prediction_handling(tomato_context):
         latency_ms=10.2,
     )
 
-    with patch("app.vision.mobilenetv3_service.diagnose_image_with_mobilenetv3", return_value=mock_healthy):
+    with patch("app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3", return_value=mock_healthy):
         b64 = _create_synthetic_image_b64()
         resp = handle_query(
             "Is my potato plant healthy?",
@@ -306,7 +306,7 @@ def test_rejected_prediction_remains_unconfirmed(tomato_context):
         latency_ms=11.0,
     )
 
-    with patch("app.vision.mobilenetv3_service.diagnose_image_with_mobilenetv3", return_value=mock_rejected):
+    with patch("app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3", return_value=mock_rejected):
         b64 = _create_synthetic_image_b64()
         resp = handle_query(
             "What spray should I use for this spot?",
@@ -389,7 +389,7 @@ def test_conflicting_farm_profile_and_image_crops(onion_context):
         latency_ms=13.0,
     )
 
-    with patch("app.vision.mobilenetv3_service.diagnose_image_with_mobilenetv3", return_value=mock_tomato):
+    with patch("app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3", return_value=mock_tomato):
         b64 = _create_synthetic_image_b64()
         # Farmer with onion profile uploads tomato leaf without explicit crop
         resp = handle_query(

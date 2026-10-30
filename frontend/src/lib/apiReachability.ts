@@ -4,7 +4,20 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "";
 
 export type ApiReachability = "checking" | "online" | "offline";
 
-export async function probeApiReachable(timeoutMs = 5000): Promise<boolean> {
+/**
+ * A sleeping host (Render/Neon) often needs 20–40s for the first request.
+ * Aborting /health at 5s painted "Network is unavailable" while sign-in was
+ * still waiting, and the abort could cancel the wake-up the real request needed.
+ */
+export const API_PROBE_TIMEOUT_MS = 20_000;
+export const API_WAKE_TIMEOUT_MS = 45_000;
+
+/** True when the browser reports a network. Missing `navigator` counts as online. */
+export function browserIsOnline(): boolean {
+  return typeof navigator === "undefined" || navigator.onLine !== false;
+}
+
+export async function probeApiReachable(timeoutMs = API_PROBE_TIMEOUT_MS): Promise<boolean> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -19,6 +32,22 @@ export async function probeApiReachable(timeoutMs = 5000): Promise<boolean> {
   } finally {
     window.clearTimeout(timer);
   }
+}
+
+let wakeInFlight: Promise<boolean> | null = null;
+
+/**
+ * One long /health so the auth screen can wake a sleeping API while the
+ * person fills the form. Callers share the same request — a second short
+ * probe used to abort the wake and start it over on Sign In.
+ */
+export function warmApi(timeoutMs = API_WAKE_TIMEOUT_MS): Promise<boolean> {
+  if (!wakeInFlight) {
+    wakeInFlight = probeApiReachable(timeoutMs).finally(() => {
+      wakeInFlight = null;
+    });
+  }
+  return wakeInFlight;
 }
 
 /** True when the error looks like a transport failure, not an HTTP 4xx/5xx from the API. */

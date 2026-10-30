@@ -41,7 +41,7 @@ function normalizeLeafCrop(raw: string | null | undefined): string {
 }
 
 export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [value, setValue] = useState("");
   const [imageBase64, setImageBase64] = useState<string | null>(null);
   const [cropHint, setCropHint] = useState<string>("");
@@ -91,7 +91,7 @@ export function ChatInput({ onSend, disabled, preferredLanguage }: ChatInputProp
         base64,
         blob.type || "audio/webm",
         `recording.${ext}`,
-        whisperLanguageHint(preferredLanguage),
+        whisperLanguageHint(locale) ?? whisperLanguageHint(preferredLanguage),
       );
       setValue(result.text);
       requestAnimationFrame(() => {

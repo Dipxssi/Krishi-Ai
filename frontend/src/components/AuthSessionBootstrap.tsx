@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { fetchMe } from "@/api";
-import { probeApiReachable } from "@/lib/apiReachability";
+import { browserIsOnline } from "@/lib/apiReachability";
 import {
   clearAccessTokenOnly,
   continueOfflineAs,
@@ -28,22 +28,19 @@ export function AuthSessionBootstrap() {
 
     (async () => {
       const token = getAccessToken();
-      const reachable = await probeApiReachable();
 
-      if (!token) {
-        if (!cancelled && isOfflineSession() && (getAuthUser() || getLastCachedUser())) {
-          continueOfflineAs(getAuthUser() || getLastCachedUser());
-        }
-        return;
-      }
-
-      if (!reachable) {
-        if (!cancelled) {
+      // A phone with no signal can continue from cache immediately.
+      // A slow API must not be treated as "network unavailable" — that probe
+      // used to fail in 5s and skip the real session check.
+      if (!browserIsOnline()) {
+        if (!cancelled && (token || isOfflineSession())) {
           const user = getAuthUser() || getLastCachedUser();
           if (user) continueOfflineAs(user);
         }
         return;
       }
+
+      if (!token) return;
 
       try {
         const user = await fetchMe(token);
@@ -55,7 +52,7 @@ export function AuthSessionBootstrap() {
           setOfflineSession(false);
           rememberLastUser(user);
         }
-        await hydrateFarmProfileFromServer();
+        void hydrateFarmProfileFromServer();
       } catch (error) {
         if (cancelled) return;
         const message = error instanceof Error ? error.message.toLowerCase() : "";
@@ -71,7 +68,7 @@ export function AuthSessionBootstrap() {
             /* ignore */
           }
           if (last) rememberLastUser(last);
-        } else {
+        } else if (!browserIsOnline()) {
           const user = getAuthUser() || getLastCachedUser();
           if (user) continueOfflineAs(user);
         }
@@ -91,7 +88,7 @@ export function AuthSessionBootstrap() {
         try {
           const user = await fetchMe(token);
           persistAuthSession(token, user);
-          await hydrateFarmProfileFromServer();
+          void hydrateFarmProfileFromServer();
         } catch {
           /* keep offline until password login */
         }
