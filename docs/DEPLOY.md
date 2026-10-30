@@ -12,15 +12,12 @@ Do **not** use SQLite in production (Render disk is ephemeral).
 
 ## Free tier (512 MB) — supported path
 
-Render Free cannot load Torch in-process. Keep the API **slim** and run MobileNet on a **free Hugging Face Space**:
+Render Free cannot load Torch in-process. The slim API runs the same MobileNetV3 checkpoint as ONNX on CPU (`backend/models/mobilenetv3_plantdisease.onnx`). That path does not use the Hugging Face ZeroGPU quota.
 
-- Build: `uv sync --no-dev` (no `torch` / `torchvision` on Render)
-- Env: `VISION_MODEL=mobilenetv3` + `VISION_INFERENCE_URL=https://<you>-krishiai-vision.hf.space`
-- Space code: [`deploy/hf-space/`](../deploy/hf-space/) (Docker Space, CPU basic)
-- Leaf photos → Render proxies to Space `POST /predict` → real MobileNetV3
-- If the Space is asleep/unreachable, API falls back to the color-ratio heuristic
-- **Demo tip:** open the Space URL once before presenting (cold start 30–120s)
-- Render Free itself also sleeps when idle (~30–60s first request)
+- Build: `uv sync --no-dev` (no `torch` / `torchvision` on Render; `onnxruntime` is a normal dependency)
+- Env: `VISION_MODEL=mobilenetv3`
+- Leaf photos run inside the API. A real scan shows model version `mobilenetv3_plantdisease_best@cpu`.
+- `VISION_INFERENCE_URL` is only a fallback when that ONNX file is missing. A failed Space call is not shown as a color-ratio diagnosis.
 
 ### Deploy the free vision Space (one-time)
 

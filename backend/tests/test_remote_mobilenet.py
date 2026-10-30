@@ -109,11 +109,31 @@ def test_facade_uses_remote_when_url_set(monkeypatch):
     get_settings.cache_clear()
 
     fake = MagicMock()
-    with patch(
-        "app.vision.remote_mobilenet.diagnose_image_via_remote",
-        return_value=fake,
-    ) as remote:
+    with (
+        patch("app.vision.onnx_mobilenet.bundled_onnx_path", return_value=None),
+        patch(
+            "app.vision.remote_mobilenet.diagnose_image_via_remote",
+            return_value=fake,
+        ) as remote,
+    ):
         out = diagnose_image_with_mobilenetv3("img", crop_hint="potato")
 
     assert out is fake
     remote.assert_called_once()
+
+
+def test_facade_prefers_bundled_onnx_over_space(monkeypatch):
+    monkeypatch.setenv("VISION_INFERENCE_URL", "demo/krishiai-vision")
+    get_settings.cache_clear()
+
+    fake = MagicMock()
+    with (
+        patch("app.vision.onnx_mobilenet.bundled_onnx_path", return_value="model.onnx"),
+        patch("app.vision.onnx_mobilenet.diagnose_image_with_onnx", return_value=fake) as onnx,
+        patch("app.vision.remote_mobilenet.diagnose_image_via_remote") as remote,
+    ):
+        out = diagnose_image_with_mobilenetv3("img", crop_hint="tomato")
+
+    assert out is fake
+    onnx.assert_called_once()
+    remote.assert_not_called()

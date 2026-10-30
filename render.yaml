@@ -1,7 +1,7 @@
 # Render Blueprint — https://dashboard.render.com/blueprints
 # Slim install (no torch) for Free / low-RAM.
-# Real MobileNet: deploy deploy/hf-space/ to a free HF Space, then set VISION_INFERENCE_URL
-# and VISION_MODEL=mobilenetv3 (sync: false below — paste Space URL in Render dashboard).
+# Real MobileNet on Render Free: ONNX file in backend/models (no torch, no ZeroGPU).
+# VISION_INFERENCE_URL is an optional Space fallback if that file is absent.
 services:
   - type: web
     name: krishiai-api

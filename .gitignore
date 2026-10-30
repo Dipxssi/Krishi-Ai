@@ -28,6 +28,7 @@ ml/**/processed/
 *.pth
 *.pt
 *.onnx
+!backend/models/mobilenetv3_plantdisease.onnx
 *.tflite
 *.safetensors
 *.ckpt

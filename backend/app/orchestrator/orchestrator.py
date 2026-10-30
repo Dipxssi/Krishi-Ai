@@ -658,33 +658,36 @@ def handle_query(
         crop_hint = user_selected_crop
         if chosen_vision_model == "mobilenetv3":
             vision_function = "diagnose_image_with_mobilenetv3"
-            inference_mechanism = (
-                "mobilenetv3_hf_space"
-                if settings.vision_inference_url
-                else "mobilenetv3_plantdisease_best"
-            )
+            inference_mechanism = "mobilenetv3_onnx_cpu"
             try:
-                # remote_mobilenet prefers VISION_INFERENCE_URL (no torch on Free Render).
                 from app.vision.remote_mobilenet import diagnose_image_with_mobilenetv3
                 image_diagnosis = diagnose_image_with_mobilenetv3(
                     image_base64,
                     crop_hint=crop_hint,
                     confidence_threshold=settings.vision_confidence_threshold,
                 )
-                if (
-                    image_diagnosis
-                    and image_diagnosis.model_version
-                    and "hf_space" in image_diagnosis.model_version
-                ):
+                version = (image_diagnosis.model_version or "") if image_diagnosis else ""
+                if "hf_space" in version:
                     inference_mechanism = "mobilenetv3_hf_space"
+                elif "@cpu" in version:
+                    inference_mechanism = "mobilenetv3_onnx_cpu"
             except Exception as exc:
-                logger.warning("MobileNetV3 diagnosis failed, falling back to heuristic: %s", exc)
-                vision_function = "diagnose_image_bytes"
-                inference_mechanism = "color_ratio_heuristic_v1"
-                image_diagnosis = diagnose_image_bytes(image_base64, crop_hint=crop_hint)
-                image_diagnosis.rejection_reason = (
-                    f"MobileNet Space was not used ({exc}). "
-                    + (image_diagnosis.rejection_reason or "")
+                logger.warning("MobileNetV3 diagnosis failed: %s", exc)
+                vision_function = "diagnose_image_with_mobilenetv3"
+                inference_mechanism = "mobilenetv3_unavailable"
+                image_diagnosis = ImageDiagnosisResult(
+                    status="rejected",
+                    rejection_reason=(
+                        "The trained MobileNet model did not run "
+                        f"({exc}). This is not a color-ratio diagnosis."
+                    ),
+                    requires_expert=True,
+                    is_healthy=False,
+                    model_version="mobilenetv3_plantdisease_best",
+                    treatment_hints=[
+                        "Do not apply chemical sprays from this unconfirmed result.",
+                        "Consult your nearest Krishi Vigyan Kendra (KVK).",
+                    ],
                 )
         else:
             vision_function = "diagnose_image_bytes"

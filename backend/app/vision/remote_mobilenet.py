@@ -35,13 +35,25 @@ def _space_runtime_url(space: str) -> str:
     return f"https://{slug}.hf.space"
 
 
+def _auth_headers() -> dict[str, str]:
+    token = (get_settings().hf_token or "").strip()
+    if not token:
+        return {}
+    return {"Authorization": f"Bearer {token}"}
+
+
 def _wake_space(space: str) -> None:
     """Free Spaces sleep. A GET starts the container before inference."""
     url = _space_runtime_url(space)
     if not url.startswith("http"):
         return
     try:
-        httpx.get(url, timeout=httpx.Timeout(20.0, connect=10.0), follow_redirects=True)
+        httpx.get(
+            url,
+            timeout=httpx.Timeout(20.0, connect=10.0),
+            follow_redirects=True,
+            headers=_auth_headers(),
+        )
         logger.info("Woke vision Space at %s", url)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Vision Space wake request failed for %s: %s", url, exc)
@@ -104,7 +116,7 @@ def _predict_on_space(space: str, image_base64: str, crop_hint: str | None, thre
         "crop_hint": (crop_hint or "").strip() or None,
         "confidence_threshold": float(threshold),
     }
-    with httpx.Client(timeout=timeout, follow_redirects=True) as client:
+    with httpx.Client(timeout=timeout, follow_redirects=True, headers=_auth_headers()) as client:
         posted = client.post(f"{runtime}/gradio_api/call/v2/predict", json=payload)
         posted.raise_for_status()
         event_id = (posted.json() or {}).get("event_id")
@@ -152,6 +164,8 @@ def diagnose_image_via_remote(
                 space,
                 exc,
             )
+            if "zerogpu" in str(exc).lower() or "quota" in str(exc).lower():
+                break
             if attempt == 0:
                 time.sleep(3)
 
@@ -239,7 +253,19 @@ def diagnose_image_with_mobilenetv3(
     confidence_threshold: float | None = None,
     checkpoint_path: Any = None,
 ) -> ImageDiagnosisResult:
-    """Prefer remote HF Space when configured; otherwise local torch service."""
+    """Prefer the bundled ONNX model (no GPU quota). Then the HF Space, then local torch."""
+    from app.vision.onnx_mobilenet import bundled_onnx_path
+
+    if bundled_onnx_path() is not None:
+        from app.vision.onnx_mobilenet import diagnose_image_with_onnx
+
+        logger.info("Using bundled MobileNet ONNX on CPU")
+        return diagnose_image_with_onnx(
+            image_base64,
+            crop_hint=crop_hint,
+            confidence_threshold=confidence_threshold,
+        )
+
     settings = get_settings()
     if settings.vision_inference_url:
         logger.info("Using remote MobileNet Space %s", _space_id_or_url(settings.vision_inference_url))
