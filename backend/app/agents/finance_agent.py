@@ -1,6 +1,8 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
 from app.schemas.models import AgentResult, EvidenceItem, FarmContext
+from app.orchestrator.question_bank import apply_guidance
 from app.services.crop_registry import build_profit_inputs, estimate_harvest_related_costs
+from app.services.multilingual import _current_farmer_question
 from app.tools.agriculture import default_today
 from app.tools.registry import tool_registry
 
@@ -51,8 +53,9 @@ def _mentions_harvest(query: str) -> bool:
 
 
 def finance_agent(query: str, context: FarmContext) -> AgentResult:
-    evidence, citations = run_knowledge("finance", query, context.crop)
-    scheme_focused = _is_scheme_focused(query)
+    question = _current_farmer_question(query)
+    evidence, citations = run_knowledge("finance", question, context.crop)
+    scheme_focused = _is_scheme_focused(question)
     harvest_estimate: dict | None = None
 
     market = None
@@ -123,7 +126,7 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
         evidence.extend(evidence_from_trace("finance", ptrace))
         profit = ptrace.output if ptrace.status.startswith("success") else {}
 
-    if context.crop and _mentions_harvest(query):
+    if context.crop and _mentions_harvest(question):
         harvest_estimate = estimate_harvest_related_costs(
             context.crop,
             area_acres=context.farm_area_acres,
@@ -146,21 +149,31 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
                 )
             )
 
+    asks_loan = any(word in question.lower() for word in ("loan", "loans", "kcc", "credit", "कर्ज", "ऋण", "ಲೋನ್", "ಸಾಲ"))
     loan_trace = tool_registry.execute(
         agent="finance",
         tool="search_loans",
         arguments={
             "category": None,
-            "amount_needed": context.budget if not scheme_focused else None,
-            "purpose": query if "loan" in query.lower() or "kcc" in query.lower() else None,
+            "amount_needed": None if asks_loan or scheme_focused else context.budget,
+            "purpose": question if asks_loan else None,
         },
     )
     loan_lines = []
     if loan_trace.status.startswith("success") and isinstance(loan_trace.output, dict):
-        for loan in loan_trace.output.get("matches", [])[:3]:
+        for loan in loan_trace.output.get("matches", [])[:4]:
+            rate = loan.get("effective_rate_with_subvention_percent") or loan.get("interest_rate_percent")
+            docs = ", ".join(loan.get("documents") or [])
             line = (
-                f"{loan['name']}: {loan.get('effective_rate_with_subvention_percent') or loan['interest_rate_percent']}% "
-                f"up to ₹{loan.get('max_amount_inr') or 'varies'}"
+                f"{loan['name']}: interest {loan.get('interest_rate_percent')}%"
+                + (f", about {rate}% with interest subvention" if loan.get("effective_rate_with_subvention_percent") else "")
+                + f", up to ₹{loan.get('max_amount_inr') or 'varies'}"
+                + f", repayment {loan.get('repayment_period')}"
+                + f", collateral {loan.get('collateral')}"
+                + f". Eligibility: {loan.get('eligibility')}"
+                + f". Apply at: {loan.get('where_to_apply')}"
+                + (f". Documents: {docs}" if docs else "")
+                + f". Available through banks that serve {context.location or 'this farm'}; confirm the current rate at the branch."
             )
             loan_lines.append(line)
             evidence.append(EvidenceItem(source=f"loan:{loan['id']}", value=line, unit="loan", agent="finance"))
@@ -168,7 +181,7 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
     scheme_trace = tool_registry.execute(
         agent="finance",
         tool="search_schemes",
-        arguments={"query": query, "category": None, "crop": context.crop, "state": None},
+        arguments={"query": question, "category": None, "crop": context.crop, "state": None},
     )
     scheme_lines = []
     if scheme_trace.status.startswith("success") and isinstance(scheme_trace.output, dict):
@@ -190,16 +203,18 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
             f"total INR {h['total_farm']} ({h['note']})."
         )
 
-    if scheme_focused:
+    if scheme_focused or asks_loan:
+        loan_block = "\n".join(f"- {line}" for line in loan_lines) or "- No matching loan found in the curated list."
         draft = (
+            f"Curated agricultural loans for this question:\n{loan_block}\n"
             f"Government schemes matching your query:\n"
-            f"{chr(10).join(f'- {line}' for line in scheme_lines) or '- No matching schemes found in knowledge base.'}\n"
-            f"Loans (if relevant): {'; '.join(loan_lines) or 'none matched'}."
+            f"{chr(10).join(f'- {line}' for line in scheme_lines) or '- No matching schemes found in knowledge base.'}"
             f"{harvest_note}\n"
-            f"Apply through your District Horticulture Officer or state agriculture/horticulture portal. "
-            f"Exact subsidy % varies by state and farmer category — verify locally before applying."
+            f"Use these records in the answer. Do not say loan information is missing when a loan is listed above. "
+            f"Apply through a scheduled commercial bank, cooperative bank, regional rural bank, or the District Horticulture Officer. "
+            f"Exact subsidy percent varies by state and farmer category — verify locally before applying."
         )
-        confidence = 0.7 if scheme_lines or harvest_estimate else 0.35
+        confidence = 0.75 if loan_lines or scheme_lines or harvest_estimate else 0.35
     else:
         budget_note = (
             f"Budget available: INR {context.budget}."
@@ -218,6 +233,14 @@ def finance_agent(query: str, context: FarmContext) -> AgentResult:
         )
         confidence = 0.75 if profit else 0.45
 
+    draft = apply_guidance(
+        "finance",
+        question,
+        draft,
+        evidence,
+        tools_empty=not loan_lines,
+        always_if_strong=True,
+    )
     recommendation = enrich_with_llm("finance", context, query, draft, evidence)
     return AgentResult(
         agent="finance",

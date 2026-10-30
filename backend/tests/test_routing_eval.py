@@ -102,3 +102,21 @@ def test_explicit_finance_question_keeps_finance_specialist(monkeypatch):
 
     assert "finance" in selected
     assert "crop_health" in selected
+
+
+def test_loan_question_ignores_earlier_disease_memory(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(
+        "app.orchestrator.router.get_settings",
+        lambda: SimpleNamespace(router_mode="keyword", router_threshold=0.60, router_cost_lambda=0.05),
+    )
+    query = (
+        "Earlier notes: Tomato Septoria leaf disease. The leaf needs treatment.\n\n"
+        "Farmer question:\n"
+        "What agricultural loan options are there for my tomato farm in Bengaluru?"
+    )
+    selected, _ = route_query(query)
+
+    assert "finance" in selected
+    assert "crop_health" not in selected

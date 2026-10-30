@@ -410,6 +410,17 @@ def _revise(
 
     lang_rule = reply_language_instruction(lang)
     farmer_question = _current_farmer_question(query)
+    has_finance_records = any(
+        (e.source or "").startswith(("loan:", "scheme:", "question_bank:")) for e in evidence
+    )
+    finance_rule = ""
+    if has_finance_records:
+        finance_rule = (
+            "\nFINANCE EVIDENCE: Verified loan, scheme, or next-step records are listed in the evidence. "
+            "Name those products, the interest or subsidy, who can apply, where to apply, and the next step. "
+            "Do not say that loan or scheme information is missing. "
+            "Do not invent office names. The extension office is a Krishi Vigyan Kendra (KVK), never 'Kisan Vikas Kendra'.\n"
+        )
 
     system_prompt = (
         f"You are KrishiAI, a compassionate, practical, and highly trusted agricultural advisor for Indian farmers. "
@@ -431,7 +442,7 @@ def _revise(
         f"Farm Location & Context: {context.location or 'India'}, Crop: {context.crop or 'Crop'}, Area: {context.farm_area_acres} acres\n"
         f"Verified Evidence:\n{evidence_lines}\n"
         f"Specialist Findings Summary:\n{clean_draft}\n"
-        f"Critique / Quality Feedback:\n{critique}\n{safety_rule}\n"
+        f"Critique / Quality Feedback:\n{critique}\n{safety_rule}{finance_rule}\n"
         f"Produce a revised final recommendation for the farmer. {lang_rule} "
         f"Cite only evidence above. Label forecasts as forecasts. Be concise, warm, and helpful."
     )

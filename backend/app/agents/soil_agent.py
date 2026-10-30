@@ -1,4 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
+from app.orchestrator.question_bank import apply_guidance
 from app.schemas.models import AgentResult, EvidenceItem, FarmContext
 from app.tools.registry import tool_registry
 
@@ -57,6 +58,7 @@ def soil_agent(query: str, context: FarmContext) -> AgentResult:
         )
         confidence = 0.5 if context.soil_type or npk else 0.3
 
+    draft = apply_guidance("soil", query, draft, evidence, tools_empty=not interpretation)
     recommendation = enrich_with_llm("soil", context, query, draft, evidence)
     return AgentResult(
         agent="soil",

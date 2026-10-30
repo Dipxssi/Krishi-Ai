@@ -9,6 +9,8 @@ from collections import Counter
 from app.core.config import get_settings
 from app.orchestrator.catalog import AGENT_COST, AGENT_KEYWORDS, AGENT_PROFILES, AGENTS
 from app.schemas.models import FarmContext
+from app.orchestrator.question_bank import matching_agent
+from app.services.multilingual import _current_farmer_question, detect_language
 
 
 _AGRONOMY_INTENT_MARKERS = (
@@ -288,10 +290,15 @@ def score_query(
 
 
 def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict[str, float]]:
-    """Return selected agents and adjusted scores."""
+    """Return selected agents and adjusted scores.
+
+    Older chat notes must not choose the specialists. Only the latest farmer
+    question is scored.
+    """
     settings = get_settings()
+    question = _current_farmer_question(query)
     selected, scores = score_query(
-        query,
+        question,
         mode=settings.router_mode if settings.router_mode != "supervised" else "hybrid",
         threshold=settings.router_threshold,
         cost_lambda=settings.router_cost_lambda,
@@ -301,7 +308,7 @@ def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict
         from app.orchestrator.supervised_router import route_supervised
 
         selected, scores = route_supervised(
-            query,
+            question,
             threshold=settings.router_threshold,
             cost_lambda=settings.router_cost_lambda,
         )
@@ -315,9 +322,14 @@ def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict
     # A cost-penalized all-zero score set otherwise falls back to the cheapest
     # agent (finance). Route explicit crop-care questions to agronomy specialists
     # using this request's text, while retaining finance for explicit money intents.
-    q = query.lower()
+    q = question.lower()
     has_agronomy_intent = any(_keyword_hit(marker, q) for marker in _AGRONOMY_INTENT_MARKERS)
     has_finance_intent = any(_keyword_hit(marker, q) for marker in _FINANCE_INTENT_MARKERS)
+    if has_finance_intent and "finance" not in selected:
+        selected.append("finance")
+        selected.sort(key=AGENTS.index)
+        scores = dict(scores)
+        scores["finance"] = max(scores.get("finance", 0.0), 0.70)
     if has_agronomy_intent:
         selected = [agent for agent in selected if agent != "finance" or has_finance_intent]
         for agent in ("crop_health", "knowledge_retriever"):
@@ -330,6 +342,12 @@ def route_query(query: str, *, has_image: bool = False) -> tuple[list[str], dict
         scores = dict(scores)
         scores["crop_health"] = max(scores.get("crop_health", 0.0), 0.70)
         scores["knowledge_retriever"] = max(scores.get("knowledge_retriever", 0.0), 0.60)
+    bank_agent = matching_agent(question, detect_language(question, fallback="en"))
+    if bank_agent and bank_agent not in selected:
+        selected.append(bank_agent)
+        selected.sort(key=AGENTS.index)
+        scores = dict(scores)
+        scores[bank_agent] = max(scores.get(bank_agent, 0.0), 0.70)
     return selected, scores
 
 

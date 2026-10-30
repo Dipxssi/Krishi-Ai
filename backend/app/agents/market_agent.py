@@ -1,4 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
+from app.orchestrator.question_bank import apply_guidance
 from app.schemas.models import AgentResult, FarmContext
 from app.tools.agriculture import default_today
 from app.tools.registry import tool_registry
@@ -14,6 +15,7 @@ def market_agent(query: str, context: FarmContext) -> AgentResult:
 
     if missing:
         draft = f"Cannot fetch market prices without: {', '.join(missing)}. Please update FarmContext."
+        draft = apply_guidance("market", query, draft, evidence, tools_empty=True)
         return AgentResult(agent="market", recommendation=draft, confidence=0.2, tool_evidence=evidence, citations=citations)
 
     trace = tool_registry.execute(
@@ -39,6 +41,7 @@ def market_agent(query: str, context: FarmContext) -> AgentResult:
         f"30-day forecast: {out.get('forecast_price')} INR/kg with {out.get('forecast_uncertainty')} uncertainty. "
         f"This is a forecast, not a fact. If storage is unavailable and price is falling, consider selling earlier."
     )
+    draft = apply_guidance("market", query, draft, evidence, tools_empty=not out)
     recommendation = enrich_with_llm("market", context, query, draft, evidence)
     return AgentResult(
         agent="market",

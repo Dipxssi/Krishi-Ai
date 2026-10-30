@@ -1,4 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
+from app.orchestrator.question_bank import apply_guidance
 from app.schemas.models import AgentResult, EvidenceItem, FarmContext, ImageDiagnosisResult
 from app.tools.registry import tool_registry
 from app.vision.diagnosis import is_image_diagnosis_unconfirmed
@@ -133,6 +134,14 @@ def crop_health_agent(
         )
         confidence = 0.55 if citations else 0.35
 
+    image_accepted = bool(image_diagnosis and image_diagnosis.status in ("ok", "accepted"))
+    draft = apply_guidance(
+        "crop_health",
+        query,
+        draft,
+        evidence,
+        tools_empty=not citations and not image_accepted,
+    )
     recommendation = enrich_with_llm("crop_health", context, query, draft, evidence)
     return AgentResult(
         agent="crop_health",

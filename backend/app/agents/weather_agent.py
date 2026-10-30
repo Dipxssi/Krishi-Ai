@@ -1,4 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
+from app.orchestrator.question_bank import apply_guidance
 from app.schemas.models import AgentResult, FarmContext
 from app.tools.registry import tool_registry
 
@@ -6,9 +7,16 @@ from app.tools.registry import tool_registry
 def weather_agent(query: str, context: FarmContext) -> AgentResult:
     evidence, citations = run_knowledge("weather", query, context.crop)
     if not context.location:
+        draft = apply_guidance(
+            "weather",
+            query,
+            "Location missing from FarmContext; cannot fetch weather.",
+            evidence,
+            tools_empty=True,
+        )
         return AgentResult(
             agent="weather",
-            recommendation="Location missing from FarmContext; cannot fetch weather.",
+            recommendation=draft,
             confidence=0.2,
             tool_evidence=evidence,
             citations=citations,
@@ -32,6 +40,7 @@ def weather_agent(query: str, context: FarmContext) -> AgentResult:
         f"(source={out.get('source')}, mock={out.get('is_mock')}). "
         f"Avoid spraying immediately before expected rain; watch disease pressure if wet."
     )
+    draft = apply_guidance("weather", query, draft, evidence, tools_empty=not out)
     recommendation = enrich_with_llm("weather", context, query, draft, evidence)
     return AgentResult(
         agent="weather",

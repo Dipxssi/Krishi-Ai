@@ -1,4 +1,5 @@
 from app.agents.base import enrich_with_llm, evidence_from_trace, run_knowledge
+from app.orchestrator.question_bank import apply_guidance
 from app.schemas.models import AgentResult, EvidenceItem, FarmContext
 from app.tools.registry import tool_registry
 
@@ -51,6 +52,13 @@ def equipment_agent(query: str, context: FarmContext) -> AgentResult:
         f"Subsidies: {'; '.join(scheme_lines) or 'none found'}.\n"
         f"Prefer rental for small farms unless utilization > 100 days/year. "
         f"Citations: {', '.join(citations) or 'none'}."
+    )
+    draft = apply_guidance(
+        "equipment",
+        query,
+        draft,
+        evidence,
+        tools_empty=not equip_lines and not scheme_lines,
     )
     recommendation = enrich_with_llm("equipment", context, query, draft, evidence)
     return AgentResult(

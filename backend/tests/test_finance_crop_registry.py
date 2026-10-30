@@ -5,7 +5,7 @@ import pytest
 from app.agents.finance_agent import finance_agent, _is_scheme_focused
 from app.schemas.models import FarmContext
 from app.services.crop_registry import build_profit_inputs, get_crop_defaults
-from app.tools.agriculture import calculate_profit, register_all_tools
+from app.tools.agriculture import calculate_profit, register_all_tools, search_loans
 from app.tools.registry import tool_registry
 
 
@@ -110,3 +110,47 @@ def test_finance_agent_emits_crop_yield_evidence():
     assert yield_evidence[0].value == pytest.approx(
         get_crop_defaults("maize")["expected_yield_kg_per_acre"]
     )
+
+
+def test_loan_question_is_not_filtered_out_by_the_full_sentence():
+    found = search_loans(
+        purpose="What agricultural loan options are there for my tomato farm in Bengaluru?"
+    )
+    ids = [item["id"] for item in found["matches"]]
+    assert "kcc-crop-loan" in ids
+    assert found["matches"][0]["id"] == "kcc-crop-loan"
+
+
+def test_specific_loan_word_still_narrows_the_catalog():
+    found = search_loans(purpose="I need a gold loan for this season")
+    ids = [item["id"] for item in found["matches"]]
+    assert ids == ["agri-gold-loan"]
+
+
+def test_finance_agent_puts_kcc_in_evidence_for_a_loan_question(monkeypatch):
+    from app.services import llm
+
+    monkeypatch.setattr(llm, "is_llm_available", lambda: False)
+    ctx = FarmContext(
+        farmer_id="f1",
+        location="Bengaluru",
+        farm_area_acres=1.0,
+        crop="tomato",
+        growth_stage="fruiting",
+        soil_type="loam",
+        irrigation_available=True,
+        budget=50000,
+        preferred_language="English",
+        season="rabi",
+    )
+    query = (
+        "Earlier notes: Tomato Septoria leaf disease.\n\n"
+        "Farmer question:\n"
+        "What agricultural loan options are there for my tomato farm in Bengaluru?"
+    )
+    result = finance_agent(query, ctx)
+    sources = [item.source for item in result.tool_evidence]
+    assert "loan:kcc-crop-loan" in sources
+    assert "Kisan Credit Card" in result.recommendation
+    assert "Bengaluru" in result.recommendation
+    assert "No matching loan" not in result.recommendation

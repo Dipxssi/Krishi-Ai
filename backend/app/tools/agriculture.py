@@ -377,12 +377,34 @@ def _load_loans_data() -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+_LOAN_PURPOSE_WORDS = (
+    "kcc",
+    "kisan credit",
+    "gold",
+    "tractor",
+    "mechanization",
+    "equipment",
+    "dairy",
+    "mudra",
+    "allied",
+)
+
+
+def _loan_purpose_terms(purpose: str | None) -> list[str]:
+    """Keep only product words. A full farmer question must not be a substring filter."""
+    if not purpose:
+        return []
+    text = purpose.lower()
+    return [word for word in _LOAN_PURPOSE_WORDS if word in text]
+
+
 def search_loans(
     category: str | None = None,
     amount_needed: float | None = None,
     purpose: str | None = None,
 ) -> dict[str, Any]:
     items = _load_loans_data()
+    terms = _loan_purpose_terms(purpose)
     results = []
     for item in items:
         if category and category.lower() != item.get("category", "").lower():
@@ -390,12 +412,15 @@ def search_loans(
         if amount_needed is not None and item.get("max_amount_inr") is not None:
             if amount_needed > item["max_amount_inr"]:
                 continue
-        if purpose:
-            p = purpose.lower()
-            name_cat = (item.get("name", "") + " " + item.get("category", "")).lower()
-            if p not in name_cat and p not in item.get("eligibility", "").lower():
+        if terms:
+            blob = " ".join(
+                str(item.get(key, ""))
+                for key in ("id", "name", "category", "eligibility", "where_to_apply")
+            ).lower()
+            if not any(term in blob for term in terms):
                 continue
         results.append(item)
+    results.sort(key=lambda item: (item.get("category") != "crop_loan", item.get("name", "")))
     return {"matches": results, "total": len(results), "source": "curated_2024"}
 
 

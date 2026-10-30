@@ -105,6 +105,8 @@ def enrich_with_llm(agent: str, context: FarmContext, query: str, draft: str, ev
         f"Tool/RAG evidence (ONLY use these facts):\n{evidence_lines or '(none)'}\n"
         f"Draft recommendation:\n{draft}\n\n"
         f"Rewrite a concise recommendation grounded ONLY in the evidence and context in fluent {lang_name}. "
+        f"If loan or scheme records are in the evidence, name them with their rate, eligibility, and where to apply. "
+        f"Do not say loan information is missing when those records are present. "
         f"If evidence is missing, say what is unknown. Do not invent prices, rainfall, or profits."
     )
     system = (
