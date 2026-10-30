@@ -66,6 +66,7 @@ export function ChatPage() {
   const speechObjectUrlRef = useRef<string | null>(null);
   const speakingMessageRef = useRef<string | null>(null);
   const [speakingMessageId, setSpeakingMessageId] = useState<string | null>(null);
+  const [typewriterId, setTypewriterId] = useState<string | null>(null);
 
   const stopSpeaking = useCallback(() => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -318,6 +319,7 @@ export function ChatPage() {
           messages: [...withoutPlaceholder, reply],
         };
       });
+      setTypewriterId(replyId);
       return replyId;
     },
     [farmerId],
@@ -709,6 +711,11 @@ export function ChatPage() {
                   }
                   onSpeak={m.role === "assistant" ? () => speak(m.queryResult?.final_recommendation ?? m.content, m.id) : undefined}
                   isSpeaking={speakingMessageId === m.id}
+                  typewriter={m.id === typewriterId && Boolean(m.queryResult?.final_recommendation)}
+                  onTypewriterDone={
+                    m.id === typewriterId ? () => setTypewriterId((current) => (current === m.id ? null : current)) : undefined
+                  }
+                  onTypewriterProgress={() => bottomRef.current?.scrollIntoView({ block: "end" })}
                 />
               ))}
 

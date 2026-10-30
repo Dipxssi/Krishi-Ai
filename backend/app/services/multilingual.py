@@ -98,6 +98,17 @@ def normalize_indic_script(text: str) -> str:
     return text
 
 
+def _current_farmer_question(text: str) -> str:
+    """Language should follow the latest question, not older Hindi memory notes."""
+    marker = "Farmer question:"
+    idx = text.rfind(marker)
+    if idx >= 0:
+        question = text[idx + len(marker) :].strip()
+        if question:
+            return question
+    return text
+
+
 def detect_language(text: str, fallback: str = "en") -> str:
     """Detect whether text is primarily Kannada, Hindi (Devanagari/Romanized), or English.
     
@@ -109,6 +120,7 @@ def detect_language(text: str, fallback: str = "en") -> str:
     if not text or not text.strip():
         return normalize_language_code(fallback)
 
+    text = _current_farmer_question(text)
     cleaned = normalize_indic_script(text)
     kannada_chars = len(_KANNADA_RE.findall(cleaned))
     hindi_chars = len(_DEVANAGARI_RE.findall(cleaned))

@@ -78,6 +78,19 @@ class TestLanguageDetectionAndDisclaimers:
         assert detect_language("What is wrong with this leaf?", fallback="Hindi") == "en"
         assert detect_language("Please diagnose my tomato crop disease", fallback="kn") == "en"
 
+    def test_english_question_ignores_hindi_memory_prefix(self):
+        # Chat prepends prior Hindi notes; language must follow the new English question.
+        wrapped = (
+            "Recent farm notes:\nपत्ती पीली हो रही है और टमाटर में धब्बे हैं\n\n"
+            "Farmer question:\nWhat is wrong with this leaf?"
+        )
+        assert detect_language(wrapped, fallback="hi") == "en"
+        hindi_q = (
+            "This chat so far:\nWhat is wrong with this leaf?\n\n"
+            "Farmer question:\nइस पत्ती में क्या बीमारी है"
+        )
+        assert detect_language(hindi_q, fallback="en") == "hi"
+
     def test_language_detection_mixed_fallback(self):
         # When query is ambiguous numbers/punctuation, fallback to user preference
         assert detect_language("12345 ???", fallback="hi") == "hi"

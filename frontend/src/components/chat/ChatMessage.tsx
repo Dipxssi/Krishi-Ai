@@ -13,6 +13,9 @@ interface ChatMessageProps {
   onOpenDetails?: (() => void) | undefined;
   onSpeak?: (() => void) | undefined;
   isSpeaking?: boolean;
+  typewriter?: boolean;
+  onTypewriterDone?: () => void;
+  onTypewriterProgress?: () => void;
 }
 
 export function ChatMessage({
@@ -22,6 +25,9 @@ export function ChatMessage({
   onOpenDetails,
   onSpeak,
   isSpeaking = false,
+  typewriter = false,
+  onTypewriterDone,
+  onTypewriterProgress,
 }: ChatMessageProps) {
   const { t } = useI18n();
   const isUser = message.role === "user";
@@ -94,6 +100,9 @@ export function ChatMessage({
             <AdviceResult
               result={message.queryResult}
               compact
+              typewriter={typewriter}
+              onTypewriterDone={onTypewriterDone}
+              onTypewriterProgress={onTypewriterProgress}
               onOpenScores={onOpenDetails}
             />
           ) : (

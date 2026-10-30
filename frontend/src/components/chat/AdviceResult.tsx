@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BadgeIndianRupee,
   ChevronRight,
@@ -116,12 +116,19 @@ export function AdviceResult({
   compact,
   onOpenScores,
   className,
+  typewriter = false,
+  onTypewriterDone,
+  onTypewriterProgress,
 }: {
   result: QueryResponse;
   /** Chat bubble: recommendation only + link to scores panel. */
   compact?: boolean;
   onOpenScores?: () => void;
   className?: string;
+  /** Reveal the finished recommendation as if it were streaming. */
+  typewriter?: boolean;
+  onTypewriterDone?: () => void;
+  onTypewriterProgress?: () => void;
 }) {
   const { t } = useI18n();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
@@ -130,6 +137,54 @@ export function AdviceResult({
   const escalation = result.escalation;
 
   const disclaimerText = result.disclaimer || t("advice.disclaimer");
+  const fullText = result.final_recommendation || "";
+  const skipTypingRef = useRef(false);
+  const [typedCount, setTypedCount] = useState(() => (typewriter ? 0 : fullText.length));
+  const typing = typewriter && typedCount < fullText.length;
+  const shownText = typing ? fullText.slice(0, typedCount) : fullText;
+
+  useEffect(() => {
+    if (!typewriter) {
+      setTypedCount(fullText.length);
+      return;
+    }
+    if (typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setTypedCount(fullText.length);
+      onTypewriterDone?.();
+      return;
+    }
+    if (!fullText) {
+      onTypewriterDone?.();
+      return;
+    }
+    setTypedCount(0);
+    skipTypingRef.current = false;
+    let count = 0;
+    const step = fullText.length > 1200 ? 8 : fullText.length > 500 ? 4 : 2;
+    const timer = window.setInterval(() => {
+      if (skipTypingRef.current) {
+        window.clearInterval(timer);
+        return;
+      }
+      count = Math.min(fullText.length, count + step);
+      setTypedCount(count);
+      onTypewriterProgress?.();
+      if (count >= fullText.length) {
+        window.clearInterval(timer);
+        onTypewriterDone?.();
+      }
+    }, 16);
+    return () => window.clearInterval(timer);
+    // Restart only when a new full answer is meant to type.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typewriter, fullText]);
+
+  const finishTyping = () => {
+    if (!typing) return;
+    skipTypingRef.current = true;
+    setTypedCount(fullText.length);
+    onTypewriterDone?.();
+  };
 
   if (compact) {
     return (
@@ -138,11 +193,23 @@ export function AdviceResult({
           <VisionDiagnosisCard diag={result.image_diagnosis} />
         ) : null}
 
-        <div className="advice-markdown min-w-0 leading-relaxed">
-          <SafeRecommendationRenderer text={result.final_recommendation} />
+        <div
+          className="advice-markdown min-w-0 leading-relaxed"
+          onClick={finishTyping}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") finishTyping();
+          }}
+          role={typing ? "button" : undefined}
+          tabIndex={typing ? 0 : undefined}
+          title={typing ? "Click to show the full answer" : undefined}
+        >
+          <SafeRecommendationRenderer text={shownText} />
+          {typing ? (
+            <span className="ml-0.5 inline-block h-4 w-0.5 animate-pulse bg-primary align-middle" aria-hidden="true" />
+          ) : null}
         </div>
 
-        {escalation?.requires_escalation && (
+        {escalation?.requires_escalation && !typing && (
           <div className="rounded-2xl border border-amber-500/30 bg-amber-50/70 p-3.5 dark:border-amber-500/20 dark:bg-amber-950/25 space-y-2.5">
             <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-200">
               <ShieldAlert className="size-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -179,7 +246,7 @@ export function AdviceResult({
           </div>
         )}
 
-        {onOpenScores && score && (
+        {onOpenScores && score && !typing && (
           <button
             type="button"
             onClick={onOpenScores}
@@ -193,10 +260,12 @@ export function AdviceResult({
           </button>
         )}
 
-        <div className="mt-1 flex items-start gap-1.5 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground/80">
-          <Info className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
-          <span>{disclaimerText}</span>
-        </div>
+        {!typing && (
+          <div className="mt-1 flex items-start gap-1.5 border-t border-border/40 pt-2 text-[11px] leading-relaxed text-muted-foreground/80">
+            <Info className="mt-0.5 size-3 shrink-0 text-muted-foreground/60" aria-hidden="true" />
+            <span>{disclaimerText}</span>
+          </div>
+        )}
 
         <NearbyHelpDialog
           open={helpDialogOpen}
