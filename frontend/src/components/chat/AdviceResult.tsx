@@ -5,6 +5,7 @@ import {
   Droplets,
   Gauge,
   Info,
+  Leaf,
   MapPin,
   ShieldAlert,
   Sparkles,
@@ -21,6 +22,93 @@ function formatInr(value: number): string {
 
 function pct(value: number): number {
   return Math.round(Math.min(1, Math.max(0, value)) * 100);
+}
+
+function VisionDiagnosisCard({
+  diag,
+}: {
+  diag: NonNullable<QueryResponse["image_diagnosis"]>;
+}) {
+  const version = diag.model_version ?? "";
+  const isMobileNet =
+    version.includes("mobilenetv3") || version.includes("hf_space");
+  const isAccepted =
+    (diag.status === "ok" || diag.status === "accepted") && !diag.requires_expert;
+  const plant =
+    diag.plant_name ||
+    (diag.crop_id
+      ? diag.crop_id.charAt(0).toUpperCase() + diag.crop_id.slice(1)
+      : "Crop");
+  const disease =
+    diag.predicted_disease ||
+    (diag.disease ? diag.disease.replace(/_/g, " ") : null);
+  const conf = diag.confidence ?? diag.disease_confidence;
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border p-3.5 space-y-2",
+        isMobileNet
+          ? "border-emerald-500/35 bg-emerald-50/70 dark:border-emerald-500/25 dark:bg-emerald-950/30"
+          : "border-amber-500/30 bg-amber-50/60 dark:border-amber-500/20 dark:bg-amber-950/25",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-wider">
+        <Leaf className="size-3.5 shrink-0" aria-hidden="true" />
+        <span className={isMobileNet ? "text-emerald-900 dark:text-emerald-200" : "text-amber-900 dark:text-amber-200"}>
+          {isMobileNet ? "MobileNetV3 leaf scan" : "Heuristic leaf screening"}
+        </span>
+        {version ? (
+          <span className="rounded-md bg-background/70 px-1.5 py-0.5 font-mono text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+            {version}
+          </span>
+        ) : null}
+      </div>
+
+      {isAccepted ? (
+        <p className="text-sm text-foreground leading-snug">
+          <strong>{plant}</strong>
+          {diag.is_healthy
+            ? " · Healthy (no supported disease detected)"
+            : disease
+              ? ` · ${disease}`
+              : null}
+          {conf != null ? (
+            <span className="text-muted-foreground">
+              {" "}
+              · {(conf * 100).toFixed(0)}% confidence (uncalibrated)
+            </span>
+          ) : null}
+        </p>
+      ) : (
+        <p className="text-sm text-foreground leading-snug">
+          {diag.rejection_reason ||
+            (diag.requires_expert
+              ? "Unconfirmed — expert review recommended"
+              : "Image diagnosis abstained")}
+        </p>
+      )}
+
+      {isMobileNet && diag.top_3 && diag.top_3.length > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {diag.top_3.slice(0, 3).map((cand, idx) => (
+            <span
+              key={`${cand.display_name}-${idx}`}
+              className="rounded-lg border border-emerald-600/20 bg-background/80 px-2 py-1 text-[11px] text-foreground"
+            >
+              #{idx + 1} {cand.display_name} {(cand.confidence * 100).toFixed(0)}%
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      {!isMobileNet ? (
+        <p className="text-[11px] text-amber-950/80 dark:text-amber-100/80 leading-relaxed">
+          Color-ratio fallback was used (Space unreachable or not configured). This is not the trained MobileNet model.
+        </p>
+      ) : null}
+    </div>
+  );
 }
 
 export function AdviceResult({
@@ -46,6 +134,10 @@ export function AdviceResult({
   if (compact) {
     return (
       <div className={cn("grid gap-3.5", className)}>
+        {result.image_diagnosis ? (
+          <VisionDiagnosisCard diag={result.image_diagnosis} />
+        ) : null}
+
         <div className="advice-markdown min-w-0 leading-relaxed">
           <SafeRecommendationRenderer text={result.final_recommendation} />
         </div>
@@ -143,6 +235,10 @@ export function AdviceResult({
           />
         )}
       </div>
+
+      {result.image_diagnosis ? (
+        <VisionDiagnosisCard diag={result.image_diagnosis} />
+      ) : null}
 
       <div className="advice-markdown min-w-0 rounded-2xl border border-border/70 bg-muted/30 p-3 leading-relaxed sm:p-4">
         <SafeRecommendationRenderer text={result.final_recommendation} />
