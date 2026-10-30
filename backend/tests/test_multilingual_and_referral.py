@@ -91,6 +91,16 @@ class TestLanguageDetectionAndDisclaimers:
         )
         assert detect_language(hindi_q, fallback="en") == "hi"
 
+    def test_english_reply_instruction_does_not_forbid_english(self):
+        from app.services.multilingual import reply_language_instruction
+
+        english = reply_language_instruction("en")
+        assert "English" in english
+        assert "MUST NOT answer in English" not in english
+        hindi = reply_language_instruction("hi")
+        assert "MUST NOT answer in English" in hindi
+        assert "Hindi" in hindi
+
     def test_language_detection_mixed_fallback(self):
         # When query is ambiguous numbers/punctuation, fallback to user preference
         assert detect_language("12345 ???", fallback="hi") == "hi"

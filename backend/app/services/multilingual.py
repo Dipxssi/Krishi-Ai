@@ -151,6 +151,33 @@ def detect_language(text: str, fallback: str = "en") -> str:
     return normalized if normalized in ("en", "hi", "kn") else "en"
 
 
+def reply_language_instruction(language: str | None) -> str:
+    """Prompt text for the reply language.
+
+    English questions must stay English. The old mandate said "do not answer in
+    English" for every language, including English, so Hindi-profile chats
+    rewrote English questions into Hindi.
+    """
+    lang = normalize_language_code(language)
+    if lang == "kn":
+        return (
+            "You MUST write your entire response in natural, fluent Kannada (ಕನ್ನಡ script). "
+            "CRITICAL MANDATE: You MUST NOT answer in English. "
+            "Every heading, explanation, and bullet point must be strictly written in Kannada."
+        )
+    if lang == "hi":
+        return (
+            "You MUST write your entire response in natural, fluent Hindi (हिंदी Devanagari script). "
+            "CRITICAL MANDATE: You MUST NOT answer in English. "
+            "Every heading, explanation, and bullet point must be strictly written in Hindi."
+        )
+    return (
+        "You MUST write your entire response in natural, fluent English. "
+        "The farmer asked in English. Do not answer in Hindi or Kannada, "
+        "even if the farm profile or earlier notes use those languages."
+    )
+
+
 def normalize_language_code(lang: str | None) -> str:
     """Normalize language names/codes (e.g. 'Kannada' -> 'kn', 'hi-IN' -> 'hi')."""
     if not lang:

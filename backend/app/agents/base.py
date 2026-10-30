@@ -82,25 +82,35 @@ def citations_from_knowledge(trace) -> list[str]:
 def enrich_with_llm(agent: str, context: FarmContext, query: str, draft: str, evidence: list[EvidenceItem]) -> str:
     if not llm.is_llm_available():
         return draft
-    from app.services.multilingual import detect_language
+    from app.services.multilingual import (
+        _current_farmer_question,
+        detect_language,
+        reply_language_instruction,
+    )
     lang = detect_language(query, fallback=context.preferred_language or "en")
     lang_name = {
         "kn": "Kannada (ಕನ್ನಡ script)",
         "hi": "Hindi (हिंदी Devanagari script)",
         "en": "English",
     }.get(lang, "English")
+    farmer_question = _current_farmer_question(query)
+    farm_context = context.model_dump()
+    farm_context["preferred_language"] = lang
 
     evidence_lines = "\n".join(f"- {e.source}: {e.value} {e.unit or ''}" for e in evidence)
     prompt = (
         f"You are the {agent} agent for an Indian farmer decision-support system.\n"
-        f"Farm context: {context.model_dump()}\n"
-        f"Farmer query: {query}\n"
+        f"Farm context: {farm_context}\n"
+        f"Farmer query: {farmer_question}\n"
         f"Tool/RAG evidence (ONLY use these facts):\n{evidence_lines or '(none)'}\n"
         f"Draft recommendation:\n{draft}\n\n"
         f"Rewrite a concise recommendation grounded ONLY in the evidence and context in fluent {lang_name}. "
         f"If evidence is missing, say what is unknown. Do not invent prices, rainfall, or profits."
     )
-    system = f"Evidence-grounded agricultural advisor. You must respond strictly in {lang_name}. Never fabricate numbers."
+    system = (
+        f"Evidence-grounded agricultural advisor. {reply_language_instruction(lang)} "
+        "Never fabricate numbers. Ignore farm preferred_language when it differs from this instruction."
+    )
     text = llm.generate(prompt, system=system)
     return text or draft
 

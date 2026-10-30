@@ -32,11 +32,13 @@ from app.services.conflict_resolver import resolve_conflicts
 from app.services.crop_registry import build_profit_inputs, extract_crop_from_text, normalize_crop_name
 from app.services.nearby_help import append_nearby_kvk_office
 from app.services.multilingual import (
+    _current_farmer_question,
     detect_language,
     get_disclaimer,
     get_ui_text,
     normalize_indic_script,
     normalize_language_code,
+    reply_language_instruction,
 )
 from app.services.safety_escalation import evaluate_escalation
 from app.services.validator import validate_draft
@@ -400,21 +402,18 @@ def _revise(
             safety_rule = (
                 f"\nVISION PREDICTION CONSTRAINT: Visual classification identified {plant_lbl} symptoms that may be consistent with {dis_lbl}. "
                 f"Communicate uncertainty naturally (e.g. 'Your {plant_lbl} leaves show signs that may be consistent with {dis_lbl}. A closer in-person inspection can help confirm the cause.'). "
+                "Do not describe the leaf as healthy. "
                 "DO NOT independently invent a different disease label. "
                 "Explain potential causes, symptoms, and appropriate next steps using retrieved evidence. "
                 "Advise physical agronomist leaf confirmation before any chemical applications.\n"
             )
 
-    lang_name = {
-        "kn": "Kannada (ಕನ್ನಡ script)",
-        "hi": "Hindi (हिंदी Devanagari script)",
-        "en": "English",
-    }.get(lang, "English")
+    lang_rule = reply_language_instruction(lang)
+    farmer_question = _current_farmer_question(query)
 
     system_prompt = (
         f"You are KrishiAI, a compassionate, practical, and highly trusted agricultural advisor for Indian farmers. "
-        f"You MUST write your entire response in natural, fluent {lang_name}. "
-        f"CRITICAL MANDATE: If the target language is {lang_name}, you MUST NOT answer in English. Every heading, explanation, and bullet point must be strictly written in {lang_name}. "
+        f"{lang_rule} "
         "Speak warmly and directly to the farmer. Explain concepts in simple, everyday language without technical jargon. "
         "NEVER expose internal metadata: no 'conf=0.85', no confidence numbers, no agent names (like crop_health, market), "
         "no model names (like MobileNetV3 or ElasticNet), and no raw citation strings (like rag:crops.json or crop_registry:). "
@@ -428,14 +427,13 @@ def _revise(
 
     clean_draft = _clean_internal_metadata(draft)
     template = (
-        f"Farmer Query: {query}\n"
+        f"Farmer Query: {farmer_question}\n"
         f"Farm Location & Context: {context.location or 'India'}, Crop: {context.crop or 'Crop'}, Area: {context.farm_area_acres} acres\n"
         f"Verified Evidence:\n{evidence_lines}\n"
         f"Specialist Findings Summary:\n{clean_draft}\n"
         f"Critique / Quality Feedback:\n{critique}\n{safety_rule}\n"
-        f"Produce a revised final recommendation for the farmer strictly in {lang_name}. "
-        f"Cite only evidence above. Label forecasts as forecasts. Be concise, warm, and helpful. "
-        f"REMINDER: The entire response must be written in {lang_name}."
+        f"Produce a revised final recommendation for the farmer. {lang_rule} "
+        f"Cite only evidence above. Label forecasts as forecasts. Be concise, warm, and helpful."
     )
     if llm.is_llm_available():
         text = llm.generate(
