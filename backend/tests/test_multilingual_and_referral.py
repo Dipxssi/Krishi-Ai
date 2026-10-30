@@ -72,6 +72,12 @@ class TestLanguageDetectionAndDisclaimers:
         query = "How do I care for my tomato plants?"
         assert detect_language(query) == "en"
 
+    def test_english_query_ignores_hindi_preferred_fallback(self):
+        # Farm preferred_language=Hindi must not force Hindi answers for typed English.
+        assert detect_language("What is wrong with this leaf?", fallback="hi") == "en"
+        assert detect_language("What is wrong with this leaf?", fallback="Hindi") == "en"
+        assert detect_language("Please diagnose my tomato crop disease", fallback="kn") == "en"
+
     def test_language_detection_mixed_fallback(self):
         # When query is ambiguous numbers/punctuation, fallback to user preference
         assert detect_language("12345 ???", fallback="hi") == "hi"

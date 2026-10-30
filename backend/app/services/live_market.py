@@ -1,4 +1,4 @@
-"""Live mandi prices via data.gov.in Agmarknet with TTL cache."""
+"""Live mandi prices via data.gov.in Agmarknet with TTL cache + weekly DB snapshots."""
 
 from __future__ import annotations
 
@@ -111,6 +111,11 @@ def select_price_for_location(
     prices = [float(r["modal_price_per_kg"]) for r in pool]
     current = round(float(median(prices)), 2)
     forecast = round(current * 0.92, 2)
+    sources = {str(r.get("source") or "") for r in pool}
+    if sources == {"agmarknet_db_snapshot"}:
+        source = "agmarknet_db_snapshot"
+    else:
+        source = "data.gov.in/agmarknet"
     return {
         "current_price": current,
         "forecast_price": forecast,
@@ -119,9 +124,46 @@ def select_price_for_location(
         "unit": "INR/kg",
         "match_count": len(pool),
         "matched_markets": sorted({str(r.get("market")) for r in pool if r.get("market")})[:5],
-        "source": "data.gov.in/agmarknet",
+        "source": source,
         "is_mock": False,
     }
+
+
+def _try_db_snapshot(crop: str, market: str, date: str) -> dict[str, Any] | None:
+    from app.db.mandi_prices import list_fresh_records_for_crop
+
+    settings = get_settings()
+    try:
+        records = list_fresh_records_for_crop(
+            crop,
+            max_age_days=int(settings.market_snapshot_max_age_days),
+        )
+    except Exception:
+        return None
+    if not records:
+        return None
+    selected = select_price_for_location(records, market)
+    if selected is None:
+        return None
+    return {
+        "crop": crop.strip().lower(),
+        "market": market,
+        "date": date,
+        **selected,
+        "source": "agmarknet_db_snapshot",
+    }
+
+
+def _write_through_db(crop: str, records: list[dict[str, Any]]) -> None:
+    if not records:
+        return
+    try:
+        from app.db.mandi_prices import upsert_mandi_records
+
+        upsert_mandi_records(records, crop=crop)
+    except Exception:
+        # Lookup path must not fail if DB write is unavailable.
+        return
 
 
 def fetch_market_price_live(
@@ -132,15 +174,20 @@ def fetch_market_price_live(
     client: httpx.Client | None = None,
 ) -> dict[str, Any] | None:
     settings = get_settings()
+    crop_key = crop.strip().lower()
+    cache_key = (crop_key, market.strip().lower())
+    cached = _cache.get(cache_key)
+    if cached is not None:
+        return {**cached, "date": date, "crop": crop_key, "market": market}
+
+    from_db = _try_db_snapshot(crop_key, market, date)
+    if from_db is not None:
+        _cache.set(cache_key, from_db, float(settings.market_cache_ttl_seconds))
+        return from_db
+
     api_key = (settings.market_api_key or settings.data_gov_api_key or "").strip()
     if not api_key:
         return None
-
-    cache_key = (crop.strip().lower(), market.strip().lower())
-    cached = _cache.get(cache_key)
-    if cached is not None:
-        # refresh date field for caller
-        return {**cached, "date": date, "crop": crop.strip().lower(), "market": market}
 
     try:
         records = fetch_agmarknet_records(api_key, crop, client=client)
@@ -151,11 +198,14 @@ def fetch_market_price_live(
     if selected is None:
         return None
 
+    _write_through_db(crop_key, records)
+
     result = {
-        "crop": crop.strip().lower(),
+        "crop": crop_key,
         "market": market,
         "date": date,
         **selected,
+        "source": "data.gov.in/agmarknet",
     }
     _cache.set(cache_key, result, float(settings.market_cache_ttl_seconds))
     return result

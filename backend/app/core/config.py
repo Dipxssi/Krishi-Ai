@@ -85,6 +85,8 @@ class Settings(BaseSettings):
     data_gov_api_key: str | None = None
     weather_cache_ttl_seconds: int = 3600
     market_cache_ttl_seconds: int = 21600
+    # Serve Agmarknet rows from DB if scraped within this many days (weekly job).
+    market_snapshot_max_age_days: int = 7
 
     upag_api_username: str | None = None
     upag_api_password: str | None = None

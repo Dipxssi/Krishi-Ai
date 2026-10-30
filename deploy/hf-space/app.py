@@ -10,7 +10,7 @@ from typing import Any
 
 import gradio as gr
 import spaces
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from inference import predict_image
 
@@ -28,7 +28,10 @@ def _decode_image_base64(image_base64: str) -> Image.Image:
     if len(data) > 10 * 1024 * 1024:
         raise ValueError("Image must be 10 MB or smaller")
     try:
-        return Image.open(io.BytesIO(data)).convert("RGB")
+        # Honor phone EXIF orientation so hosted matches upright local previews.
+        img = Image.open(io.BytesIO(data))
+        img = ImageOps.exif_transpose(img)
+        return img.convert("RGB")
     except UnidentifiedImageError as exc:
         raise ValueError("Unrecognized image format") from exc
 

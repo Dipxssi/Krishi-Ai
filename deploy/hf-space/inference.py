@@ -90,10 +90,14 @@ def load_model() -> tuple[nn.Module, torch.device]:
 
 
 def _eval_transform() -> transforms.Compose:
+    # Must match ml/src/dataset.py get_eval_transforms — Resize((224,224)), no CenterCrop.
+    # CenterCrop was cutting leaf lesions and making hosted predictions diverge from local.
     return transforms.Compose(
         [
-            transforms.Resize(224),
-            transforms.CenterCrop(224),
+            transforms.Resize(
+                (224, 224),
+                interpolation=transforms.InterpolationMode.BILINEAR,
+            ),
             transforms.ToTensor(),
             transforms.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
         ]

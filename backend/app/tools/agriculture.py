@@ -126,7 +126,7 @@ def get_market_price(crop: str, market: str, date: str) -> dict[str, Any]:
             "forecast_uncertainty": live["forecast_uncertainty"],
             "unit": live.get("unit", "INR/kg"),
             "source": live["source"],
-            "is_mock": False,
+            "is_mock": bool(live.get("is_mock", False)),
         }
 
     return _mock_market_price(crop, market, date)

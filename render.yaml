@@ -43,3 +43,25 @@ services:
         sync: false
       - key: DATA_GOV_API_KEY
         sync: false
+      - key: MARKET_SNAPSHOT_MAX_AGE_DAYS
+        value: "7"
+
+  # Weekly Agmarknet → Neon (requires a paid Render cron-capable plan on most accounts).
+  # Free alternative: run locally or via GitHub Actions — see docs/DEPLOY.md § Mandi weekly job.
+  - type: cron
+    name: krishiai-mandi-weekly
+    runtime: python
+    rootDir: backend
+    plan: starter
+    schedule: "0 3 * * 1"
+    buildCommand: pip install uv && uv sync --no-dev
+    startCommand: uv run python scripts/scrape_market_prices.py --upsert-db --priority --no-json
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: DATABASE_URL
+        sync: false
+      - key: MARKET_API_KEY
+        sync: false
+      - key: DATA_GOV_API_KEY
+        sync: false

@@ -434,6 +434,47 @@ def test_text_only_query_regression(tomato_context):
     assert len(resp.final_recommendation) > 50
 
 
+# 7b. Auto-detect must not force farm-profile crop into MobileNet
+def test_auto_detect_does_not_pass_farm_crop_as_vision_hint(tomato_context):
+    """Empty selected_crop (UI Auto-detect) → crop_hint=None even if profile crop is tomato."""
+    mock_accepted = ImageDiagnosisResult(
+        status="accepted",
+        plant_name="Maize",
+        predicted_disease="Common Rust",
+        is_healthy=False,
+        crop_id="maize",
+        disease="rust",
+        confidence=0.88,
+        confidence_is_calibrated=False,
+        model_version="mobilenetv3_plantdisease_best@hf_space",
+        requires_expert=False,
+        treatment_hints=["Confirm with KVK."],
+        image_quality_score=0.9,
+        latency_ms=10.0,
+    )
+    b64 = _create_synthetic_image_b64()
+    with patch(
+        "app.vision.remote_mobilenet.diagnose_image_with_mobilenetv3",
+        return_value=mock_accepted,
+    ) as mock_vision:
+        resp = handle_query(
+            "What is wrong with this leaf?",
+            tomato_context,  # profile crop = tomato
+            image_base64=b64,
+            selected_crop=None,
+            persist=False,
+            vision_model="mobilenetv3",
+            language="Hindi",
+        )
+
+        mock_vision.assert_called_once()
+        assert mock_vision.call_args.kwargs.get("crop_hint") is None
+        assert resp.image_diagnosis is not None
+        assert resp.image_diagnosis.crop_id == "maize"
+        # Typed English must stay English even when language/preferred is Hindi
+        assert resp.response_language == "en"
+
+
 # 8. Heuristic fallback path
 def test_heuristic_fallback_path(tomato_context):
     """Setting vision_model='heuristic' executes the legacy heuristic fallback route."""

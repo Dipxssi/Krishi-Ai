@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 
 from app.schemas.models import (
     ElasticNetDiagnosisRequest,
@@ -99,6 +99,7 @@ def validate_and_decode_image(
 
         # Verify integrity and decode image pixels into memory
         img.load()
+        img = ImageOps.exif_transpose(img)
         rgb_img = img.convert("RGB")
     except UnidentifiedImageError:
         return None, 0.0, "Could not identify image file. Upload a valid JPEG, PNG, or WEBP image."

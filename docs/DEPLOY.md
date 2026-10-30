@@ -84,7 +84,8 @@ Clear `VISION_INFERENCE_URL` and keep `VISION_MODEL=mobilenetv3`.
    | `GROQ_MODEL` | optional | e.g. `llama-3.3-70b-versatile` |
    | `OPENAI_API_KEY` | optional | TTS only |
    | `WEATHER_API_KEY` | optional | else labeled mock weather |
-   | `MARKET_API_KEY` / `DATA_GOV_API_KEY` | optional | else labeled mock market |
+   | `MARKET_API_KEY` / `DATA_GOV_API_KEY` | optional | else labeled mock market (DB snapshot still used if fresh) |
+   | `MARKET_SNAPSHOT_MAX_AGE_DAYS` | optional | default `7` — serve Agmarknet rows from Neon if scraped within N days |
    | `HF_TOKEN` | only with in-process vision | Hugging Face token |
 
 7. Generate a secret locally if needed:
@@ -133,6 +134,29 @@ Bluetooth mesh cannot reach the API; a normal hotspot can because the phone stil
 4. Wake HF Space → upload a leaf image → MobileNetV3 prediction (or safe rejection). Without `VISION_INFERENCE_URL`, falls back to heuristic.
 5. Expired/missing token → redirected to `/auth`.
 6. Airplane mode → ask a question → sees “waiting”; leave airplane / join hotspot → answer fills in.
+
+## Mandi weekly job (Agmarknet → Neon)
+
+Lookup order for market prices: **in-memory TTL (6h)** → **fresh DB snapshot (≤7 days)** → **live Agmarknet API** (write-through to DB) → labeled mock.
+
+### Local / one-shot
+
+```bash
+cd backend
+uv run python scripts/scrape_market_prices.py --upsert-db --priority --no-json
+```
+
+Needs `MARKET_API_KEY` (or `DATA_GOV_API_KEY`) and `DATABASE_URL` (Neon in prod, SQLite locally).
+
+### Render Cron
+
+`render.yaml` defines `krishiai-mandi-weekly` (Mondays 03:00 UTC). Cron services usually need a **paid** Render plan. If Blueprint skips the cron on Free:
+
+1. Create a Cron Job manually on a paid plan, same start command as above, same `DATABASE_URL` + market API key; or
+2. Run the local command weekly; or
+3. Add a GitHub Action that schedules the same script with secrets.
+
+Weather stays on short TTL only (not weekly DB) — forecasts go stale within hours.
 
 ## Local vs production
 

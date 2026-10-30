@@ -128,7 +128,13 @@ def detect_language(text: str, fallback: str = "en") -> str:
     if hi_matches >= 1 and hi_matches > kn_matches:
         return "hi"
 
-    # If no Indic script or markers found, check fallback
+    # Clear Latin/English text must not inherit preferred_language (e.g. Hindi profile
+    # was forcing English typed questions to get Hindi LLM answers).
+    latin_letters = len(re.findall(r"[A-Za-z]", text))
+    if latin_letters >= 8:
+        return "en"
+
+    # Empty / ambiguous (numbers, punctuation) → preferred language fallback
     normalized = normalize_language_code(fallback)
     return normalized if normalized in ("en", "hi", "kn") else "en"
 

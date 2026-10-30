@@ -653,8 +653,9 @@ def handle_query(
         except Exception:
             image_decoded = False
 
-        # Prefer explicit leaf selection; otherwise farm profile crop (image detect often fails).
-        crop_hint = user_selected_crop or farm_profile_crop
+        # Auto-detect: only pass an explicit UI crop to MobileNet. Do not force farm-profile
+        # crop (that caused tomato-biased conflicts when the leaf was maize/potato).
+        crop_hint = user_selected_crop
         if chosen_vision_model == "mobilenetv3":
             vision_function = "diagnose_image_with_mobilenetv3"
             inference_mechanism = (

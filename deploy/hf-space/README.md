@@ -35,6 +35,8 @@ Free Spaces sleep when idle. Open this Space URL until the UI loads, then use th
 - `requirements.txt`
 - this `README.md`
 
+**Important:** Keep Space preprocess identical to local `get_eval_transforms` (`Resize((224,224))`, not Resize+CenterCrop). Wrong crop made hosted disease labels disagree with local.
+
 ## Wire to Render
 
 Set on Render `krishiai-api`:
